@@ -1,0 +1,48 @@
+stages:
+  - deploy
+  - resolve_deploy
+ 
+deploy:
+  stage: deploy
+  only:
+    - master
+  before_script:
+# add
+  script:
+    - echo "deploy"
+    - chmod 400 $SSH_PRIVATE_KEY
+    - ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "
+      cd $WORK_DIR && git pull origin master && pm2 restart ApiCryptoWallet"
+
+
+
+
+  after_script:
+#
+  tags:
+    - $TAGNAME
+
+
+resolve_deploy:
+  stage: resolve_deploy
+  when: on_failure
+  only:
+    - master
+
+
+  before_script:
+# add next done
+  script:
+    - echo "resolve_deploy"
+    - chmod 400 $SSH_PRIVATE_KEY
+    - ssh -i $SSH_PRIVATE_KEY -o StrictHostKeyChecking=no $SSH_USER@$SSH_HOST "
+      cd $WORK_DIR && git add . && git commit -m 'Automatically resolve merge conflict' && git pull origin master && npm i && pm2 restart ApiCryptoWallet"
+
+
+  # allow_failure: true  # Allow this stage to fail without affecting the pipeline status
+
+
+  after_script:
+# add 23
+  tags:
+    - $TAGNAME

@@ -1,0 +1,69 @@
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Invoice</title>
+    <link rel="stylesheet" href="Invoice.css" />
+  </head>
+  <body>
+    <div class="invoice-wrapper">
+      <div class="invoice">
+        <div class="invoice-container">
+          <div class="invoice-head">
+            <div class="invoice-head-top">
+              <div class="invoice-head-top-left text-start">
+                <h3>TAX INVOICE</h3>
+              </div>
+              <div class="invoice-head-top-right text-end">
+                <h3>ORIGINAL FOR RECIPIENT</h3>
+              </div>
+            </div>
+            <div
+              class="Title-head-top-right text-start"
+              style="margin-bottom: 2rem;"
+            >
+              <h3>COINPERA PRIVATE LIMITED</h3>
+              <img src="logo.png" alt="logo" style="height: 50px" />
+            </div>
+
+            <div
+              style="display: flex; justify-content: space-between; align-items: center;"
+            >
+              <div>
+                <h5>Invoice #: <b>{{invoice_no}}</b></h5>
+              </div>
+
+              <div class="box">
+                <h2>Invoice Date: <b>{{date}}</b></h2>
+              </div>
+            </div>
+            <div class="container text-start">
+              <div class="box">
+                <h3>
+                  <span>Merchant Id: </span>
+                  <span>{{merchant_id}}</span>
+                </h3>
+                <h3>
+                  <span>Merchant Name:</span>
+                  <span>{{merchant_name}}</span>
+                </h3>
+
+                <h3>
+                  <span>Sender Address:</span>
+                  <span>{{sender_address}}</span>
+                </h3>
+                <h3>
+                  <span>Receiver Address: </span>
+                  <span>{{receiver_address}}</span>
+                </h3>
+              </div>
+            </div>
+          </div>
+
+          <!-- More HTML content as in the original file -->
+          <script src="helper.js"></script>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

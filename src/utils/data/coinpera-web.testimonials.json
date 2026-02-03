@@ -1,0 +1,22 @@
+[{
+  "_id": {
+    "$oid": "66cc74b2727da1d4c25eb86e"
+  },
+  "name": "Testimonials",
+  "slug": "testimonials",
+  "title": "Testimonials",
+  "subTitle": "What are customers are saying about us",
+  "heading1": "David Malan",
+  "description1": "<p>I've been using Coinpera for over a year now, and I couldn't be happier with the service. The platform is user-friendly, transactions are fast, and the fees are the lowest I've found. Plus, their customer support is always there when I need help…tell</p>",
+  "heading2": "Sarah Taylor",
+  "description2": "<p>II've been using Coinpera for over a year now, and I couldn't be happier with the service. The platform is user-friendly, transactions are fast, and the fees are the lowest I've found. Plus, their customer support is always there when I need help me.</p>",
+  "heading3": "Ben Stokes",
+  "description3": "<p>I've been using Coinpera for over a year now, and I couldn't be happier with the service. The platform is user-friendly, transactions are fast, and the fees are the lowest I've found. Plus, their customer support is always there when I need help us.&nbsp;</p>",
+  "__v": 0,
+  "createdAt": {
+    "$date": "2024-08-26T12:27:30.874Z"
+  },
+  "updatedAt": {
+    "$date": "2024-12-17T10:08:07.187Z"
+  }
+}]

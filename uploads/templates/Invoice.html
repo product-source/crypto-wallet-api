@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Invoice</title>
+    <style>
+      *,
+      *::after,
+      *::before {
+        padding: 0;
+        margin: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --blue-color: #0c2f54;
+        --dark-color: #535b61;
+        --white-color: #fff;
+      }
+
+      ul {
+        list-style-type: none;
+      }
+      ul li {
+        margin: 2px 0;
+      }
+
+      /* text colors */
+      .text-dark {
+        color: var(--dark-color);
+      }
+      .text-blue {
+        color: var(--blue-color);
+      }
+      .text-end {
+        text-align: right;
+      }
+      .text-center {
+        text-align: center;
+      }
+      .text-start {
+        text-align: left;
+      }
+
+      .text-start-item {
+        text-align: center;
+        font-size: small;
+      }
+      .text-bold {
+        font-weight: 700;
+      }
+
+      .hr {
+        height: 1px;
+        background-color: rgba(28, 109, 21, 0.1);
+      }
+
+      .border-bottom {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      }
+
+      .invoice-wrapper {
+        min-height: 100vh;
+        background-color: rgba(0, 0, 0, 0.1);
+        padding-top: 20px;
+        padding-bottom: 10px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      .invoice {
+        max-width: 850px;
+        margin-right: auto;
+        margin-left: auto;
+        background-color: var(--white-color);
+        padding: 40px;
+        border-radius: 5px;
+        min-height: 920px;
+      }
+      .invoice-head-top-left h3 {
+        font-weight: 500;
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: 2px;
+        color: rgb(163, 155, 4);
+      }
+      .invoice-head-top-right h3 {
+        font-weight: 500;
+        font-size: 14px;
+        letter-spacing: 2px;
+        color: var(--blue-color);
+      }
+
+      .Title-head-top-right {
+        font-weight: 400;
+        font-size: 20px;
+        color: black;
+      }
+      .box h2 {
+        font-size: 14px;
+        font-weight: bold;
+        color: black;
+        margin-bottom: 5px;
+      }
+
+      .box h3 {
+        font-size: 14px;
+        font-weight: normal;
+        color: black;
+      }
+
+      .box h3 span:first-of-type {
+        font-weight: bold;
+      }
+
+      .invoice-body table {
+        border-collapse: collapse;
+        border-radius: 4px;
+        width: 100%;
+      }
+      .invoice-body table td,
+      .invoice-body table th {
+        padding: 12px;
+      }
+      .invoice-body table thead {
+        background-color: rgba(0, 0, 0, 0.02);
+        border-top: 2px solid rgb(163, 155, 4);
+        border-bottom: 2px solid rgb(163, 155, 4);
+      }
+      .invoice-body table thead th {
+        font-size: 12px;
+        color: black;
+      }
+
+      .invoice-body-info-item {
+        display: grid;
+        grid-template-columns: 80% 20%;
+      }
+      .invoice-body-info-item .info-item-td {
+        padding: 5px;
+        color: black;
+        font-size: small;
+      }
+
+      .invoice-foot {
+        padding: 30px 0;
+      }
+      .invoice-foot p {
+        font-size: 12px;
+      }
+
+      .font-Size {
+        font-size: 24px;
+      }
+
+      .font-M-Size {
+        font-size: 16px;
+      }
+
+      .invoice-head-top,
+      .invoice-head-middle,
+      .invoice-head-bottom {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .invoice-body-bottom-Amount {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 3px;
+      }
+
+      .BankPayment-way {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 20px;
+      }
+
+      .BankPayment-way-left {
+      }
+
+      .BankPayment-way-left h1 {
+        font-weight: bold;
+        font-size: 16px;
+      }
+
+      .Term-Condition {
+        display: flex;
+        justify-content: start;
+        align-items: start;
+        margin-top: 2rem;
+        flex-direction: column;
+      }
+      .Term-Condition h1 {
+        color: black;
+        font-size: 12px;
+      }
+      .Term-Condition p {
+        color: black;
+        font-size: 10px;
+      }
+      .Term-Condition ul li {
+        color: black;
+        font-size: 12px;
+      }
+
+      @media screen and (max-width: 992px) {
+        .invoice {
+          padding: 40px;
+        }
+      }
+
+      @media screen and (max-width: 576px) {
+        .invoice-head-top,
+        .invoice-head-middle,
+        .invoice-head-bottom {
+          grid-template-columns: repeat(1, 1fr);
+        }
+        .invoice * {
+          text-align: left;
+        }
+        .invoice {
+          padding: 28px;
+        }
+      }
+
+      .overflow-view {
+        border-bottom: 2px solid rgb(163, 155, 4);
+      }
+
+      .footer {
+        margin-top: 2rem;
+        padding: 1rem;
+      }
+      .invoice-body {
+        min-width: 600px;
+      }
+
+      @media print {
+        .print-area {
+          visibility: visible;
+          width: 100%;
+          position: absolute;
+          left: 0;
+          top: 0;
+          overflow: hidden;
+        }
+
+        .invoice-btns {
+          display: none;
+        }
+      }
+
+      .print-button {
+        padding: 0.3rem 1rem;
+        border: 1px solid none;
+        border-radius: 3px;
+      }
+
+      .print-button:hover {
+        cursor: pointer;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="invoice-wrapper">
+      <div class="invoice">
+        <div class="invoice-container">
+          <div class="invoice-head">
+            <div class="invoice-head-top">
+              <div class="invoice-head-top-left text-start">
+                <h3>TAX INVOICE</h3>
+              </div>
+              <div class="invoice-head-top-right text-end">
+                <h3>ORIGINAL FOR RECIPIENT</h3>
+              </div>
+            </div>
+            <div
+              class="Title-head-top-right text-start"
+              style="margin-bottom: 2rem"
+            >
+              <h3>COINPERA PRIVATE LIMITED</h3>
+              <img
+                src="https://crypto-wallet.devtechnosys.tech/images/logo.png"
+                alt="logo"
+                style="height: 50px"
+              />
+            </div>
+
+            <div class="invoice-head-top-right text-end">
+              <h3>ORIGINAL FOR RECIPIENT</h3>
+            </div>
+
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+              "
+            >
+              <div>
+                <h5>Invoice #: <b id="invoice-no">{{invoice_no}}</b></h5>
+              </div>
+
+              <div class="box">
+                <h2>Invoice Date: <b id="invoice-date">{{date}}</b></h2>
+              </div>
+            </div>
+            <div class="container text-start">
+              <div class="box">
+                <h3>
+                  <span>Merchant Id: </span>
+                  <span id="merchant-id">{{merchant_id}}</span>
+                </h3>
+                <h3>
+                  <span>Merchant Name:</span>
+                  <span id="merchant-name">{{merchant_name}}</span>
+                </h3>
+
+                <h3>
+                  <span>Sender Address:</span>
+                  <span id="sender-address">{{sender_address}}</span>
+                </h3>
+                <h3>
+                  <span>Receiver Address: </span>
+                  <span id="receiver-address">{{receiver_address}}</span>
+                </h3>
+              </div>
+              <div class="box">
+                <h3>
+                  <span>App Id:</span> <span id="app-id">{{app_id}}</span>
+                </h3>
+                <h3>
+                  <span>App Name:</span> <span id="app-name">{{app_name}}</span>
+                </h3>
+
+                <h3>
+                  <span>Email: </span>
+                  <span id="email">{{email}}</span>
+                </h3>
+              </div>
+            </div>
+          </div>
+
+          <div class="overflow-view">
+            <div class="invoice-body">
+              <table>
+                <thead>
+                  <tr>
+                    <th class="text-bold">#</th>
+                    <th class="text-bold">Coin</th>
+                    <th class="text-bold">Chain Id</th>
+                    <th class="text-bold">Tx. Id</th>
+                    <th class="text-bold">Amount</th>
+                    <th class="text-bold">Platform Fee</th>
+                    <th class="text-bold">Taxable Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="text-start-item">1</td>
+                    <td class="text-start-item"><b>{{token_name}}</b></td>
+                    <td class="text-start-item">{{chainId}}</td>
+                    <td class="text-start-item">
+                      <a
+                        href="{{explorerURL}}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="View Transaction"
+                      >
+                        {{hash}}
+                      </a>
+                    </td>
+                    <td class="text-start-item">{{value}} {{token_name}}</td>
+                    <td class="text-start-item">{{platform_fee}} %</td>
+                    <td class="text-start-item">
+                      {{adminCharges}} {{token_name}}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <br /><br />
+
+              <div class="hr"></div>
+
+              <div class="invoice-body-bottom">
+                <div class="invoice-body-info-item">
+                  <div class="info-item-td text-end text-bold">Total</div>
+                  <div class="info-item-td text-end text-bold">
+                    {{totalAmount}} {{token_name}}
+                  </div>
+                </div>
+                <div class="invoice-body-info-item">
+                  <div class="info-item-td text-end text-bold">
+                    Taxable Amount
+                  </div>
+                  <div class="info-item-td text-end text-bold">
+                    {{adminCharges}} {{token_name}}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="invoice-body-bottom">
+            <div class="invoice-body-info-item">
+              <div class="info-item-td text-end text-bold">Amount Payable:</div>
+              <div class="info-item-td text-end text-bold">
+                {{withdrawAmount}} {{token_name}}
+              </div>
+            </div>
+          </div>
+
+          <div class="Term-Condition">
+            <p style="font-weight: bold; margin-top: 1rem">
+              Declaration: This invoice is computer-generated and does not
+              require a signature.
+            </p>
+            <h1 style="font-weight: bold">Notes:</h1>
+            <ul>
+              <li>
+                1. Withdrawals will be processed only if they meet the minimum
+                limit specified.
+              </li>
+              <li>
+                2. Any complaints regarding invoices must be raised within 7
+                days after the issue has been resolved by the gateway provider.
+              </li>
+              <li>
+                3. A platform fee of {{platform_fee}} % will be applied to each
+                withdrawal.
+              </li>
+              <li>
+                4. All details provided in the invoice are verified by the
+                gateway.
+              </li>
+              <li>
+                5. While funds are securely transferred to the respective user
+                or merchant, the provider does not guarantee complete protection
+                against fraudulent activities.
+              </li>
+            </ul>
+            <p
+              style="
+                display: flex;
+                justify-content: center;
+                align-items: center;
+              "
+            >
+              Thank you for doing business with us! We believe success is
+              spelled with your support and partnership.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

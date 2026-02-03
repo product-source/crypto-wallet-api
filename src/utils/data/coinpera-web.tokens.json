@@ -1,0 +1,260 @@
+[{
+  "_id": {
+    "$oid": "678f433a20234ef95f04208c"
+  },
+  "address": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+  "chainId": "BTC",
+  "network": "BITCOIN",
+  "symbol": "BTC",
+  "code": "BTC",
+  "minWithdraw": 0.00001,
+  "minDeposit": 0.0001,
+  "decimal": 8,
+  "__v": 0,
+  "createdAt": {
+    "$date": "2025-01-21T06:48:26.435Z"
+  },
+  "updatedAt": {
+    "$date": "2025-01-21T06:48:26.435Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "678f433a20234ef95f04208d"
+  },
+  "address": "TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs",
+  "chainId": "TRON",
+  "network": "TRON",
+  "symbol": "USDT",
+  "code": "USDT.TRX",
+  "minWithdraw": 5,
+  "minDeposit": 10,
+  "decimal": 6,
+  "__v": 0,
+  "createdAt": {
+    "$date": "2025-01-21T06:48:26.435Z"
+  },
+  "updatedAt": {
+    "$date": "2025-01-21T06:48:26.435Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "678f433a20234ef95f04208e"
+  },
+  "address": "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd",
+  "chainId": "97",
+  "network": "BINANCE SMART CHAIN",
+  "symbol": "WBNB",
+  "code": "WBNB",
+  "minWithdraw": 7.23,
+  "minDeposit": 0.015,
+  "decimal": 18,
+  "__v": 0,
+  "createdAt": {
+    "$date": "2025-01-21T06:48:26.436Z"
+  },
+  "updatedAt": {
+    "$date": "2025-01-21T06:48:26.436Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "678f433a20234ef95f04208f"
+  },
+  "address": "0x614BcD0853EFeE164Df71601B10904EA661C0fFD",
+  "chainId": "80002",
+  "network": "POLYGON",
+  "symbol": "USDT",
+  "code": "USDT.MATIC",
+  "minWithdraw": 0.0001,
+  "minDeposit": 10,
+  "decimal": 18,
+  "__v": 0,
+  "createdAt": {
+    "$date": "2025-01-21T06:48:26.436Z"
+  },
+  "updatedAt": {
+    "$date": "2025-01-21T06:48:26.436Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "678f433a20234ef95f042090"
+  },
+  "address": "0x5A738Ced8A0e063C0e8d06Fce3D116fAF812F5b8",
+  "chainId": "80002",
+  "network": "POLYGON",
+  "symbol": "USDC",
+  "code": "USDC.MATIC",
+  "minWithdraw": 0.05,
+  "minDeposit": 10,
+  "decimal": 18,
+  "__v": 0,
+  "createdAt": {
+    "$date": "2025-01-21T06:48:26.436Z"
+  },
+  "updatedAt": {
+    "$date": "2025-01-21T06:48:26.436Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "678f433a20234ef95f042091"
+  },
+  "address": "0x614BcD0853EFeE164Df71601B10904EA661C0fFD",
+  "chainId": "97",
+  "network": "BINANCE SMART CHAIN",
+  "symbol": "USDT",
+  "code": "USDT.BNB",
+  "minWithdraw": 3.2,
+  "minDeposit": 10,
+  "decimal": 18,
+  "__v": 0,
+  "createdAt": {
+    "$date": "2025-01-21T06:48:26.436Z"
+  },
+  "updatedAt": {
+    "$date": "2025-01-21T06:48:26.436Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "678f433a20234ef95f042092"
+  },
+  "address": "0x5A738Ced8A0e063C0e8d06Fce3D116fAF812F5b8",
+  "chainId": "11155111",
+  "network": "ETHEREUM",
+  "symbol": "USDT",
+  "code": "USDT.ETH",
+  "minWithdraw": 0.0801,
+  "minDeposit": 10,
+  "decimal": 18,
+  "__v": 0,
+  "createdAt": {
+    "$date": "2025-01-21T06:48:26.436Z"
+  },
+  "updatedAt": {
+    "$date": "2025-01-21T06:48:26.436Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "678f433a20234ef95f042093"
+  },
+  "address": "0x5A738Ced8A0e063C0e8d06Fce3D116fAF812F5b8",
+  "chainId": "97",
+  "network": "BINANCE SMART CHAIN",
+  "symbol": "USDC",
+  "code": "USDC.BNB",
+  "minWithdraw": 2.6,
+  "minDeposit": 10,
+  "decimal": 18,
+  "__v": 0,
+  "createdAt": {
+    "$date": "2025-01-21T06:48:26.436Z"
+  },
+  "updatedAt": {
+    "$date": "2025-01-21T06:48:26.436Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "678f433a20234ef95f042094"
+  },
+  "address": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+  "chainId": "TRON",
+  "network": "TRON",
+  "symbol": "TRX",
+  "code": "TRX",
+  "minWithdraw": 0.3,
+  "minDeposit": 1,
+  "decimal": 6,
+  "__v": 0,
+  "createdAt": {
+    "$date": "2025-01-21T06:48:26.436Z"
+  },
+  "updatedAt": {
+    "$date": "2025-01-21T06:48:26.436Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "678f433a20234ef95f042095"
+  },
+  "address": "0x65e918fC669a3324aEC09d504bE91f0Ab0595B5C",
+  "chainId": "11155111",
+  "network": "ETHEREUM",
+  "symbol": "USDC",
+  "code": "USDC.ETH",
+  "minWithdraw": 5,
+  "minDeposit": 5,
+  "decimal": 18,
+  "__v": 0,
+  "createdAt": {
+    "$date": "2025-01-21T06:48:26.437Z"
+  },
+  "updatedAt": {
+    "$date": "2025-01-21T06:48:26.437Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "678f433a20234ef95f042096"
+  },
+  "address": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+  "chainId": "97",
+  "network": "BINANCE SMART CHAIN",
+  "symbol": "BNB",
+  "code": "BNB",
+  "minWithdraw": 0.0001,
+  "minDeposit": 0.015,
+  "decimal": 18,
+  "__v": 0,
+  "createdAt": {
+    "$date": "2025-01-21T06:48:26.437Z"
+  },
+  "updatedAt": {
+    "$date": "2025-01-21T06:48:26.437Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "678f433a20234ef95f042097"
+  },
+  "address": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+  "chainId": "11155111",
+  "network": "ETHEREUM",
+  "symbol": "ETH",
+  "code": "ETH",
+  "minWithdraw": 0.0001,
+  "minDeposit": 0.003,
+  "decimal": 18,
+  "__v": 0,
+  "createdAt": {
+    "$date": "2025-01-21T06:48:26.437Z"
+  },
+  "updatedAt": {
+    "$date": "2025-01-21T06:48:26.437Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "678f433a20234ef95f042098"
+  },
+  "address": "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+  "chainId": "80002",
+  "network": "POLYGON",
+  "symbol": "MATIC",
+  "code": "MATIC",
+  "minWithdraw": 0.0001,
+  "minDeposit": 10,
+  "decimal": 18,
+  "__v": 0,
+  "createdAt": {
+    "$date": "2025-01-21T06:48:26.437Z"
+  },
+  "updatedAt": {
+    "$date": "2025-01-21T06:48:26.437Z"
+  }
+}]

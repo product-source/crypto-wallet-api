@@ -1,0 +1,24 @@
+[{
+  "_id": {
+    "$oid": "66cc7588050f07cf8f4dbebb"
+  },
+  "name": "How it Works",
+  "slug": "how-it-works",
+  "title": "How it Works 36",
+  "subTitle": "How our platform works for smooth transactions",
+  "heading1": "Select the preferred Crytocurrency",
+  "description1": "<p>Select the preferred cryptocurrency platform from the various available options.&nbsp;</p>",
+  "heading2": "Request the amount and cryptocurrenciess",
+  "description2": "<p>Select the wallet by which they wanted to make the Payment from various options&nbsp;</p>",
+  "heading3": "Select the wallet to make payment",
+  "description3": "<p>Select the wallet by which they wanted to make the Payment from various options ye.</p>",
+  "heading4": "Receive the number of cryptocurrencies",
+  "description4": "<p>Payment Gateway settles the transaction, converting the cryptocurrency payment yes.</p>",
+  "__v": 0,
+  "createdAt": {
+    "$date": "2024-08-26T12:31:04.259Z"
+  },
+  "updatedAt": {
+    "$date": "2024-12-20T04:40:52.019Z"
+  }
+}]

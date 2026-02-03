@@ -1,0 +1,27 @@
+[{
+  "_id": {
+    "$oid": "66c8150b6e5173ca50b73a83"
+  },
+  "name": "Super Admin",
+  "email": "newsletter@coinpera.com",
+  "contactNumber": "8547852014",
+  "password": "$2b$12$BBhztMonMnd2APDSFT0YcuxK4vQdKe/V1.qhoq8mvaXaxBpixIrW.",
+  "verificationToken": null,
+  "__v": 0,
+  "createdAt": {
+    "$date": "2024-08-23T04:50:19.758Z"
+  },
+  "updatedAt": {
+    "$date": "2024-12-20T11:59:44.834Z"
+  },
+  "merchantFee": 5,
+  "merchantFeeWallet": "0xF2dE259b69726A3890e33Ba8116B53FE015484e4",
+  "adminWallet": "0x5B18D497d088540c4434Db7824cC9b1b06f02805",
+  "platformFee": 5,
+  "tronAdminWallet": "TVU1jLf2JcAucktkeYYMKjXJFBXcbrSfut",
+  "btcAdminWallet": "tb1q8m54kc9j7vzdp4xcqqlu5pe8yc5v0zvurnrwvg",
+  "tronMerchantFee": 10,
+  "tronPlatformFee": 10,
+  "btcMerchantFee": 15,
+  "btcPlatformFee": 5
+}]

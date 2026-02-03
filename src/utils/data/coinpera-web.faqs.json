@@ -1,0 +1,126 @@
+[{
+  "_id": {
+    "$oid": "66c816af4b4cc9599f1ed655"
+  },
+  "question": "Hello how can we help you?",
+  "answer": "I want to know about your websites",
+  "__v": 0,
+  "createdAt": {
+    "$date": "2024-08-23T04:57:19.402Z"
+  },
+  "updatedAt": {
+    "$date": "2024-08-23T04:57:19.402Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "66c816af4b4cc9599f1ed654"
+  },
+  "question": "How can I get technical support?",
+  "answer": "Our technical support team is available 24/7 to assist you. You can contact us via phone, email, or live chat. Additionally, our website features a comprehensive knowledge base and community forum for self-help.",
+  "__v": 0,
+  "createdAt": {
+    "$date": "2024-08-23T04:57:19.402Z"
+  },
+  "updatedAt": {
+    "$date": "2024-08-23T04:57:19.402Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "66c816af4b4cc9599f1ed657"
+  },
+  "question": "Hello how can we help you?",
+  "answer": "I want to know about your websites ...how",
+  "__v": 0,
+  "createdAt": {
+    "$date": "2024-08-23T04:57:19.403Z"
+  },
+  "updatedAt": {
+    "$date": "2024-08-23T04:57:19.403Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "66c816af4b4cc9599f1ed659"
+  },
+  "question": "What services do you offer?",
+  "answer": "We offer a wide range of services including consulting, product development, customer support, and maintenance. Our goal is to deliver comprehensive solutions that help our clients achieve their business objectives.",
+  "__v": 0,
+  "createdAt": {
+    "$date": "2024-08-23T04:57:19.403Z"
+  },
+  "updatedAt": {
+    "$date": "2024-08-23T04:57:19.403Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "66c816af4b4cc9599f1ed658"
+  },
+  "question": "What is your services?",
+  "answer": "Our services is to provide high-quality products and services that meet the needs and expectations of our customers, while maintaining a commitment to sustainability and innovation.",
+  "__v": 0,
+  "createdAt": {
+    "$date": "2024-08-23T04:57:19.403Z"
+  },
+  "updatedAt": {
+    "$date": "2024-08-23T04:57:19.403Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "66c816af4b4cc9599f1ed65a"
+  },
+  "question": "Hello how can we help you?",
+  "answer": "I want to know about your websites",
+  "__v": 0,
+  "createdAt": {
+    "$date": "2024-08-23T04:57:19.403Z"
+  },
+  "updatedAt": {
+    "$date": "2024-08-23T04:57:19.403Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "66c816af4b4cc9599f1ed65b"
+  },
+  "question": "Hello how can we help you?",
+  "answer": "I want to know about your websites",
+  "__v": 0,
+  "createdAt": {
+    "$date": "2024-08-23T04:57:19.403Z"
+  },
+  "updatedAt": {
+    "$date": "2024-12-20T04:31:17.946Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "66c816af4b4cc9599f1ed656"
+  },
+  "question": "Hello how can we help you?",
+  "answer": "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged",
+  "__v": 0,
+  "createdAt": {
+    "$date": "2024-08-23T04:57:19.403Z"
+  },
+  "updatedAt": {
+    "$date": "2024-08-23T04:57:19.403Z"
+  }
+},
+{
+  "_id": {
+    "$oid": "676507ce63662b6345ba6a5a"
+  },
+  "question": "sdf",
+  "answer": "sdf",
+  "createdAt": {
+    "$date": "2024-12-20T05:59:42.765Z"
+  },
+  "updatedAt": {
+    "$date": "2024-12-20T05:59:42.765Z"
+  },
+  "__v": 0
+}]

@@ -1,0 +1,24 @@
+[{
+  "_id": {
+    "$oid": "66cc767f8626d8f120f32580"
+  },
+  "name": "Pricing",
+  "slug": "pricing",
+  "title": "Pricing",
+  "heading1": "Monthly Plan",
+  "description1": "<ul><li>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor se incididunt ut labore et dolore</li><li>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod</li><li>Lorem ipsum dolor sit amet, consectetur amet adipiscing elit, sed do eiusmod tempor incididunt ut</li><li>Lorem ipsum dolor sit amet, consectetur adipiscing</li><li>Lorem ipsum dolor sit amet, consectetur amet adipiscing elit, sed do eiusmod tempor incididunt ut qwqw</li><li>Lorem ipsum dolor sit amet, consectetur adipiscing teststst kkk</li></ul>",
+  "heading2": "Quarterly Plan",
+  "description2": "<ul><li>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor se incididunt ut labore et dolore</li><li>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod</li><li>Lorem ipsum dolor sit amet, consectetur amet adipiscing elit, sed do eiusmod tempor incididunt ut</li><li>Lorem ipsum dolor sit amet, consectetur adipiscing</li><li>Lorem ipsum dolor sit amet, consectetur amet adipiscing elit, sed do eiusmod tempor incididunt ut qwqw</li><li>Lorem ipsum dolor sit amet, consectetur adipiscing teststst hhh</li></ul>",
+  "heading3": "Yearly Plan",
+  "description3": "<ul><li>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor se incididunt ut labore et dolore</li><li>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod</li><li>Lorem ipsum dolor sit amet, consectetur amet adipiscing elit, sed do eiusmod tempor incididunt ut</li><li>Lorem ipsum dolor sit amet, consectetur adipiscing</li><li>Lorem ipsum dolor sit amet, consectetur amet adipiscing elit, sed do eiusmod tempor incididunt ut qwqw</li><li>Lorem ipsum dolor sit amet, consectetur adipiscing teststst hii vikasss</li></ul>",
+  "subHeading1": "1000 USD",
+  "subHeading2": "1200 USD",
+  "subHeading3": "2000 USD",
+  "__v": 0,
+  "createdAt": {
+    "$date": "2024-08-26T12:35:11.334Z"
+  },
+  "updatedAt": {
+    "$date": "2024-12-17T09:52:03.598Z"
+  }
+}]
