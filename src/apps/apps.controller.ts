@@ -21,7 +21,7 @@ import { JwtAuthGuard } from "src/auth/jwt-auth.guard";
 import { PermissionsGuard } from "src/auth/guards/permissions.guard";
 import { Permissions } from "src/auth/decorators/permissions.decorator";
 import { Permission } from "src/auth/enums/role.enum";
-import { UpdateWebhookDto } from "src/webhook/dto/webhook.dto";
+import { UpdateWebhookDto, GetWebhookLogsDto } from "src/webhook/dto/webhook.dto";
 import { WebhookService } from "src/webhook/webhook.service";
 
 @UseGuards(JwtAuthGuard)
@@ -156,16 +156,14 @@ export class AppsController {
     return this.appsService.viewMerchantApp(id);
   }
 
-  @Put("webhook/update")
-  updateWebhook(@Request() req, @Query() query, @Body() dto: UpdateWebhookDto) {
-    const { user } = req;
-    return this.appsService.updateWebhook(user, query, dto);
+  // Webhook endpoints - API Key authentication (no JWT required)
+  @Post("webhook/update")
+  updateWebhook(@Body() dto: UpdateWebhookDto) {
+    return this.appsService.updateWebhookWithApiKey(dto);
   }
 
-  @Get("webhook/logs")
-  getWebhookLogs(@Request() req, @Query() query) {
-    const { user } = req;
-    const { appId } = query;
-    return this.webhookService.getWebhookLogs(appId, query);
+  @Post("webhook/logs")
+  getWebhookLogs(@Body() dto: GetWebhookLogsDto) {
+    return this.appsService.getWebhookLogsWithApiKey(dto);
   }
 }

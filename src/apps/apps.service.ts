@@ -36,6 +36,7 @@ import {
   FiatWithdrawDocument,
 } from "src/merchant-app-tx/schema/fiat-withdraw.schema";
 import { Merchant, MerchantDocument } from "src/merchants/schema/merchant.schema";
+import { WebhookService } from "src/webhook/webhook.service";
 
 @Injectable()
 export class AppsService {
@@ -59,7 +60,8 @@ export class AppsService {
     @InjectModel(FiatWithdraw.name)
     private readonly fiatWithdrawModel: Model<FiatWithdrawDocument>,
 
-    private encryptionService: EncryptionService
+    private encryptionService: EncryptionService,
+    private webhookService: WebhookService
   ) { }
 
   async addApp(user, dto: CreateAppsDto, file: any) {
@@ -784,4 +786,80 @@ export class AppsService {
       }
     }
   }
+
+  // API Key authenticated webhook methods
+  async updateWebhookWithApiKey(dto) {
+    try {
+      const { appId, apiKey, secretKey, webhookUrl, webhookSecret } = dto;
+
+      const app = await this.appsModel.findById(appId);
+      if (!app) {
+        throw new NotFoundException("App not found");
+      }
+
+      // Validate API Key and Secret Key
+      const storedApiKey = this.encryptionService.decryptData(app.API_KEY);
+      const storedSecretKey = this.encryptionService.decryptData(app.SECRET_KEY);
+
+      if (apiKey !== storedApiKey) {
+        throw new BadRequestException("Invalid API Key");
+      }
+      if (secretKey !== storedSecretKey) {
+        throw new BadRequestException("Invalid Secret Key");
+      }
+
+      const updateData: any = { webhookUrl };
+      if (webhookSecret) {
+        updateData.webhookSecret = this.encryptionService.encryptData(webhookSecret);
+      }
+
+      await this.appsModel.updateOne({ _id: appId }, { $set: updateData });
+
+      return {
+        status: true,
+        message: "Webhook configuration updated successfully",
+        webhookUrl,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      } else {
+        console.log("An error occurred:", error.message);
+        throw new BadRequestException(error.message || "Failed to update webhook");
+      }
+    }
+  }
+
+  async getWebhookLogsWithApiKey(dto) {
+    try {
+      const { appId, apiKey, secretKey, pageNo = 1, limitVal = 20, status, event } = dto;
+
+      const app = await this.appsModel.findById(appId);
+      if (!app) {
+        throw new NotFoundException("App not found");
+      }
+
+      // Validate API Key and Secret Key
+      const storedApiKey = this.encryptionService.decryptData(app.API_KEY);
+      const storedSecretKey = this.encryptionService.decryptData(app.SECRET_KEY);
+
+      if (apiKey !== storedApiKey) {
+        throw new BadRequestException("Invalid API Key");
+      }
+      if (secretKey !== storedSecretKey) {
+        throw new BadRequestException("Invalid Secret Key");
+      }
+
+      // Call webhook service to get logs
+      return await this.webhookService.getWebhookLogs(appId, { pageNo, limitVal, status, event });
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      } else {
+        console.log("An error occurred:", error.message);
+        throw new BadRequestException(error.message || "Failed to get webhook logs");
+      }
+    }
+  }
 }
+

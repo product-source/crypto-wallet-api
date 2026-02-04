@@ -1,6 +1,18 @@
-import { IsNotEmpty, IsString, IsUrl, IsOptional } from "class-validator";
+import { IsNotEmpty, IsString, IsUrl, IsOptional, IsNumber } from "class-validator";
 
 export class UpdateWebhookDto {
+  @IsNotEmpty()
+  @IsString()
+  appId: string;
+
+  @IsNotEmpty()
+  @IsString()
+  apiKey: string;
+
+  @IsNotEmpty()
+  @IsString()
+  secretKey: string;
+
   @IsNotEmpty()
   @IsUrl()
   webhookUrl: string;
@@ -8,6 +20,36 @@ export class UpdateWebhookDto {
   @IsOptional()
   @IsString()
   webhookSecret?: string;
+}
+
+export class GetWebhookLogsDto {
+  @IsNotEmpty()
+  @IsString()
+  appId: string;
+
+  @IsNotEmpty()
+  @IsString()
+  apiKey: string;
+
+  @IsNotEmpty()
+  @IsString()
+  secretKey: string;
+
+  @IsOptional()
+  @IsNumber()
+  pageNo?: number;
+
+  @IsOptional()
+  @IsNumber()
+  limitVal?: number;
+
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  @IsOptional()
+  @IsString()
+  event?: string;
 }
 
 export class WebhookPayloadDto {
