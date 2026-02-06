@@ -1053,6 +1053,16 @@ let TransactionService = TransactionService_1 = class TransactionService {
                         tokenName: "BTC",
                     },
                 });
+                const paymentLink = await this.paymentLinkModel.findById(item.paymentLinkId);
+                if (paymentLink) {
+                    await this.webhookService.sendWebhook(paymentLink.appId.toString(), paymentLink._id.toString(), webhook_log_schema_1.WebhookEvent.PAYMENT_CONFIRMED, {
+                        ...paymentLink.toObject(),
+                        status: payment_enum_1.PaymentStatus.PARTIALLY_SUCCESS,
+                        hash: item.hash,
+                        fromAddress: item.senderAddress,
+                        recivedAmount: item.txAmount,
+                    });
+                }
             }
             this.logger.debug(`------------ Cron Job Started 1 MINUTE (To process btc payment) -------------- ${finalOutput.length}`);
             return finalOutput;
@@ -1117,6 +1127,10 @@ let TransactionService = TransactionService_1 = class TransactionService {
                             withdrawStatus: payment_enum_1.WithdrawPaymentStatus.SUCCESS,
                             status: payment_enum_1.PaymentStatus.SUCCESS,
                         });
+                        const paymentLink = await this.paymentLinkModel.findById(wallet?._id);
+                        if (paymentLink) {
+                            await this.webhookService.sendWebhook(paymentLink.appId.toString(), paymentLink._id.toString(), webhook_log_schema_1.WebhookEvent.PAYMENT_SUCCESS, paymentLink.toObject());
+                        }
                     }
                 }
                 catch (error) {

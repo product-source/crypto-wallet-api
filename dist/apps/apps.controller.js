@@ -74,6 +74,7 @@ let AppsController = class AppsController {
 };
 exports.AppsController = AppsController;
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Post)("add"),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)("logo", {
         storage: (0, multer_1.diskStorage)({
@@ -104,6 +105,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AppsController.prototype, "addApp", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Get)("get"),
     __param(0, (0, common_1.Request)()),
     __param(1, (0, common_1.Query)()),
@@ -112,6 +114,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AppsController.prototype, "getApp", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Get)("getById"),
     __param(0, (0, common_1.Request)()),
     __param(1, (0, common_1.Query)()),
@@ -120,6 +123,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AppsController.prototype, "getAppById", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Get)("keys"),
     __param(0, (0, common_1.Request)()),
     __param(1, (0, common_1.Query)()),
@@ -128,6 +132,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AppsController.prototype, "getKeys", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Put)("update"),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)("logo", {
         storage: (0, multer_1.diskStorage)({
@@ -159,6 +164,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AppsController.prototype, "updateApp", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Delete)("delete"),
     __param(0, (0, common_1.Request)()),
     __param(1, (0, common_1.Query)()),
@@ -167,6 +173,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AppsController.prototype, "deleteApp", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Get)("unread-notification-count"),
     __param(0, (0, common_1.Request)()),
     __metadata("design:type", Function),
@@ -206,7 +213,6 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], AppsController.prototype, "getWebhookLogs", null);
 exports.AppsController = AppsController = __decorate([
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Controller)("apps"),
     __metadata("design:paramtypes", [apps_service_1.AppsService,
         webhook_service_1.WebhookService])

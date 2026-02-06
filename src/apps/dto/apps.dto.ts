@@ -26,6 +26,10 @@ export class UpdateAppsDto {
   @IsOptional()
   @IsEnum(["WHITE", "DARK"])
   theme: string;
+
+  @IsOptional()
+  @IsString()
+  removeLogo: string;
 }
 
 //admin side

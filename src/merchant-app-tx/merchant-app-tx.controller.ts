@@ -25,11 +25,11 @@ import { PermissionsGuard } from "src/auth/guards/permissions.guard";
 import { Permissions } from "src/auth/decorators/permissions.decorator";
 import { Permission } from "src/auth/enums/role.enum";
 
-@UseGuards(JwtAuthGuard)
 @Controller("merchant-app-tx")
 export class MerchantAppTxController {
-  constructor(private readonly merchantAppTxService: MerchantAppTxService) {}
+  constructor(private readonly merchantAppTxService: MerchantAppTxService) { }
 
+  @UseGuards(JwtAuthGuard)
   @Get("generate")
   async generatePdf(): Promise<any> {
     try {
@@ -64,6 +64,7 @@ export class MerchantAppTxController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post("add")
   @UseInterceptors(FileInterceptor("file"))
   async addTransaction(
@@ -92,12 +93,14 @@ export class MerchantAppTxController {
     );
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get("merchant-tx-list")
   getMerchantTxList(@Query() query, @Request() req) {
     const { user } = req;
     return this.merchantAppTxService.getMerchatAppsAllTx(query, user);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get("tx-list")
   getTxList(@Query() query) {
     return this.merchantAppTxService.getAppTx(query);
@@ -109,12 +112,14 @@ export class MerchantAppTxController {
     return this.merchantAppTxService.getAppIdTxList(query);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post("merchant-withdraw")
   merchantWithdraw(@Request() req, @Body() dto: CryptoTransaction) {
     const { user } = req;
     return this.merchantAppTxService.merchantWithdraw(user, dto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post("merchant-fiat-withdraw")
   merchantFiatWithdraw(@Request() req, @Body() dto: WithdrawFiat) {
     const { user } = req;
@@ -122,6 +127,7 @@ export class MerchantAppTxController {
     return this.merchantAppTxService.merchantWithdrawFiat(user, dto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get("merchant-fiat-withdraw-list")
   merchantFiatWithdrawList(@Request() req, @Query() query) {
     const { user } = req;

@@ -24,7 +24,6 @@ import { Permission } from "src/auth/enums/role.enum";
 import { UpdateWebhookDto, GetWebhookLogsDto } from "src/webhook/dto/webhook.dto";
 import { WebhookService } from "src/webhook/webhook.service";
 
-@UseGuards(JwtAuthGuard)
 @Controller("apps")
 export class AppsController {
   constructor(
@@ -32,6 +31,7 @@ export class AppsController {
     private readonly webhookService: WebhookService
   ) { }
 
+  @UseGuards(JwtAuthGuard)
   @Post("add")
   @UseInterceptors(
     FileInterceptor("logo", {
@@ -70,24 +70,28 @@ export class AppsController {
     return this.appsService.addApp(user, dto, file);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get("get")
   getApp(@Request() req, @Query() query) {
     const { user } = req;
     return this.appsService.getApps(user, query);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get("getById")
   getAppById(@Request() req, @Query() query) {
     const { user } = req;
     return this.appsService.appById(user, query);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get("keys")
   getKeys(@Request() req, @Query() query) {
     const { user } = req;
     return this.appsService.getKeys(user, query);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Put("update")
   @UseInterceptors(
     FileInterceptor("logo", {
@@ -127,12 +131,14 @@ export class AppsController {
     return this.appsService.updateApp(user, query, dto, file);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete("delete")
   deleteApp(@Request() req, @Query() query) {
     const { user } = req;
     return this.appsService.deleteApp(user, query);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get("unread-notification-count")
   getUnreadNotificationCount(@Request() req) {
     const { user } = req;

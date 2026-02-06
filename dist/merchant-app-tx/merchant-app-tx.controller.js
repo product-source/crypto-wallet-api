@@ -104,12 +104,14 @@ let MerchantAppTxController = class MerchantAppTxController {
 };
 exports.MerchantAppTxController = MerchantAppTxController;
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Get)("generate"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], MerchantAppTxController.prototype, "generatePdf", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Post)("add"),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)("file")),
     __param(0, (0, common_1.Request)()),
@@ -120,6 +122,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], MerchantAppTxController.prototype, "addTransaction", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Get)("merchant-tx-list"),
     __param(0, (0, common_1.Query)()),
     __param(1, (0, common_1.Request)()),
@@ -128,6 +131,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], MerchantAppTxController.prototype, "getMerchantTxList", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Get)("tx-list"),
     __param(0, (0, common_1.Query)()),
     __metadata("design:type", Function),
@@ -142,6 +146,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], MerchantAppTxController.prototype, "getAppIdTxList", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Post)("merchant-withdraw"),
     __param(0, (0, common_1.Request)()),
     __param(1, (0, common_1.Body)()),
@@ -150,6 +155,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], MerchantAppTxController.prototype, "merchantWithdraw", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Post)("merchant-fiat-withdraw"),
     __param(0, (0, common_1.Request)()),
     __param(1, (0, common_1.Body)()),
@@ -158,6 +164,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], MerchantAppTxController.prototype, "merchantFiatWithdraw", null);
 __decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Get)("merchant-fiat-withdraw-list"),
     __param(0, (0, common_1.Request)()),
     __param(1, (0, common_1.Query)()),
@@ -197,7 +204,6 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], MerchantAppTxController.prototype, "viewFiatWithdrawl", null);
 exports.MerchantAppTxController = MerchantAppTxController = __decorate([
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Controller)("merchant-app-tx"),
     __metadata("design:paramtypes", [merchant_app_tx_service_1.MerchantAppTxService])
 ], MerchantAppTxController);

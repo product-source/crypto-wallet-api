@@ -588,11 +588,14 @@ export class AppsService {
 
       if (name) app.name = name.trim();
       if (description) app.description = description.trim();
-      const { theme } = dto;
+      const { theme, removeLogo } = dto;
       if (theme) {
         app.theme = theme;
       }
-      if (file) {
+      // Handle logo removal
+      if (removeLogo === "true") {
+        app.logo = ""; // Clear the custom logo to use platform default
+      } else if (file) {
         app.logo = file.path.replace(/\\/g, "/");
       }
 

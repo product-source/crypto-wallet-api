@@ -47,6 +47,11 @@ __decorate([
     (0, class_validator_1.IsEnum)(["WHITE", "DARK"]),
     __metadata("design:type", String)
 ], UpdateAppsDto.prototype, "theme", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], UpdateAppsDto.prototype, "removeLogo", void 0);
 class AppListDto {
 }
 exports.AppListDto = AppListDto;

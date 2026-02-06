@@ -7,6 +7,7 @@ export declare class UpdateAppsDto {
     name: string;
     description: string;
     theme: string;
+    removeLogo: string;
 }
 export declare class AppListDto {
     merchantId: string;

@@ -412,11 +412,14 @@ let AppsService = class AppsService {
                 app.name = name.trim();
             if (description)
                 app.description = description.trim();
-            const { theme } = dto;
+            const { theme, removeLogo } = dto;
             if (theme) {
                 app.theme = theme;
             }
-            if (file) {
+            if (removeLogo === "true") {
+                app.logo = "";
+            }
+            else if (file) {
                 app.logo = file.path.replace(/\\/g, "/");
             }
             await app.save();

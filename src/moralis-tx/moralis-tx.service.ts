@@ -93,7 +93,7 @@ export class TransactionService {
     private readonly adminService: AdminService,
     private encryptionService: EncryptionService,
     private readonly webhookService: WebhookService
-  ) {}
+  ) { }
 
   private readonly logger = new Logger(TransactionService.name);
 
@@ -406,7 +406,7 @@ export class TransactionService {
     console.log("Deleted App count: ", walletIdsToDelete.length);
   }
 
-  
+
   @Cron(CronExpression.EVERY_30_SECONDS)
   async withdrawPaymentFromLinksAndUpdateStatus(): Promise<any> {
     try {
@@ -444,15 +444,15 @@ export class TransactionService {
         const tokenDecimal = wallet?.tokenDecimals ?? 18;
 
         const isFiat = wallet?.transactionType === "FIAT";
-        const  receiverAddress = isFiat
+        const receiverAddress = isFiat
           ? ConfigService.keys.EVM_OWNER_ADDRESS
           : wallet?.appDetail?.EVMWalletMnemonic?.address;
         console.log({
           "isFiat": isFiat,
           "EVM_OWNER_ADDRESS": ConfigService.keys.EVM_OWNER_ADDRESS,
-          "receiverAddress" : receiverAddress
+          "receiverAddress": receiverAddress
         });
-        
+
         console.log("receiverAddress change now ---------------> ", receiverAddress);
         const privateKey = this.encryptionService.decryptData(
           wallet?.privateKey
@@ -789,7 +789,7 @@ export class TransactionService {
             // 1. Have enough amount
             // 2. Are newer than the payment link creation time
             const paymentLinkCreationTime = new Date(link['createdAt']).getTime();
-            
+
             const matchingTransaction = transactions?.data?.data
               .filter(
                 (tx) => {
@@ -799,7 +799,7 @@ export class TransactionService {
                 }
               )
               .sort((a, b) => b?.block_timestamp - a?.block_timestamp)[0];
-            
+
             if (matchingTransaction) {
               const toAddress =
                 await matchingTransaction?.raw_data?.contract[0]?.parameter
@@ -826,10 +826,10 @@ export class TransactionService {
                   { $set: status },
                   { new: true }
                 );
-      
+
                 if (updatedLink) {
                   updatedPaymentLinks.push(updatedLink);
-      
+
                   // Trigger webhook for TRON payment confirmed
                   await this.webhookService.sendWebhook(
                     updatedLink.appId.toString(),
@@ -874,9 +874,9 @@ export class TransactionService {
             const trc20balanceAmount = await e.balance;
             if (Number(trc20balanceAmount) >= Number(link?.amount)) {
               const transactions = await getTRC20Transactions(link?.toAddress);
-              
+
               const paymentLinkCreationTime = new Date(link['createdAt']).getTime();
-              
+
               const matchingTransaction = transactions?.data?.data
                 .filter((tx) => {
                   const isAmountMatch = tx?.value >= tronValueInDecimal;
@@ -900,10 +900,10 @@ export class TransactionService {
                     { $set: status },
                     { new: true }
                   );
-        
+
                   if (updatedLink) {
                     updatedPaymentLinks.push(updatedLink);
-        
+
                     // Trigger webhook for TRC20 payment confirmed
                     await this.webhookService.sendWebhook(
                       updatedLink.appId.toString(),
@@ -1455,7 +1455,7 @@ export class TransactionService {
         .find({
           chainId: BTC_CHAIN_ID,
           tokenAddress: NATIVE,
-          walletType: WalletType.PAYMENT_LINK, 
+          walletType: WalletType.PAYMENT_LINK,
           isExpiry: true,
           streamId: "",
         })
@@ -1488,7 +1488,7 @@ export class TransactionService {
       }
 
       const mergedData = paymentLinks.map((payment) => {
-        console.log('payment 122',payment)
+        console.log('payment 122', payment)
         const walletTx = walletTxList.find((wallet) => {
           return wallet.address === payment.walletAddress;
         });
@@ -1500,14 +1500,14 @@ export class TransactionService {
         // };
 
         return {
-    payment,
-    transactions:
-      walletTx &&
-      Array.isArray(walletTx.transactions) &&
-      walletTx.transactions.length > 0
-        ? walletTx.transactions
-        : null,
-  };   /// new code 
+          payment,
+          transactions:
+            walletTx &&
+              Array.isArray(walletTx.transactions) &&
+              walletTx.transactions.length > 0
+              ? walletTx.transactions
+              : null,
+        };   /// new code 
 
 
       });
@@ -1589,10 +1589,27 @@ export class TransactionService {
               recivedAmount: item.txAmount,
               tokenDecimals: "8",
               tokenName: "BTC",
-             
+
             },
           }
         );
+
+        // Trigger webhook for BTC payment confirmed
+        const paymentLink = await this.paymentLinkModel.findById(item.paymentLinkId);
+        if (paymentLink) {
+          await this.webhookService.sendWebhook(
+            paymentLink.appId.toString(),
+            paymentLink._id.toString(),
+            WebhookEvent.PAYMENT_CONFIRMED,
+            {
+              ...paymentLink.toObject(),
+              status: PaymentStatus.PARTIALLY_SUCCESS,
+              hash: item.hash,
+              fromAddress: item.senderAddress,
+              recivedAmount: item.txAmount,
+            }
+          );
+        }
       }
 
       this.logger.debug(
@@ -1651,16 +1668,16 @@ export class TransactionService {
         const fullAmount = wallet?.recivedAmount;
         // const receiverAddress = wallet?.appDetail?.BtcWalletMnemonic?.address;
 
-        const isFiat = wallet?.transactionType?.toUpperCase?.()  === "FIAT";
-        const  receiverAddress = isFiat
+        const isFiat = wallet?.transactionType?.toUpperCase?.() === "FIAT";
+        const receiverAddress = isFiat
           ? ConfigService.keys.BTC_OWNER_ADDRESS
           : wallet?.appDetail?.BtcWalletMnemonic?.address;
         console.log({
           "isFiat": isFiat,
           "BTC_OWNER_ADDRESS": ConfigService.keys.BTC_OWNER_ADDRESS,
-          "receiverAddress" : receiverAddress
+          "receiverAddress": receiverAddress
         });
-      
+
         console.log("VISHAL just abhi maine change kiya hai address dekh len bhia ---------------> ", receiverAddress);
 
 
@@ -1669,13 +1686,13 @@ export class TransactionService {
         );
 
         try {
-           console.log("🚀 BTC Transfer Started");
-      console.log("Sender Wallet: ", senderWalletAddress);
-      console.log("Receiver Wallet: ", receiverAddress);
-      console.log("Full Amount: ", fullAmount);
-      console.log("PrivateKey (decrypted): ", privateKey);
-      console.log("is Fiat" , isFiat );
-      console.log("BTC_OWNER_ADDRES" , ConfigService.keys.BTC_OWNER_ADDRESS );
+          console.log("🚀 BTC Transfer Started");
+          console.log("Sender Wallet: ", senderWalletAddress);
+          console.log("Receiver Wallet: ", receiverAddress);
+          console.log("Full Amount: ", fullAmount);
+          console.log("PrivateKey (decrypted): ", privateKey);
+          console.log("is Fiat", isFiat);
+          console.log("BTC_OWNER_ADDRES", ConfigService.keys.BTC_OWNER_ADDRESS);
 
 
           const tx = await btcTransferFromPaymentLinks(
@@ -1683,8 +1700,8 @@ export class TransactionService {
             senderWalletAddress,
             receiverAddress,
             fullAmount,
-            isFiat,                                     
-            ConfigService.keys.BTC_OWNER_ADDRESS      
+            isFiat,
+            ConfigService.keys.BTC_OWNER_ADDRESS
           );
           if (tx.txId) {
             // Update payment link model
@@ -1692,6 +1709,17 @@ export class TransactionService {
               withdrawStatus: WithdrawPaymentStatus.SUCCESS,
               status: PaymentStatus.SUCCESS,
             });
+
+            // Trigger webhook for BTC payment success
+            const paymentLink = await this.paymentLinkModel.findById(wallet?._id);
+            if (paymentLink) {
+              await this.webhookService.sendWebhook(
+                paymentLink.appId.toString(),
+                paymentLink._id.toString(),
+                WebhookEvent.PAYMENT_SUCCESS,
+                paymentLink.toObject()
+              );
+            }
           }
         } catch (error) {
           console.log(
@@ -1801,7 +1829,7 @@ export class TransactionService {
                         recivedAmount:
                           transaction?.raw_data?.contract[0]?.parameter?.value
                             ?.amount /
-                            10 ** 6 || 0, // Convert to proper unit
+                          10 ** 6 || 0, // Convert to proper unit
                         hash,
                         gas: 0, // Update if gas is available
                         gasPrice: 0, // Update if gas price is available
