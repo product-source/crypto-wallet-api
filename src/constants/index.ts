@@ -57,17 +57,17 @@ export const GET_BTC_TX_BATCH_URL =
 export const minFee = 0;
 export const maxFee = 50;
 
-export const BNB_CHAIN_ID = "97";
-export const ETH_CHAIN_ID = "11155111";
-export const POLYGON_CHAIN_ID = "80002";
+export const BNB_CHAIN_ID = ConfigService.keys.BNB_CHAIN_ID || "97";
+export const ETH_CHAIN_ID = ConfigService.keys.ETH_CHAIN_ID || "11155111";
+export const POLYGON_CHAIN_ID = ConfigService.keys.POLYGON_CHAIN_ID || "80002";
 export const BTC_CHAIN_ID = "BTC";
 export const TRON_CHAIN_ID = "TRON";
 
-export enum EVMChains {
-  BNB = BNB_CHAIN_ID,
-  ETH = ETH_CHAIN_ID,
-  POLYGON = POLYGON_CHAIN_ID,
-}
+export const EVMChains = {
+  BNB: BNB_CHAIN_ID,
+  ETH: ETH_CHAIN_ID,
+  POLYGON: POLYGON_CHAIN_ID,
+} as const;
 
 export const EVM_CHAIN_ID_LIST = [BNB_CHAIN_ID, ETH_CHAIN_ID, POLYGON_CHAIN_ID];
 

@@ -46,16 +46,16 @@ export declare const GET_BALANCE_URL = "https://api.tatum.io/v3/bitcoin/address/
 export declare const GET_BTC_TX_BATCH_URL = "https://api.tatum.io/v3/bitcoin/transaction/address/batch";
 export declare const minFee = 0;
 export declare const maxFee = 50;
-export declare const BNB_CHAIN_ID = "97";
-export declare const ETH_CHAIN_ID = "11155111";
-export declare const POLYGON_CHAIN_ID = "80002";
+export declare const BNB_CHAIN_ID: string;
+export declare const ETH_CHAIN_ID: string;
+export declare const POLYGON_CHAIN_ID: string;
 export declare const BTC_CHAIN_ID = "BTC";
 export declare const TRON_CHAIN_ID = "TRON";
-export declare enum EVMChains {
-    BNB = "97",
-    ETH = "11155111",
-    POLYGON = "80002"
-}
+export declare const EVMChains: {
+    readonly BNB: string;
+    readonly ETH: string;
+    readonly POLYGON: string;
+};
 export declare const EVM_CHAIN_ID_LIST: string[];
 export declare const AMOUNT_TO_APPROVE: bigint;
 export declare enum TIME_PERIOD {

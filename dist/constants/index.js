@@ -50,17 +50,16 @@ exports.GET_BALANCE_URL = `https://api.tatum.io/v3/bitcoin/address/balance/`;
 exports.GET_BTC_TX_BATCH_URL = "https://api.tatum.io/v3/bitcoin/transaction/address/batch";
 exports.minFee = 0;
 exports.maxFee = 50;
-exports.BNB_CHAIN_ID = "97";
-exports.ETH_CHAIN_ID = "11155111";
-exports.POLYGON_CHAIN_ID = "80002";
+exports.BNB_CHAIN_ID = config_service_1.ConfigService.keys.BNB_CHAIN_ID || "97";
+exports.ETH_CHAIN_ID = config_service_1.ConfigService.keys.ETH_CHAIN_ID || "11155111";
+exports.POLYGON_CHAIN_ID = config_service_1.ConfigService.keys.POLYGON_CHAIN_ID || "80002";
 exports.BTC_CHAIN_ID = "BTC";
 exports.TRON_CHAIN_ID = "TRON";
-var EVMChains;
-(function (EVMChains) {
-    EVMChains["BNB"] = "97";
-    EVMChains["ETH"] = "11155111";
-    EVMChains["POLYGON"] = "80002";
-})(EVMChains || (exports.EVMChains = EVMChains = {}));
+exports.EVMChains = {
+    BNB: exports.BNB_CHAIN_ID,
+    ETH: exports.ETH_CHAIN_ID,
+    POLYGON: exports.POLYGON_CHAIN_ID,
+};
 exports.EVM_CHAIN_ID_LIST = [exports.BNB_CHAIN_ID, exports.ETH_CHAIN_ID, exports.POLYGON_CHAIN_ID];
 exports.AMOUNT_TO_APPROVE = BigInt("1000000000000000000000000000000000000000");
 var TIME_PERIOD;

@@ -109,24 +109,24 @@ function getNetwork(chainId) {
             return {
                 network: "Ethereum",
                 symbol: "ETH",
-                rpc: "https://eth-sepolia.g.alchemy.com/v2/HZGTgTPiqB408bYkAdUFeDOTedqp4DBA",
-                explorerURL: "https://sepolia.etherscan.io/tx/",
+                rpc: config_service_1.ConfigService.keys.ETH_RPC_URL || "https://eth-sepolia.g.alchemy.com/v2/HZGTgTPiqB408bYkAdUFeDOTedqp4DBA",
+                explorerURL: config_service_1.ConfigService.keys.ETH_EXPLORER_URL || "https://sepolia.etherscan.io/tx/",
                 tokenType: "ERC20",
             };
         case constants_1.BNB_CHAIN_ID:
             return {
                 network: "BNB Smart Chain",
                 symbol: "BNB",
-                rpc: "https://data-seed-prebsc-1-s1.bnbchain.org:8545",
-                explorerURL: "https://testnet.bscscan.com/tx/",
+                rpc: config_service_1.ConfigService.keys.BNB_RPC_URL || "https://data-seed-prebsc-1-s1.bnbchain.org:8545",
+                explorerURL: config_service_1.ConfigService.keys.BNB_EXPLORER_URL || "https://testnet.bscscan.com/tx/",
                 tokenType: "BEP20",
             };
         case constants_1.POLYGON_CHAIN_ID:
             return {
                 network: "Polygon",
                 symbol: "MATIC",
-                rpc: "https://polygon-amoy.g.alchemy.com/v2/HZGTgTPiqB408bYkAdUFeDOTedqp4DBA",
-                explorerURL: "https://amoy.polygonscan.com/tx/",
+                rpc: config_service_1.ConfigService.keys.POLYGON_RPC_URL || "https://polygon-amoy.g.alchemy.com/v2/HZGTgTPiqB408bYkAdUFeDOTedqp4DBA",
+                explorerURL: config_service_1.ConfigService.keys.POLYGON_EXPLORER_URL || "https://amoy.polygonscan.com/tx/",
             };
         default:
             throw new Error("Unsupported chainId");
@@ -489,17 +489,17 @@ async function getEVMNativeBalance(walletAddress) {
     };
     try {
         const bscResponse = await moralis_1.default.EvmApi.balance.getNativeBalancesForAddresses({
-            chain: "0x61",
+            chain: config_service_1.ConfigService.keys.MORALIS_BSC_CHAIN || "0x61",
             walletAddresses: walletAddress,
         });
         balances.bsc = Number(await bscResponse.toJSON()[0].total_balance_formatted);
         const ethResponse = await moralis_1.default.EvmApi.balance.getNativeBalancesForAddresses({
-            chain: "0xaa36a7",
+            chain: config_service_1.ConfigService.keys.MORALIS_ETH_CHAIN || "0xaa36a7",
             walletAddresses: walletAddress,
         });
         balances.eth = Number(await ethResponse.toJSON()[0].total_balance_formatted);
         const maticResponse = await moralis_1.default.EvmApi.balance.getNativeBalancesForAddresses({
-            chain: "0x13882",
+            chain: config_service_1.ConfigService.keys.MORALIS_POLYGON_CHAIN || "0x13882",
             walletAddresses: walletAddress,
         });
         balances.matic = Number(await maticResponse.toJSON()[0].total_balance_formatted);
@@ -518,17 +518,17 @@ async function getEVMNativeBalance(walletAddress) {
 }
 const getSwapContractAddresses = (chainId) => {
     switch (chainId.toString()) {
-        case "11155111":
+        case constants_1.ETH_CHAIN_ID:
             return {
                 router: "",
                 factory: "",
             };
-        case "80002":
+        case constants_1.POLYGON_CHAIN_ID:
             return {
                 router: "",
                 factory: "",
             };
-        case "97":
+        case constants_1.BNB_CHAIN_ID:
             return {
                 router: "0x9ac64cc6e4415144c455bd8e4837fea55603e5c3",
                 factory: "0xB7926C0430Afb07AA7DEfDE6DA862aE0Bde767bc",

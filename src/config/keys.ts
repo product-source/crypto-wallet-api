@@ -25,6 +25,26 @@ export class Keys {
   BTC_OWNER_ADDRESS: string = null;
   TRON_NODE: string = null;
 
+  // EVM Network Config
+  ETH_CHAIN_ID: string = null;
+  ETH_RPC_URL: string = null;
+  ETH_EXPLORER_URL: string = null;
+  BNB_CHAIN_ID: string = null;
+  BNB_RPC_URL: string = null;
+  BNB_EXPLORER_URL: string = null;
+  POLYGON_CHAIN_ID: string = null;
+  POLYGON_RPC_URL: string = null;
+  POLYGON_EXPLORER_URL: string = null;
+
+  // Moralis hex chain IDs
+  MORALIS_BSC_CHAIN: string = null;
+  MORALIS_ETH_CHAIN: string = null;
+  MORALIS_POLYGON_CHAIN: string = null;
+
+  // Explorer URLs
+  TRON_EXPLORER_URL: string = null;
+  BTC_EXPLORER_URL: string = null;
+
   constructor() {
     try {
       require("dotenv").config();
@@ -58,5 +78,25 @@ export class Keys {
     this.EVM_OWNER_ADDRESS = process.env.EVM_OWNER_ADDRESS;
     this.BTC_OWNER_ADDRESS = process.env.BTC_OWNER_ADDRESS;
     this.TRON_NODE = process.env.TRON_NODE;
+
+    // EVM Network Config
+    this.ETH_CHAIN_ID = process.env.ETH_CHAIN_ID;
+    this.ETH_RPC_URL = process.env.ETH_RPC_URL;
+    this.ETH_EXPLORER_URL = process.env.ETH_EXPLORER_URL;
+    this.BNB_CHAIN_ID = process.env.BNB_CHAIN_ID;
+    this.BNB_RPC_URL = process.env.BNB_RPC_URL;
+    this.BNB_EXPLORER_URL = process.env.BNB_EXPLORER_URL;
+    this.POLYGON_CHAIN_ID = process.env.POLYGON_CHAIN_ID;
+    this.POLYGON_RPC_URL = process.env.POLYGON_RPC_URL;
+    this.POLYGON_EXPLORER_URL = process.env.POLYGON_EXPLORER_URL;
+
+    // Moralis hex chain IDs
+    this.MORALIS_BSC_CHAIN = process.env.MORALIS_BSC_CHAIN;
+    this.MORALIS_ETH_CHAIN = process.env.MORALIS_ETH_CHAIN;
+    this.MORALIS_POLYGON_CHAIN = process.env.MORALIS_POLYGON_CHAIN;
+
+    // Explorer URLs
+    this.TRON_EXPLORER_URL = process.env.TRON_EXPLORER_URL;
+    this.BTC_EXPLORER_URL = process.env.BTC_EXPLORER_URL;
   }
 }

@@ -6,6 +6,7 @@ import bs58 from "bs58";
 import * as crypto from "crypto";
 import axios from "axios";
 import { NATIVE } from "src/constants";
+import { ConfigService } from "src/config/config.service";
 import { fromWeiCustom, toWeiCustom } from "./helper";
 // import tron from '@api/tron';
 
@@ -15,11 +16,11 @@ import { fromWeiCustom, toWeiCustom } from "./helper";
 
 export const tronDecimal = 10 ** 6;
 
-const fullHost = "https://api.shasta.trongrid.io";
+const fullHost = ConfigService.keys.TRON_NODE || "https://api.shasta.trongrid.io";
 // const fullHost = "https://api.trongrid.io";
 const tronWeb = new TronWeb({
   fullHost: fullHost,
-  headers: { "TRON-PRO-API-KEY": "8d831a3d-aba9-40b7-9e4b-c5ba2a6b77da" },
+  headers: { "TRON-PRO-API-KEY": ConfigService.keys.TRON_GRID_API_KEY || "8d831a3d-aba9-40b7-9e4b-c5ba2a6b77da" },
 });
 
 export const getTronNativeBalance = async (addresses: string[]) => {
@@ -139,7 +140,7 @@ export const getTronTransactions = async (address) => {
   try {
     if (address) {
       const response = await axios.get(
-        `https://api.shasta.trongrid.io/v1/accounts/${address}/transactions`
+        `${fullHost}/v1/accounts/${address}/transactions`
       );
       return response;
     }
@@ -190,7 +191,7 @@ export const getTRC20Transactions = async (address) => {
   try {
     if (address) {
       const response = await axios.get(
-        `https://api.shasta.trongrid.io/v1/accounts/${address}/transactions/trc20`
+        `${fullHost}/v1/accounts/${address}/transactions/trc20`
       );
       return response;
     }
@@ -375,7 +376,7 @@ export const merchantTronFundWithdraw = async (
 
 export const getTronToAddressAllTransactions = async (address) => {
   const last100Transactions = 100;
-  const url = `https://api.shasta.trongrid.io/v1/accounts/${address}/transactions?only_to=true&limit=${last100Transactions}&search_internal=true`;
+  const url = `${fullHost}/v1/accounts/${address}/transactions?only_to=true&limit=${last100Transactions}&search_internal=true`;
 
   const headers = {
     accept: "application/json",

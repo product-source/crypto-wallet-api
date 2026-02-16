@@ -9,6 +9,7 @@ import {
 } from "src/constants";
 import { tokenABI } from "src/utils/tokenAbi.service";
 const Web3 = require("web3");
+
 import { calculateTaxes, fromWeiCustom, toWeiCustom } from "./helper";
 import Moralis from "moralis";
 import { routerV2Abi } from "src/utils/routerV2Abi.service";
@@ -114,24 +115,24 @@ export function getNetwork(chainId) {
       return {
         network: "Ethereum",
         symbol: "ETH",
-        rpc: "https://eth-sepolia.g.alchemy.com/v2/HZGTgTPiqB408bYkAdUFeDOTedqp4DBA",
-        explorerURL: "https://sepolia.etherscan.io/tx/",
+        rpc: ConfigService.keys.ETH_RPC_URL || "https://eth-sepolia.g.alchemy.com/v2/HZGTgTPiqB408bYkAdUFeDOTedqp4DBA",
+        explorerURL: ConfigService.keys.ETH_EXPLORER_URL || "https://sepolia.etherscan.io/tx/",
         tokenType: "ERC20",
       };
     case BNB_CHAIN_ID:
       return {
         network: "BNB Smart Chain",
         symbol: "BNB",
-        rpc: "https://data-seed-prebsc-1-s1.bnbchain.org:8545",
-        explorerURL: "https://testnet.bscscan.com/tx/",
+        rpc: ConfigService.keys.BNB_RPC_URL || "https://data-seed-prebsc-1-s1.bnbchain.org:8545",
+        explorerURL: ConfigService.keys.BNB_EXPLORER_URL || "https://testnet.bscscan.com/tx/",
         tokenType: "BEP20",
       };
     case POLYGON_CHAIN_ID:
       return {
         network: "Polygon",
         symbol: "MATIC",
-        rpc: "https://polygon-amoy.g.alchemy.com/v2/HZGTgTPiqB408bYkAdUFeDOTedqp4DBA",
-        explorerURL: "https://amoy.polygonscan.com/tx/",
+        rpc: ConfigService.keys.POLYGON_RPC_URL || "https://polygon-amoy.g.alchemy.com/v2/HZGTgTPiqB408bYkAdUFeDOTedqp4DBA",
+        explorerURL: ConfigService.keys.POLYGON_EXPLORER_URL || "https://amoy.polygonscan.com/tx/",
       };
 
     // case 43113:
@@ -798,7 +799,7 @@ export async function getEVMNativeBalance(walletAddress: string[]) {
   try {
     const bscResponse =
       await Moralis.EvmApi.balance.getNativeBalancesForAddresses({
-        chain: "0x61",
+        chain: ConfigService.keys.MORALIS_BSC_CHAIN || "0x61",
         walletAddresses: walletAddress,
       });
 
@@ -808,7 +809,7 @@ export async function getEVMNativeBalance(walletAddress: string[]) {
 
     const ethResponse =
       await Moralis.EvmApi.balance.getNativeBalancesForAddresses({
-        chain: "0xaa36a7",
+        chain: ConfigService.keys.MORALIS_ETH_CHAIN || "0xaa36a7",
         walletAddresses: walletAddress,
       });
     balances.eth = Number(
@@ -817,7 +818,7 @@ export async function getEVMNativeBalance(walletAddress: string[]) {
 
     const maticResponse =
       await Moralis.EvmApi.balance.getNativeBalancesForAddresses({
-        chain: "0x13882",
+        chain: ConfigService.keys.MORALIS_POLYGON_CHAIN || "0x13882",
         walletAddresses: walletAddress,
       });
     balances.matic = Number(
@@ -841,17 +842,17 @@ export async function getEVMNativeBalance(walletAddress: string[]) {
 
 const getSwapContractAddresses = (chainId) => {
   switch (chainId.toString()) {
-    case "11155111":
+    case ETH_CHAIN_ID:
       return {
         router: "",
         factory: "",
       };
-    case "80002":
+    case POLYGON_CHAIN_ID:
       return {
         router: "",
         factory: "",
       };
-    case "97":
+    case BNB_CHAIN_ID:
       return {
         router: "0x9ac64cc6e4415144c455bd8e4837fea55603e5c3",
         factory: "0xB7926C0430Afb07AA7DEfDE6DA862aE0Bde767bc",

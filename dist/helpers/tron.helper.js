@@ -46,12 +46,13 @@ const bs58_1 = __importDefault(require("bs58"));
 const crypto = __importStar(require("crypto"));
 const axios_1 = __importDefault(require("axios"));
 const constants_1 = require("../constants");
+const config_service_1 = require("../config/config.service");
 const helper_1 = require("./helper");
 exports.tronDecimal = 10 ** 6;
-const fullHost = "https://api.shasta.trongrid.io";
+const fullHost = config_service_1.ConfigService.keys.TRON_NODE || "https://api.shasta.trongrid.io";
 const tronWeb = new tronweb_1.TronWeb({
     fullHost: fullHost,
-    headers: { "TRON-PRO-API-KEY": "8d831a3d-aba9-40b7-9e4b-c5ba2a6b77da" },
+    headers: { "TRON-PRO-API-KEY": config_service_1.ConfigService.keys.TRON_GRID_API_KEY || "8d831a3d-aba9-40b7-9e4b-c5ba2a6b77da" },
 });
 const getTronNativeBalance = async (addresses) => {
     try {
@@ -134,7 +135,7 @@ function hexToTronAddress(hexString) {
 const getTronTransactions = async (address) => {
     try {
         if (address) {
-            const response = await axios_1.default.get(`https://api.shasta.trongrid.io/v1/accounts/${address}/transactions`);
+            const response = await axios_1.default.get(`${fullHost}/v1/accounts/${address}/transactions`);
             return response;
         }
     }
@@ -170,7 +171,7 @@ exports.estimateTrxForTrc20Transfer = estimateTrxForTrc20Transfer;
 const getTRC20Transactions = async (address) => {
     try {
         if (address) {
-            const response = await axios_1.default.get(`https://api.shasta.trongrid.io/v1/accounts/${address}/transactions/trc20`);
+            const response = await axios_1.default.get(`${fullHost}/v1/accounts/${address}/transactions/trc20`);
             return response;
         }
     }
@@ -307,7 +308,7 @@ const merchantTronFundWithdraw = async (privateKey, tokenContractAddress, amount
 exports.merchantTronFundWithdraw = merchantTronFundWithdraw;
 const getTronToAddressAllTransactions = async (address) => {
     const last100Transactions = 100;
-    const url = `https://api.shasta.trongrid.io/v1/accounts/${address}/transactions?only_to=true&limit=${last100Transactions}&search_internal=true`;
+    const url = `${fullHost}/v1/accounts/${address}/transactions?only_to=true&limit=${last100Transactions}&search_internal=true`;
     const headers = {
         accept: "application/json",
     };

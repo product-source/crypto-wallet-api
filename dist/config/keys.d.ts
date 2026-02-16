@@ -24,6 +24,20 @@ export declare class Keys {
     EVM_OWNER_ADDRESS: string;
     BTC_OWNER_ADDRESS: string;
     TRON_NODE: string;
+    ETH_CHAIN_ID: string;
+    ETH_RPC_URL: string;
+    ETH_EXPLORER_URL: string;
+    BNB_CHAIN_ID: string;
+    BNB_RPC_URL: string;
+    BNB_EXPLORER_URL: string;
+    POLYGON_CHAIN_ID: string;
+    POLYGON_RPC_URL: string;
+    POLYGON_EXPLORER_URL: string;
+    MORALIS_BSC_CHAIN: string;
+    MORALIS_ETH_CHAIN: string;
+    MORALIS_POLYGON_CHAIN: string;
+    TRON_EXPLORER_URL: string;
+    BTC_EXPLORER_URL: string;
     constructor();
     prepareKeys(): void;
 }

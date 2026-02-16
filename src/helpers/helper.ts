@@ -287,15 +287,15 @@ export async function txExplorer(chainId, txHash) {
   switch (chainId) {
     case ETH_CHAIN_ID:
       return {
-        explorerURL: `https://sepolia.etherscan.io/tx/${txHash}`,
+        explorerURL: `${ConfigService.keys.ETH_EXPLORER_URL || "https://sepolia.etherscan.io/tx/"}${txHash}`,
       };
     case BNB_CHAIN_ID:
       return {
-        explorerURL: `https://testnet.bscscan.com/tx/${txHash}`,
+        explorerURL: `${ConfigService.keys.BNB_EXPLORER_URL || "https://testnet.bscscan.com/tx/"}${txHash}`,
       };
     case POLYGON_CHAIN_ID:
       return {
-        explorerURL: `https://amoy.polygonscan.com/tx/${txHash}`,
+        explorerURL: `${ConfigService.keys.POLYGON_EXPLORER_URL || "https://amoy.polygonscan.com/tx/"}${txHash}`,
       };
     case "43113":
       return {
@@ -303,11 +303,11 @@ export async function txExplorer(chainId, txHash) {
       };
     case BTC_CHAIN_ID:
       return {
-        explorerURL: `https://mempool.space/testnet/tx/${txHash}`,
+        explorerURL: `${ConfigService.keys.BTC_EXPLORER_URL || "https://mempool.space/testnet/tx/"}${txHash}`,
       };
     case TRON_CHAIN_ID:
       return {
-        explorerURL: `https://shasta-tronscan.on.btfs.io/#/transaction/${txHash}`,
+        explorerURL: `${ConfigService.keys.TRON_EXPLORER_URL || "https://shasta-tronscan.on.btfs.io/#/transaction/"}${txHash}`,
       };
     default:
       throw new Error("Unsupported chainId");
