@@ -41,7 +41,7 @@ export enum CoinId {
 }
 
 export enum FiatCurrency {
-  INR = "inr",
+  TRY = "try",
   USD = "usd",
   GBP = "gbp",
   EUR = "eur",

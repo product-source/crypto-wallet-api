@@ -45,7 +45,7 @@ var CoinId;
 })(CoinId || (exports.CoinId = CoinId = {}));
 var FiatCurrency;
 (function (FiatCurrency) {
-    FiatCurrency["INR"] = "inr";
+    FiatCurrency["TRY"] = "try";
     FiatCurrency["USD"] = "usd";
     FiatCurrency["GBP"] = "gbp";
     FiatCurrency["EUR"] = "eur";

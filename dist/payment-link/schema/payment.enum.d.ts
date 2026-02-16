@@ -35,7 +35,7 @@ export declare enum CoinId {
     WBNB = "wbnb"
 }
 export declare enum FiatCurrency {
-    INR = "inr",
+    TRY = "try",
     USD = "usd",
     GBP = "gbp",
     EUR = "eur"

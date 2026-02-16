@@ -127,15 +127,15 @@ export async function getTatumPrice(currency, basePair = "USD") {
         return Number(response.data.value);
       }
     } catch (err) {
-      // If direct pair fails (e.g. TRX/INR), try bridging via USD
+      // If direct pair fails (e.g. TRX/TRY), try bridging via USD
       if (base !== "USD" && symbol !== "USD") {
         const priceInUSD = await getTatumPrice(symbol, "USD");
-        // For USD -> INR, we can ask Tatum for price of USD in INR
-        // But if symbol was USD, we handled it? No, if symbol=USD, base=INR, straight call works?
-        // Wait, if symbol=USD and base=INR, the direct call usually works (as seen in debug).
-        // But if symbol=TRX and base=INR, direct call fails.
+        // For USD -> TRY, we can ask Tatum for price of USD in TRY
+        // But if symbol was USD, we handled it? No, if symbol=USD, base=TRY, straight call works?
+        // Wait, if symbol=USD and base=TRY, the direct call usually works (as seen in debug).
+        // But if symbol=TRX and base=TRY, direct call fails.
 
-        // So we need USD -> Base (e.g. USD -> INR)
+        // So we need USD -> Base (e.g. USD -> TRY)
         const usdInBase = await getTatumPrice("USD", base);
 
         if (priceInUSD && usdInBase) {
