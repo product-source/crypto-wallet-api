@@ -82,6 +82,9 @@ export class AddPaymnetLinkDto {
   @IsEnum(FiatCurrency)
   fiatCurrency: FiatCurrency;
 
+  @IsOptional()
+  metadata: Record<string, any>;
+
   // @IsOptional()
   // @IsEnum(CoinId)
   // coinId: CoinId;

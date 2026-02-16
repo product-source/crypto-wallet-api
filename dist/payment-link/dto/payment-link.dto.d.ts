@@ -17,6 +17,7 @@ export declare class AddPaymnetLinkDto {
     cancelUrl: string;
     transactionType: TransactionType;
     fiatCurrency: FiatCurrency;
+    metadata: Record<string, any>;
 }
 export declare class DepositFundDto {
     paymentId: string;

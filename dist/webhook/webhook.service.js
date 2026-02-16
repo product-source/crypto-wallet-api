@@ -79,23 +79,34 @@ let WebhookService = WebhookService_1 = class WebhookService {
                 this.logger.debug(`No webhook URL configured for app ${appId}`);
                 return;
             }
-            const payload = {
-                event,
-                paymentId,
-                orderId: paymentData.orderId || paymentData._id,
-                amount: paymentData.amount || paymentData.recivedAmount,
-                currency: paymentData.code || paymentData.currency,
-                status: paymentData.status,
-                timestamp: Date.now(),
-                data: {
-                    hash: paymentData.hash,
-                    fromAddress: paymentData.fromAddress,
-                    toAddress: paymentData.toAddress,
-                    blockNumber: paymentData.block?.number || paymentData.blockNumber,
-                    chainId: paymentData.chainId,
-                    recivedAmount: paymentData.recivedAmount,
-                },
-            };
+            const isWithdrawalEvent = event.startsWith('withdrawal.');
+            let payload;
+            if (isWithdrawalEvent) {
+                payload = {
+                    event,
+                    ...paymentData,
+                    timestamp: Date.now(),
+                };
+            }
+            else {
+                payload = {
+                    event,
+                    paymentId,
+                    orderId: paymentData.orderId || paymentData._id,
+                    amount: paymentData.amount || paymentData.recivedAmount,
+                    currency: paymentData.code || paymentData.currency,
+                    status: paymentData.status,
+                    timestamp: Date.now(),
+                    data: {
+                        hash: paymentData.hash,
+                        fromAddress: paymentData.fromAddress,
+                        toAddress: paymentData.toAddress,
+                        blockNumber: paymentData.block?.number || paymentData.blockNumber,
+                        chainId: paymentData.chainId,
+                        recivedAmount: paymentData.recivedAmount,
+                    },
+                };
+            }
             let webhookSecret;
             try {
                 if (app.webhookSecret) {

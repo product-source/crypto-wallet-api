@@ -40,7 +40,7 @@ exports.formatDate = exports.trimAddress = exports.formatNumber = exports.genera
 exports.fromWeiCustom = fromWeiCustom;
 exports.toWeiCustom = toWeiCustom;
 exports.getCoingeckoSymbol = getCoingeckoSymbol;
-exports.getCoingeckoPrice = getCoingeckoPrice;
+exports.getTatumPrice = getTatumPrice;
 exports.sumBalances = sumBalances;
 exports.isValidWalletAddress = isValidWalletAddress;
 exports.txExplorer = txExplorer;
@@ -95,15 +95,36 @@ function getCoingeckoSymbol(normalSymbol) {
             return normalSymbol;
     }
 }
-async function getCoingeckoPrice(currency) {
+async function getTatumPrice(currency, basePair = "USD") {
     try {
-        const cg_url = `${config_service_1.ConfigService.keys.COINGECKO_PRO_URL}/api/v3/simple/price?ids=bitcoin,ethereum,matic-network,tether,usd-coin,binancecoin,avalanche-2,tron&vs_currencies=${currency ?? "usd"}`;
-        const response = await axios_1.default.get(cg_url, {
-            headers: index_1.cgHeaders,
-        });
-        return response;
+        const symbol = currency.toUpperCase();
+        const base = basePair.toUpperCase();
+        const tatumUrl = `https://api.tatum.io/v3/tatum/rate/${symbol}?basePair=${base}`;
+        try {
+            const response = await axios_1.default.get(tatumUrl, {
+                headers: {
+                    "x-api-key": config_service_1.ConfigService.keys.TATUM_X_API_KEY,
+                    accept: "application/json",
+                },
+            });
+            if (response.data && response.data.value) {
+                return Number(response.data.value);
+            }
+        }
+        catch (err) {
+            if (base !== "USD" && symbol !== "USD") {
+                const priceInUSD = await getTatumPrice(symbol, "USD");
+                const usdInBase = await getTatumPrice("USD", base);
+                if (priceInUSD && usdInBase) {
+                    return priceInUSD * usdInBase;
+                }
+            }
+            throw err;
+        }
+        return null;
     }
     catch (error) {
+        console.error("Error fetching Tatum price:", error?.response?.data || error.message);
         return null;
     }
 }

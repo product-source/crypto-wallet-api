@@ -1,6 +1,5 @@
 import {
   BNB_CHAIN_ID,
-  cgHeaders,
   ETH_CHAIN_ID,
   EVM_CHAIN_ID_LIST,
   POLYGON_CHAIN_ID,
@@ -107,17 +106,54 @@ export function getCoingeckoSymbol(normalSymbol) {
   }
 }
 
-export async function getCoingeckoPrice(currency) {
+export async function getTatumPrice(currency, basePair = "USD") {
   try {
-    const cg_url = `${ConfigService.keys.COINGECKO_PRO_URL}/api/v3/simple/price?ids=bitcoin,ethereum,matic-network,tether,usd-coin,binancecoin,avalanche-2,tron&vs_currencies=${currency ?? "usd"}`;
-    const response = await axios.get(cg_url, {
-      headers: cgHeaders,
-    });
-    return response;
+    // Tatum expects symbols like BTC, ETH, USDT (uppercase)
+    const symbol = currency.toUpperCase();
+    const base = basePair.toUpperCase();
+
+    const tatumUrl = `https://api.tatum.io/v3/tatum/rate/${symbol}?basePair=${base}`;
+
+    try {
+      const response = await axios.get(tatumUrl, {
+        headers: {
+          "x-api-key": ConfigService.keys.TATUM_X_API_KEY,
+          accept: "application/json",
+        },
+      });
+
+      // Tatum returns { value: "1234.56" }
+      if (response.data && response.data.value) {
+        return Number(response.data.value);
+      }
+    } catch (err) {
+      // If direct pair fails (e.g. TRX/INR), try bridging via USD
+      if (base !== "USD" && symbol !== "USD") {
+        const priceInUSD = await getTatumPrice(symbol, "USD");
+        // For USD -> INR, we can ask Tatum for price of USD in INR
+        // But if symbol was USD, we handled it? No, if symbol=USD, base=INR, straight call works?
+        // Wait, if symbol=USD and base=INR, the direct call usually works (as seen in debug).
+        // But if symbol=TRX and base=INR, direct call fails.
+
+        // So we need USD -> Base (e.g. USD -> INR)
+        const usdInBase = await getTatumPrice("USD", base);
+
+        if (priceInUSD && usdInBase) {
+          return priceInUSD * usdInBase;
+        }
+      }
+      throw err;
+    }
+    return null;
   } catch (error) {
+    console.error("Error fetching Tatum price:", error?.response?.data || error.message);
     return null;
   }
 }
+
+// DEPRECATED: Use getTatumPrice instead
+// export async function getCoingeckoPrice(currency) { ... }
+
 
 // Example usage
 export function sumBalances(data) {
@@ -241,9 +277,8 @@ export const formatDate = (dateString) => {
   const minutes = date.getMinutes();
 
   // Format the date in "DD-Mon-YYYY hh:mmAM/PM" format
-  const formattedDate = `${day}-${monthNames[monthIndex]}-${year} ${
-    hours % 12 || 12
-  }:${minutes < 10 ? "0" + minutes : minutes}${hours >= 12 ? " PM" : " AM"}`;
+  const formattedDate = `${day}-${monthNames[monthIndex]}-${year} ${hours % 12 || 12
+    }:${minutes < 10 ? "0" + minutes : minutes}${hours >= 12 ? " PM" : " AM"}`;
 
   return formattedDate;
 };
@@ -312,7 +347,7 @@ export async function calculateTaxes(fullAmount, adminPaymentLinksCharges) {
   let adminAmount = 0;
   try {
     // Perform calculations with floating-point numbers
-    merchantAmount   = fullAmount / (1 + adminPaymentLinksCharges / 100);
+    merchantAmount = fullAmount / (1 + adminPaymentLinksCharges / 100);
     // adminAmount = fullAmount - adminAmountCharge;
     adminAmount = fullAmount - merchantAmount;
   } catch (error) {

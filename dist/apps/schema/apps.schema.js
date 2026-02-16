@@ -116,6 +116,34 @@ __decorate([
     (0, mongoose_1.Prop)({ select: false }),
     __metadata("design:type", String)
 ], Apps.prototype, "webhookSecret", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: true }),
+    __metadata("design:type", Boolean)
+], Apps.prototype, "isUserWithdrawalEnabled", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: true }),
+    __metadata("design:type", Boolean)
+], Apps.prototype, "isAutoWithdrawalEnabled", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: 100 }),
+    __metadata("design:type", Number)
+], Apps.prototype, "maxAutoWithdrawalLimit", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: 0 }),
+    __metadata("design:type", Number)
+], Apps.prototype, "minWithdrawalAmount", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: 0 }),
+    __metadata("design:type", Number)
+], Apps.prototype, "dailyWithdrawalRequestLimit", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: 0 }),
+    __metadata("design:type", Number)
+], Apps.prototype, "dailyWithdrawalAmountLimit", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: 0 }),
+    __metadata("design:type", Number)
+], Apps.prototype, "withdrawalCooldownMinutes", void 0);
 exports.Apps = Apps = __decorate([
     (0, mongoose_1.Schema)({
         timestamps: true,

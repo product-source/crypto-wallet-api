@@ -9,6 +9,14 @@ export enum WebhookEvent {
   PAYMENT_CONFIRMED = "payment.confirmed",
   PAYMENT_SUCCESS = "payment.success",
   PAYMENT_EXPIRED = "payment.expired",
+  // User Withdrawal Events
+  WITHDRAWAL_PENDING = "withdrawal.pending",
+  WITHDRAWAL_AUTO_APPROVED = "withdrawal.auto_approved",
+  WITHDRAWAL_APPROVED = "withdrawal.approved",
+  WITHDRAWAL_PROCESSING = "withdrawal.processing",
+  WITHDRAWAL_SUCCESS = "withdrawal.success",
+  WITHDRAWAL_FAILED = "withdrawal.failed",
+  WITHDRAWAL_DECLINED = "withdrawal.declined",
 }
 
 export enum WebhookStatus {

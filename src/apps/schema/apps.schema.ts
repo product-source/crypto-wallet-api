@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import mongoose from "mongoose";
 import { Merchant } from "src/merchants/schema/merchant.schema";
 
-export type AppsDocument = Apps & Document;
+export type AppsDocument = Apps & mongoose.Document;
 
 class Mnemonic {
   @Prop({ required: true, select: false })
@@ -117,6 +117,32 @@ export class Apps {
 
   @Prop({ select: false })
   webhookSecret: string;
+
+  // ========== User Withdrawal Settings ==========
+
+  // Auto-withdrawal settings
+  @Prop({ default: true })
+  isUserWithdrawalEnabled: boolean; // Enable/disable user withdrawals for this app
+
+  @Prop({ default: true })
+  isAutoWithdrawalEnabled: boolean; // Enable auto-approval for amounts below limit
+
+  @Prop({ default: 100 })
+  maxAutoWithdrawalLimit: number; // Max amount (USD) for auto-approval, 0 = all require approval
+
+  @Prop({ default: 0 })
+  minWithdrawalAmount: number; // Minimum withdrawal amount (USD)
+
+  // Daily limits (0 = unlimited)
+  @Prop({ default: 0 })
+  dailyWithdrawalRequestLimit: number; // Max requests per user per day
+
+  @Prop({ default: 0 })
+  dailyWithdrawalAmountLimit: number; // Max total amount per user per day (USD)
+
+  // Cooldown settings (in minutes, 0 = no cooldown)
+  @Prop({ default: 0 })
+  withdrawalCooldownMinutes: number; // Cooldown between requests from same user
 }
 
 export const AppsSchema = SchemaFactory.createForClass(Apps);

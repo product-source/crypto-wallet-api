@@ -1,0 +1,67 @@
+"use strict";
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ApiKeyAuthGuard = void 0;
+const common_1 = require("@nestjs/common");
+const mongoose_1 = require("@nestjs/mongoose");
+const mongoose_2 = require("mongoose");
+const apps_schema_1 = require("../../apps/schema/apps.schema");
+const encryption_service_1 = require("../../utils/encryption.service");
+let ApiKeyAuthGuard = class ApiKeyAuthGuard {
+    constructor(appsModel, encryptionService) {
+        this.appsModel = appsModel;
+        this.encryptionService = encryptionService;
+    }
+    async canActivate(context) {
+        const request = context.switchToHttp().getRequest();
+        const apiKey = request.headers["x-api-key"];
+        const secretKey = request.headers["x-secret-key"];
+        if (!apiKey || !secretKey) {
+            throw new common_1.UnauthorizedException("Missing API Key or Secret Key in headers");
+        }
+        const apps = await this.appsModel
+            .find()
+            .select("+API_KEY +SECRET_KEY")
+            .exec();
+        let matchedApp = null;
+        for (const app of apps) {
+            try {
+                const decryptedApiKey = this.encryptionService.decryptData(app.API_KEY);
+                const decryptedSecretKey = this.encryptionService.decryptData(app.SECRET_KEY);
+                if (decryptedApiKey === apiKey && decryptedSecretKey === secretKey) {
+                    matchedApp = app;
+                    break;
+                }
+            }
+            catch (error) {
+                continue;
+            }
+        }
+        if (!matchedApp) {
+            throw new common_1.UnauthorizedException("Invalid API Key or Secret Key");
+        }
+        request.app = matchedApp;
+        request.appId = matchedApp._id;
+        request.merchantId = matchedApp.merchantId;
+        return true;
+    }
+};
+exports.ApiKeyAuthGuard = ApiKeyAuthGuard;
+exports.ApiKeyAuthGuard = ApiKeyAuthGuard = __decorate([
+    (0, common_1.Injectable)(),
+    __param(0, (0, mongoose_1.InjectModel)(apps_schema_1.Apps.name)),
+    __metadata("design:paramtypes", [mongoose_2.Model,
+        encryption_service_1.EncryptionService])
+], ApiKeyAuthGuard);
+//# sourceMappingURL=api-key-auth.guard.js.map

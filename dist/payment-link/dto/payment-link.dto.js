@@ -99,6 +99,10 @@ __decorate([
     (0, class_validator_1.IsEnum)(payment_enum_1.FiatCurrency),
     __metadata("design:type", String)
 ], AddPaymnetLinkDto.prototype, "fiatCurrency", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], AddPaymnetLinkDto.prototype, "metadata", void 0);
 class DepositFundDto {
 }
 exports.DepositFundDto = DepositFundDto;

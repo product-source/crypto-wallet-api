@@ -2,7 +2,7 @@ export declare const betweenRandomNumber: (min: any, max: any) => number;
 export declare function fromWeiCustom(balance: any, decimals: any): string;
 export declare function toWeiCustom(amount: any, decimals: any): any;
 export declare function getCoingeckoSymbol(normalSymbol: any): any;
-export declare function getCoingeckoPrice(currency: any): Promise<import("axios").AxiosResponse<any, any, {}>>;
+export declare function getTatumPrice(currency: any, basePair?: string): any;
 export declare function sumBalances(data: any): {};
 export declare function isValidWalletAddress(address: string, chianId: string): boolean;
 export declare const generateInvoiceNumber: () => string;

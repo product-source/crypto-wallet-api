@@ -99,9 +99,9 @@ export declare class MerchantAppTxController {
         } & {
             __v: number;
         };
-        appInfo: import("mongoose").Document<unknown, {}, import("../apps/schema/apps.schema").AppsDocument, {}, {}> & import("../apps/schema/apps.schema").Apps & Document & {
+        appInfo: import("mongoose").Document<unknown, {}, import("../apps/schema/apps.schema").AppsDocument, {}, {}> & import("../apps/schema/apps.schema").Apps & import("mongoose").Document<import("mongoose").Types.ObjectId, any, any, Record<string, any>, {}> & Required<{
             _id: import("mongoose").Types.ObjectId;
-        } & {
+        }> & {
             __v: number;
         };
     }>;

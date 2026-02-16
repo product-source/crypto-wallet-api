@@ -37,6 +37,8 @@ const schedule_1 = require("@nestjs/schedule");
 const moralis_tx_module_1 = require("./moralis-tx/moralis-tx.module");
 const path_1 = require("path");
 const notification_module_1 = require("./notification/notification.module");
+const user_withdrawal_module_1 = require("./user-withdrawal/user-withdrawal.module");
+const common_controller_1 = require("./common/common.controller");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -87,8 +89,9 @@ exports.AppModule = AppModule = __decorate([
             wallet_monitor_module_1.WalletMonitorModule,
             moralis_tx_module_1.MoralisTxModule,
             notification_module_1.NotificationModule,
+            user_withdrawal_module_1.UserWithdrawalModule,
         ],
-        controllers: [app_controller_1.AppController],
+        controllers: [app_controller_1.AppController, common_controller_1.CommonController],
         providers: [app_service_1.AppService],
     })
 ], AppModule);

@@ -51,6 +51,7 @@ export declare class PaymentLink {
     usdAmount: String;
     cryptoToUsd: String;
     fiatToUsd: String;
+    metadata: Record<string, any>;
 }
 export declare const PaymentLinkSchema: mongoose.Schema<PaymentLink, mongoose.Model<PaymentLink, any, any, any, mongoose.Document<unknown, any, PaymentLink, any, {}> & PaymentLink & {
     _id: mongoose.Types.ObjectId;

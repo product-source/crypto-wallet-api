@@ -22,6 +22,13 @@ var WebhookEvent;
     WebhookEvent["PAYMENT_CONFIRMED"] = "payment.confirmed";
     WebhookEvent["PAYMENT_SUCCESS"] = "payment.success";
     WebhookEvent["PAYMENT_EXPIRED"] = "payment.expired";
+    WebhookEvent["WITHDRAWAL_PENDING"] = "withdrawal.pending";
+    WebhookEvent["WITHDRAWAL_AUTO_APPROVED"] = "withdrawal.auto_approved";
+    WebhookEvent["WITHDRAWAL_APPROVED"] = "withdrawal.approved";
+    WebhookEvent["WITHDRAWAL_PROCESSING"] = "withdrawal.processing";
+    WebhookEvent["WITHDRAWAL_SUCCESS"] = "withdrawal.success";
+    WebhookEvent["WITHDRAWAL_FAILED"] = "withdrawal.failed";
+    WebhookEvent["WITHDRAWAL_DECLINED"] = "withdrawal.declined";
 })(WebhookEvent || (exports.WebhookEvent = WebhookEvent = {}));
 var WebhookStatus;
 (function (WebhookStatus) {

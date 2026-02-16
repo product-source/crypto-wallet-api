@@ -20,5 +20,6 @@ var Permission;
     Permission["FAQ_MANAGEMENT"] = "faq_management";
     Permission["CONTENT_MANAGEMENT"] = "content_management";
     Permission["NOTIFICATION"] = "notification";
+    Permission["USER_WITHDRAWALS"] = "user_withdrawals";
 })(Permission || (exports.Permission = Permission = {}));
 //# sourceMappingURL=role.enum.js.map

@@ -69,7 +69,7 @@ let PaymentLinkService = class PaymentLinkService {
     }
     async addPaymentLink(dto, clientIp) {
         try {
-            const { appId, apiKey, secretKey, code, amount, buyerEmail, buyerName, itemName, itemNumber, invoice, custom, successUrl, cancelUrl, transactionType, fiatCurrency, } = dto;
+            const { appId, apiKey, secretKey, code, amount, buyerEmail, buyerName, itemName, itemNumber, invoice, custom, successUrl, cancelUrl, transactionType, fiatCurrency, metadata, } = dto;
             const coinId = this.getCoinIdFromCode(code);
             if (transactionType === payment_enum_1.TransactionType.FIAT) {
                 if (!fiatCurrency) {
@@ -125,28 +125,35 @@ let PaymentLinkService = class PaymentLinkService {
             let cryptoUsd = null;
             let fiatUsd = null;
             if (transactionType === payment_enum_1.TransactionType.FIAT) {
-                const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=${fiatCurrency}`;
-                console.log("urll", url);
-                const response = await axios_1.default.get(url);
-                console.log("response", response);
-                if (!response.data[coinId] || !response.data[coinId][fiatCurrency]) {
-                    throw new common_1.BadRequestException("Invalid fiatCurrency");
+                const symbol = code.split(".")[0]?.toUpperCase();
+                if (!symbol) {
+                    throw new common_1.BadRequestException("Invalid token code");
                 }
-                price = response.data[coinId][fiatCurrency];
-                console.log("price", price);
+                price = await (0, helper_1.getTatumPrice)(symbol, fiatCurrency);
+                console.log(`Price of ${symbol} in ${fiatCurrency}:`, price);
+                if (!price) {
+                    throw new common_1.BadRequestException(`Unable to fetch price for ${symbol}/${fiatCurrency}`);
+                }
                 cryptoAmount = Number(amount) / price;
-                const cryptoUrl = `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd`;
-                const r = await axios_1.default.get(cryptoUrl);
-                const pricePer = r.data[coinId].usd;
+                const pricePer = await (0, helper_1.getTatumPrice)(symbol, "USD");
+                if (!pricePer) {
+                    throw new common_1.BadRequestException(`Unable to fetch USD price for ${symbol}`);
+                }
                 cryptoUsd = cryptoAmount * pricePer;
                 if (fiatCurrency.toUpperCase() === "USD") {
                     fiatUsd = Number(amount);
                 }
                 else {
                     const fiatUrl = `https://api.frankfurter.app/latest?amount=${amount}&from=${fiatCurrency}&to=USD`;
-                    const re = await axios_1.default.get(fiatUrl);
-                    const usdPrice = re.data;
-                    fiatUsd = usdPrice?.rates?.USD;
+                    try {
+                        const re = await axios_1.default.get(fiatUrl);
+                        const usdPrice = re.data;
+                        fiatUsd = usdPrice?.rates?.USD;
+                    }
+                    catch (e) {
+                        console.error("Frankfurter API Error:", e.message);
+                        fiatUsd = 0;
+                    }
                     console.log("fiatUsd", fiatUsd);
                 }
             }
@@ -167,6 +174,9 @@ let PaymentLinkService = class PaymentLinkService {
             model.chainId = token?.chainId;
             model.symbol = token?.symbol;
             model.tokenDecimals = token?.decimal.toString();
+            if (metadata) {
+                model.metadata = metadata;
+            }
             model.transactionType = transactionType;
             if (transactionType === payment_enum_1.TransactionType.FIAT) {
                 model.fiatCurrency = fiatCurrency;
@@ -402,7 +412,7 @@ let PaymentLinkService = class PaymentLinkService {
     }
     async getAllPaymentLinks(query, user) {
         try {
-            const { pageNo, limitVal, search } = query;
+            const { pageNo, limitVal, search, metadataKey, metadataValue } = query;
             if (!user.isAdmin) {
                 throw new common_1.ForbiddenException("Unauthorized access");
             }
@@ -421,6 +431,17 @@ let PaymentLinkService = class PaymentLinkService {
                         { tokenSymbol: { $regex: search, $options: "i" } },
                     ],
                 };
+            }
+            if (metadataKey && metadataValue) {
+                queryObject[`metadata.${metadataKey}`] = { $regex: metadataValue, $options: "i" };
+            }
+            else if (metadataValue) {
+                queryObject['metadata'] = { $exists: true };
+                queryObject.$where = `function() {
+          if (!this.metadata) return false;
+          const metadataStr = JSON.stringify(this.metadata).toLowerCase();
+          return metadataStr.includes('${metadataValue.toLowerCase()}');
+        }`;
             }
             const transactions = await this.paymentLinkModel
                 .find(queryObject)
@@ -1290,11 +1311,18 @@ let PaymentLinkService = class PaymentLinkService {
                     },
                 },
             ]);
-            const response = await (0, helper_1.getCoingeckoPrice)("usd");
+            const uniqueSymbols = [...new Set(newData.map(item => item.symbol))];
+            const priceMap = {};
+            await Promise.all(uniqueSymbols.map(async (sym) => {
+                const cleanSymbol = sym.split(".")[0]?.toUpperCase();
+                if (cleanSymbol) {
+                    const price = await (0, helper_1.getTatumPrice)(cleanSymbol, "USD");
+                    priceMap[sym] = price || 0;
+                }
+            }));
             const monthlyTotals = {};
             for (const item of newData) {
-                const coingeckoSymbol = await (0, helper_1.getCoingeckoSymbol)(item.symbol);
-                const priceInUsd = response?.data[coingeckoSymbol]?.usd || 0;
+                const priceInUsd = priceMap[item.symbol] || 0;
                 const totalPrice = item.totalAmount * priceInUsd;
                 const monthYearKey = `${item.month}-${item.year}`;
                 if (!monthlyTotals[monthYearKey]) {
@@ -1333,8 +1361,7 @@ let PaymentLinkService = class PaymentLinkService {
                 }
                 const dataMap = newData.reduce((acc, item) => {
                     const key = `${item.month}-${item.year}`;
-                    const coingeckoSymbol = (0, helper_1.getCoingeckoSymbol)(item.symbol);
-                    const priceInUsd = response?.data[coingeckoSymbol]?.usd || 0;
+                    const priceInUsd = priceMap[item.symbol] || 0;
                     const totalPrice = item.totalAmount * priceInUsd;
                     if (!acc[key])
                         acc[key] = 0;
@@ -1398,22 +1425,35 @@ let PaymentLinkService = class PaymentLinkService {
             const evm = await (0, evm_helper_1.getEVMNativeBalance)(addressLists?.evmAddresses);
             const trx = await (0, tron_helper_1.getTronNativeBalance)(addressLists?.tronAddresses);
             const btc = await (0, bitcoin_helper_1.getBTCNativeBalance)(addressLists?.btcAddresses);
-            const response = await (0, helper_1.getCoingeckoPrice)(`${currency},USD`);
+            const [bscPrice, ethPrice, maticPrice, avaxPrice, trxPrice, btcPrice, bscUsd, ethUsd, maticUsd, avaxUsd, trxUsd, btcUsd] = await Promise.all([
+                (0, helper_1.getTatumPrice)("BNB", currency),
+                (0, helper_1.getTatumPrice)("ETH", currency),
+                (0, helper_1.getTatumPrice)("MATIC", currency),
+                (0, helper_1.getTatumPrice)("AVAX", currency),
+                (0, helper_1.getTatumPrice)("TRX", currency),
+                (0, helper_1.getTatumPrice)("BTC", currency),
+                (0, helper_1.getTatumPrice)("BNB", "USD"),
+                (0, helper_1.getTatumPrice)("ETH", "USD"),
+                (0, helper_1.getTatumPrice)("MATIC", "USD"),
+                (0, helper_1.getTatumPrice)("AVAX", "USD"),
+                (0, helper_1.getTatumPrice)("TRX", "USD"),
+                (0, helper_1.getTatumPrice)("BTC", "USD"),
+            ]);
             balance = { ...balance, trx, btc, ...evm };
             let currencyConversion = {
-                bsc: balance.bsc * response.data.binancecoin[currency],
-                eth: balance.eth * response.data.ethereum[currency],
-                matic: balance.matic * response.data["matic-network"][currency],
-                avax: balance.avax * response.data["avalanche-2"][currency],
-                trx: balance.trx * response.data.tron[currency],
-                btc: balance.btc * response.data.bitcoin[currency],
+                bsc: balance.bsc * (bscPrice || 0),
+                eth: balance.eth * (ethPrice || 0),
+                matic: balance.matic * (maticPrice || 0),
+                avax: balance.avax * (avaxPrice || 0),
+                trx: balance.trx * (trxPrice || 0),
+                btc: balance.btc * (btcPrice || 0),
             };
-            const usdTotal = balance.bsc * response.data.binancecoin.usd +
-                balance.eth * response.data.ethereum.usd +
-                balance.matic * response.data["matic-network"].usd +
-                balance.avax * response.data["avalanche-2"].usd +
-                balance.trx * response.data.tron.usd +
-                balance.btc * response.data.bitcoin.usd;
+            const usdTotal = balance.bsc * (bscUsd || 0) +
+                balance.eth * (ethUsd || 0) +
+                balance.matic * (maticUsd || 0) +
+                balance.avax * (avaxUsd || 0) +
+                balance.trx * (trxUsd || 0) +
+                balance.btc * (btcUsd || 0);
             const symbolToName = {
                 bsc: "Binance",
                 eth: "Ethereum",

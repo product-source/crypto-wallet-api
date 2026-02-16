@@ -28,6 +28,8 @@ import { ScheduleModule } from "@nestjs/schedule";
 import { MoralisTxModule } from "./moralis-tx/moralis-tx.module";
 import { join } from "path";
 import { NotificationModule } from "./notification/notification.module";
+import { UserWithdrawalModule } from "./user-withdrawal/user-withdrawal.module";
+import { CommonController } from "./common/common.controller";
 
 @Module({
   imports: [
@@ -75,9 +77,10 @@ import { NotificationModule } from "./notification/notification.module";
     WalletMonitorModule,
     MoralisTxModule,
     NotificationModule,
+    UserWithdrawalModule,
     // MerchantTransactionsModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, CommonController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

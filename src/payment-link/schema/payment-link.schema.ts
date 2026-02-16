@@ -181,6 +181,9 @@ export class PaymentLink {
 
   @Prop()
   fiatToUsd: String;
+
+  @Prop({ type: Object, default: {} })
+  metadata: Record<string, any>;
 }
 
 export const PaymentLinkSchema = SchemaFactory.createForClass(PaymentLink);

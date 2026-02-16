@@ -20,7 +20,7 @@ export class WebhookService {
     @InjectModel(Apps.name)
     private readonly appsModel: Model<AppsDocument>,
     private readonly encryptionService: EncryptionService
-  ) {}
+  ) { }
 
   generateSignature(payload: any, secret: string): string {
     const payloadString = JSON.stringify(payload);
@@ -41,23 +41,38 @@ export class WebhookService {
         return;
       }
 
-      const payload = {
-        event,
-        paymentId,
-        orderId: paymentData.orderId || paymentData._id,
-        amount: paymentData.amount || paymentData.recivedAmount,
-        currency: paymentData.code || paymentData.currency,
-        status: paymentData.status,
-        timestamp: Date.now(),
-        data: {
-          hash: paymentData.hash,
-          fromAddress: paymentData.fromAddress,
-          toAddress: paymentData.toAddress,
-          blockNumber: paymentData.block?.number || paymentData.blockNumber,
-          chainId: paymentData.chainId,
-          recivedAmount: paymentData.recivedAmount,
-        },
-      };
+      // Detect withdrawal vs payment events and build appropriate payload
+      const isWithdrawalEvent = event.startsWith('withdrawal.');
+
+      let payload: any;
+      if (isWithdrawalEvent) {
+        // For withdrawal events, use the structured payload directly
+        // This preserves user info, withdrawal details, txHash, etc.
+        payload = {
+          event,
+          ...paymentData,
+          timestamp: Date.now(),
+        };
+      } else {
+        // For payment events, use the legacy flat structure
+        payload = {
+          event,
+          paymentId,
+          orderId: paymentData.orderId || paymentData._id,
+          amount: paymentData.amount || paymentData.recivedAmount,
+          currency: paymentData.code || paymentData.currency,
+          status: paymentData.status,
+          timestamp: Date.now(),
+          data: {
+            hash: paymentData.hash,
+            fromAddress: paymentData.fromAddress,
+            toAddress: paymentData.toAddress,
+            blockNumber: paymentData.block?.number || paymentData.blockNumber,
+            chainId: paymentData.chainId,
+            recivedAmount: paymentData.recivedAmount,
+          },
+        };
+      }
 
       // Decrypt the webhook secret before using it
       let webhookSecret: string;
@@ -75,7 +90,7 @@ export class WebhookService {
         this.logger.error(`Error decrypting webhook secret for app ${appId}: ${error.message}`);
         return;
       }
-      
+
       const payloadString = JSON.stringify(payload);
       const signature = crypto.createHmac("sha256", webhookSecret).update(payloadString).digest("hex");
 

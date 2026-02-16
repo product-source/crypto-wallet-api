@@ -1,0 +1,414 @@
+{
+    "info": {
+        "name": "User Withdrawal API",
+        "description": "Collection for testing the User Withdrawal System endpoints",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "http://localhost:3000",
+            "type": "string"
+        },
+        {
+            "key": "apiKey",
+            "value": "YOUR_API_KEY",
+            "type": "string"
+        },
+        {
+            "key": "secretKey",
+            "value": "YOUR_SECRET_KEY",
+            "type": "string"
+        },
+        {
+            "key": "jwtToken",
+            "value": "YOUR_JWT_TOKEN",
+            "type": "string"
+        }
+    ],
+    "item": [
+        {
+            "name": "External API (API Key Auth)",
+            "item": [
+                {
+                    "name": "Create Withdrawal Request",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"appId\": \"YOUR_APP_ID\",\n  \"apiKey\": \"YOUR_API_KEY\",\n  \"secretKey\": \"YOUR_SECRET_KEY\",\n  \"userId\": \"user123\",\n  \"userEmail\": \"user@example.com\",\n  \"userName\": \"John Doe\",\n  \"amount\": \"10.5\",\n  \"code\": \"USDC.BNB\",\n  \"walletAddress\": \"0x...\",\n  \"externalReference\": \"REF-001\",\n  \"note\": \"Optional note\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/user-withdrawal/request",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "user-withdrawal",
+                                "request"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "List Withdrawals",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"appId\": \"YOUR_APP_ID\",\n  \"apiKey\": \"YOUR_API_KEY\",\n  \"secretKey\": \"YOUR_SECRET_KEY\",\n  \"status\": \"PENDING\",\n  \"pageNo\": 1,\n  \"limitVal\": 10\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/user-withdrawal/list",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "user-withdrawal",
+                                "list"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Approve Withdrawal",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"appId\": \"YOUR_APP_ID\",\n  \"apiKey\": \"YOUR_API_KEY\",\n  \"secretKey\": \"YOUR_SECRET_KEY\",\n  \"withdrawalId\": \"WITHDRAWAL_OBJECT_ID\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/user-withdrawal/approve",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "user-withdrawal",
+                                "approve"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Decline Withdrawal",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"appId\": \"YOUR_APP_ID\",\n  \"apiKey\": \"YOUR_API_KEY\",\n  \"secretKey\": \"YOUR_SECRET_KEY\",\n  \"withdrawalId\": \"WITHDRAWAL_OBJECT_ID\",\n  \"reason\": \"Suspicious activity detected\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/user-withdrawal/decline",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "user-withdrawal",
+                                "decline"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Withdrawal Status",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"appId\": \"YOUR_APP_ID\",\n  \"apiKey\": \"YOUR_API_KEY\",\n  \"secretKey\": \"YOUR_SECRET_KEY\",\n  \"withdrawalId\": \"WITHDRAWAL_OBJECT_ID\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/user-withdrawal/status",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "user-withdrawal",
+                                "status"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Wallet Balance",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"appId\": \"YOUR_APP_ID\",\n  \"apiKey\": \"YOUR_API_KEY\",\n  \"secretKey\": \"YOUR_SECRET_KEY\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/user-withdrawal/balance",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "user-withdrawal",
+                                "balance"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Merchant Dashboard (JWT Auth)",
+            "item": [
+                {
+                    "name": "List Merchant Withdrawals",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{jwtToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/user-withdrawal/merchant/list?appId=APP_ID&status=PENDING&pageNo=1&limitVal=10",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "user-withdrawal",
+                                "merchant",
+                                "list"
+                            ],
+                            "query": [
+                                {
+                                    "key": "appId",
+                                    "value": "APP_ID"
+                                },
+                                {
+                                    "key": "status",
+                                    "value": "PENDING"
+                                },
+                                {
+                                    "key": "pageNo",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limitVal",
+                                    "value": "10"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Withdrawal History",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{jwtToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/user-withdrawal/merchant/history?pageNo=1&limitVal=10",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "user-withdrawal",
+                                "merchant",
+                                "history"
+                            ],
+                            "query": [
+                                {
+                                    "key": "pageNo",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limitVal",
+                                    "value": "10"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Approve Withdrawal (Dashboard)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{jwtToken}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"withdrawalId\": \"WITHDRAWAL_OBJECT_ID\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/user-withdrawal/merchant/approve",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "user-withdrawal",
+                                "merchant",
+                                "approve"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Decline Withdrawal (Dashboard)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{jwtToken}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"withdrawalId\": \"WITHDRAWAL_OBJECT_ID\",\n  \"reason\": \"Insufficient funds in user account\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/user-withdrawal/merchant/decline",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "user-withdrawal",
+                                "merchant",
+                                "decline"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Withdrawal Settings",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{jwtToken}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"appId\": \"APP_OBJECT_ID\",\n  \"isUserWithdrawalEnabled\": true,\n  \"isAutoWithdrawalEnabled\": true,\n  \"maxAutoWithdrawalLimit\": 100,\n  \"minWithdrawalAmount\": 10,\n  \"dailyWithdrawalRequestLimit\": 5,\n  \"dailyWithdrawalAmountLimit\": 1000,\n  \"withdrawalCooldownMinutes\": 30\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/user-withdrawal/merchant/settings",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "user-withdrawal",
+                                "merchant",
+                                "settings"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Admin Dashboard (JWT Auth)",
+            "item": [
+                {
+                    "name": "List All Withdrawals (Admin)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{jwtToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/user-withdrawal/admin/list?status=PENDING&pageNo=1&limitVal=10",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "user-withdrawal",
+                                "admin",
+                                "list"
+                            ],
+                            "query": [
+                                {
+                                    "key": "status",
+                                    "value": "PENDING"
+                                },
+                                {
+                                    "key": "merchantId",
+                                    "value": ""
+                                },
+                                {
+                                    "key": "search",
+                                    "value": ""
+                                },
+                                {
+                                    "key": "pageNo",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limitVal",
+                                    "value": "10"
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        }
+    ]
+}

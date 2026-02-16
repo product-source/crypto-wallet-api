@@ -14,5 +14,6 @@ export declare enum Permission {
     CUSTOMER_SUPPORT = "customer_support",
     FAQ_MANAGEMENT = "faq_management",
     CONTENT_MANAGEMENT = "content_management",
-    NOTIFICATION = "notification"
+    NOTIFICATION = "notification",
+    USER_WITHDRAWALS = "user_withdrawals"
 }

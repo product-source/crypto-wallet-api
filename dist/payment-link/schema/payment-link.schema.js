@@ -211,6 +211,10 @@ __decorate([
     (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
 ], PaymentLink.prototype, "fiatToUsd", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: Object, default: {} }),
+    __metadata("design:type", Object)
+], PaymentLink.prototype, "metadata", void 0);
 exports.PaymentLink = PaymentLink = __decorate([
     (0, mongoose_1.Schema)({
         timestamps: true,
