@@ -46,7 +46,7 @@ let TokenController = class TokenController {
 };
 exports.TokenController = TokenController;
 __decorate([
-    (0, common_1.UseGuards)(permissions_guard_1.PermissionsGuard),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, permissions_guard_1.PermissionsGuard),
     (0, permissions_decorator_1.Permissions)(role_enum_1.Permission.WALLET_MANAGEMENT),
     (0, common_1.Post)("add"),
     __param(0, (0, common_1.Body)()),
@@ -69,7 +69,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], TokenController.prototype, "getTokenById", null);
 __decorate([
-    (0, common_1.UseGuards)(permissions_guard_1.PermissionsGuard),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, permissions_guard_1.PermissionsGuard),
     (0, permissions_decorator_1.Permissions)(role_enum_1.Permission.WALLET_MANAGEMENT),
     (0, common_1.Post)("update-min-withdraw"),
     __param(0, (0, common_1.Body)()),
@@ -79,7 +79,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], TokenController.prototype, "updateMinWithdraw", null);
 __decorate([
-    (0, common_1.UseGuards)(permissions_guard_1.PermissionsGuard),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, permissions_guard_1.PermissionsGuard),
     (0, permissions_decorator_1.Permissions)(role_enum_1.Permission.WALLET_MANAGEMENT),
     (0, common_1.Delete)("delete"),
     __param(0, (0, common_1.Query)()),
@@ -95,7 +95,6 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], TokenController.prototype, "getValidateTronAddress", null);
 exports.TokenController = TokenController = __decorate([
-    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Controller)("token"),
     __metadata("design:paramtypes", [token_service_1.TokenService])
 ], TokenController);

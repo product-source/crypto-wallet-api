@@ -15,12 +15,12 @@ import { PermissionsGuard } from "src/auth/guards/permissions.guard";
 import { Permissions } from "src/auth/decorators/permissions.decorator";
 import { Permission } from "src/auth/enums/role.enum";
 
-@UseGuards(JwtAuthGuard)
+
 @Controller("token")
 export class TokenController {
-  constructor(private readonly tokenService: TokenService) {}
+  constructor(private readonly tokenService: TokenService) { }
 
-  @UseGuards(PermissionsGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions(Permission.WALLET_MANAGEMENT)
   @Post("add")
   addPage(@Body() dto: AddTokenDto) {
@@ -37,7 +37,7 @@ export class TokenController {
     return this.tokenService.tokenById(query);
   }
 
-  @UseGuards(PermissionsGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions(Permission.WALLET_MANAGEMENT)
   @Post("update-min-withdraw")
   updateMinWithdraw(@Body() dto: UpdateMinWithdrawDto, @Request() req) {
@@ -45,7 +45,7 @@ export class TokenController {
     return this.tokenService.updateMinWithdraw(dto, user);
   }
 
-  @UseGuards(PermissionsGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions(Permission.WALLET_MANAGEMENT)
   @Delete("delete")
   deleteToken(@Query() query) {
