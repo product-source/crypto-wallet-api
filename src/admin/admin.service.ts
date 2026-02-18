@@ -22,6 +22,7 @@ import {
   CreateAdminDto,
   UpdateAdminRoleDto,
   AdminListQueryDto,
+  UpdateFiatWalletDto,
 } from "./dto/admin.dto";
 import { Role } from "src/auth/enums/role.enum";
 import * as fs from "fs/promises";
@@ -362,6 +363,65 @@ export class AdminService {
     }
   }
 
+  async updateFiatWallet(dto: UpdateFiatWalletDto, user) {
+    try {
+      const { FiatEvmAdminWallet, FiatTronAdminWallet, FiatbtcAdminWallet } =
+        dto;
+
+      if (user && !user?.isAdmin) {
+        throw new ForbiddenException(
+          "Unauthorized access, Admin privilege required"
+        );
+      }
+      const admin = await this.adminModel.findOne();
+      if (!admin) {
+        return new NotFoundException("Admin not found");
+      }
+
+      if (FiatEvmAdminWallet) {
+        if (!(await isValidEVMAddress(FiatEvmAdminWallet))) {
+          return new NotFoundException("Invalid EVM wallet address");
+        } else {
+          admin.FiatEvmAdminWallet = FiatEvmAdminWallet;
+        }
+      }
+
+      if (FiatTronAdminWallet) {
+        if (await isValidTronAddress(FiatTronAdminWallet)) {
+          admin.FiatTronAdminWallet = FiatTronAdminWallet;
+        } else {
+          return new NotFoundException("Invalid Tron wallet address");
+        }
+      }
+
+      if (FiatbtcAdminWallet) {
+        if (validate(FiatbtcAdminWallet)) {
+          admin.FiatbtcAdminWallet = FiatbtcAdminWallet;
+        } else {
+          return new NotFoundException("Invalid BTC wallet address");
+        }
+      }
+
+      await admin.save();
+
+      return {
+        message: "Fiat wallet addresses updated successfully",
+        data: {
+          FiatEvmAdminWallet: admin.FiatEvmAdminWallet,
+          FiatTronAdminWallet: admin.FiatTronAdminWallet,
+          FiatbtcAdminWallet: admin.FiatbtcAdminWallet,
+        },
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      } else {
+        console.log("An error occurred:", error.message);
+        throw new BadRequestException(error);
+      }
+    }
+  }
+
   async getPlatformFee() {
     try {
       const admin = await this.adminModel.findOne();
@@ -384,6 +444,10 @@ export class AdminService {
           btcPlatformFee: admin.btcPlatformFee,
           btcMerchantFee: admin.btcMerchantFee,
           btcAdminWallet: admin.btcAdminWallet,
+
+          FiatEvmAdminWallet: admin.FiatEvmAdminWallet,
+          FiatTronAdminWallet: admin.FiatTronAdminWallet,
+          FiatbtcAdminWallet: admin.FiatbtcAdminWallet,
         },
       };
     } catch (error) {
@@ -439,14 +503,14 @@ export class AdminService {
       });
 
       await admin.save();
-      return { 
-        message: "Admin created successfully", 
-        data: { 
-          _id: admin._id, 
-          email: admin.email, 
+      return {
+        message: "Admin created successfully",
+        data: {
+          _id: admin._id,
+          email: admin.email,
           role: admin.role,
-          permissions: admin.permissions 
-        } 
+          permissions: admin.permissions
+        }
       };
     } catch (error) {
       if (error instanceof NotAcceptableException) {
@@ -473,14 +537,14 @@ export class AdminService {
       admin.permissions = role === Role.SUPER_ADMIN ? [] : (permissions || []);
       await admin.save();
 
-      return { 
-        message: "Admin role updated successfully", 
-        data: { 
-          _id: admin._id, 
-          email: admin.email, 
+      return {
+        message: "Admin role updated successfully",
+        data: {
+          _id: admin._id,
+          email: admin.email,
           role: admin.role,
-          permissions: admin.permissions 
-        } 
+          permissions: admin.permissions
+        }
       };
     } catch (error) {
       if (error instanceof NotFoundException || error instanceof ForbiddenException) {

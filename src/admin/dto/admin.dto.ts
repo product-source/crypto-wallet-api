@@ -146,6 +146,17 @@ export class PlatformFeeDto {
   btcAdminWallet: string;
 }
 
+export class UpdateFiatWalletDto {
+  @IsOptional()
+  FiatEvmAdminWallet: string;
+
+  @IsOptional()
+  FiatTronAdminWallet: string;
+
+  @IsOptional()
+  FiatbtcAdminWallet: string;
+}
+
 export class CreateAdminDto {
   @IsNotEmpty()
   @IsString()

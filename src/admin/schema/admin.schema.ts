@@ -56,6 +56,15 @@ export class Admin {
   @Prop()
   btcAdminWallet: string;
 
+  @Prop()
+  FiatEvmAdminWallet: string;
+
+  @Prop()
+  FiatTronAdminWallet: string;
+
+  @Prop()
+  FiatbtcAdminWallet: string;
+
   @Prop({ type: String, enum: Role, default: Role.SUB_ADMIN })
   role: Role;
 

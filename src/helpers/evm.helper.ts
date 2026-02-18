@@ -8,7 +8,7 @@ import {
   POLYGON_CHAIN_ID,
 } from "src/constants";
 import { tokenABI } from "src/utils/tokenAbi.service";
-const Web3 = require("web3");
+import { Web3 } from "web3";
 
 import { calculateTaxes, fromWeiCustom, toWeiCustom } from "./helper";
 import Moralis from "moralis";
@@ -468,7 +468,7 @@ export async function evmNativeTokenTransferFromPaymentLinks(
   let adminAmount = tax.adminAmount;
   let merchantAmount = tax.merchantAmount;
 
-  txCost.gasPrice = await web3.eth.getGasPrice();
+  txCost.gasPrice = Number(await web3.eth.getGasPrice());
 
   console.log(
     "adminAmount and merchantAmount 1 : ",
@@ -508,18 +508,18 @@ export async function evmNativeTokenTransferFromPaymentLinks(
 
   // Calculate transaction gas for amdin and merchant
   if (adminAmount > 0) {
-    txCost.adminGas = await web3.eth.estimateGas(adminTxData);
+    txCost.adminGas = Number(await web3.eth.estimateGas(adminTxData));
   }
 
   const updatedMerchantValue =
     merchantAmount - txCost.adminGas * txCost.gasPrice - 10000000;
   console.log("updatedMerchantValue : ", updatedMerchantValue, txCost.adminGas);
 
-  txCost.merchantGas = await web3.eth.estimateGas({
+  txCost.merchantGas = Number(await web3.eth.estimateGas({
     from: senderAddress,
     to: merchantAddress,
     value: updatedMerchantValue,
-  });
+  }));
 
   console.log("txConst 1 : ", txCost);
 
@@ -934,7 +934,7 @@ export async function merchantEvmFundWithdraw(
         .call();
 
       // Need to approve the contract address
-      if (BigInt(approvedAmount) < BigInt(AMOUNT_IN_WEI)) {
+      if (BigInt(String(approvedAmount)) < BigInt(AMOUNT_IN_WEI)) {
         const gas = await tokenContract.methods
           .approve(Tokens.router, AMOUNT_TO_APPROVE)
           .estimateGas({
@@ -944,7 +944,7 @@ export async function merchantEvmFundWithdraw(
         // Approve the router to spend the tokens
         const approveTx = tokenContract.methods
           .approve(Tokens.router, AMOUNT_TO_APPROVE)
-          .send({ from: ACCOUNT.address, gas, gasPrice });
+          .send({ from: ACCOUNT.address, gas: gas.toString(), gasPrice: gasPrice.toString() });
 
         const receipt = await approveTx;
 
@@ -980,9 +980,9 @@ export async function merchantEvmFundWithdraw(
           )
           .send({
             from: ACCOUNT.address,
-            nonce,
-            gas,
-            gasPrice,
+            nonce: nonce.toString(),
+            gas: gas.toString(),
+            gasPrice: gasPrice.toString(),
           });
 
         console.log("Swap Token 2 Token  transaction confirmed:");
@@ -1016,9 +1016,9 @@ export async function merchantEvmFundWithdraw(
           )
           .send({
             from: ACCOUNT.address,
-            gas,
-            gasPrice,
-            nonce,
+            gas: gas.toString(),
+            gasPrice: gasPrice.toString(),
+            nonce: nonce.toString(),
           });
 
         // const swapReceipt = await txSwap;
@@ -1091,7 +1091,7 @@ export async function merchantEvmFundWithdraw(
             from: ACCOUNT.address,
           });
 
-        if (BigInt(merchantBalance) < BigInt(AMOUNT_IN_WEI)) {
+        if (BigInt(String(merchantBalance)) < BigInt(AMOUNT_IN_WEI)) {
           console.log(
             "Insufficient balance to withdraw.",
             merchantBalance,

@@ -1925,7 +1925,7 @@ export class PaymentLinkService {
         receiverAddress
       );
 
-      if (receipt?.transactionHash) {
+      if ((receipt as any)?.transactionHash) {
         if (withdrawType === WithdrawType.MERCHANT) {
           paymentLink.withdrawStatus = WithdrawPaymentStatus.SUCCESS;
           paymentLink.status = PaymentStatus.SUCCESS;

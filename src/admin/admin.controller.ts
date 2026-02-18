@@ -20,6 +20,7 @@ import {
   CreateAdminDto,
   UpdateAdminRoleDto,
   AdminListQueryDto,
+  UpdateFiatWalletDto,
 } from "./dto/admin.dto";
 import { AdminService } from "./admin.service";
 import { JwtAuthGuard } from "src/auth/jwt-auth.guard";
@@ -29,7 +30,7 @@ import { Role } from "src/auth/enums/role.enum";
 
 @Controller("admin")
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(private readonly adminService: AdminService) { }
 
   @Post("register")
   registerAdmin(@Body() dto: AdminSignupDto) {
@@ -74,6 +75,14 @@ export class AdminController {
   @Get("get-platform-fee")
   getPlatformFee() {
     return this.adminService.getPlatformFee();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN)
+  @Post("update-fiat-wallet")
+  updateFiatWallet(@Body() dto: UpdateFiatWalletDto, @Request() req) {
+    const { user } = req;
+    return this.adminService.updateFiatWallet(dto, user);
   }
 
   @UseGuards(JwtAuthGuard)
