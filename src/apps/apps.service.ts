@@ -217,13 +217,15 @@ export class AppsService {
             });
             await notificationModel.save();
 
-            //  "WalletMonitor validation failed: chainId: Path `chainId` is required., tokenAddress: Path `tokenAddress` is required."
-
-            // Push the address into the moralis server
-            await Moralis.Streams.addAddress({
-              id: ConfigService.keys.WEB_STREAMER_ID,
-              address: model?.EVMWalletMnemonic?.address,
-            });
+            // Push the address into the moralis server (non-blocking)
+            try {
+              await Moralis.Streams.addAddress({
+                id: ConfigService.keys.WEB_STREAMER_ID,
+                address: model?.EVMWalletMnemonic?.address,
+              });
+            } catch (moralisError) {
+              console.log("Warning: Moralis.Streams.addAddress failed (non-critical):", moralisError?.message || moralisError);
+            }
 
             //  data in wallet monitor
             const wallet = await new this.monitorModel();

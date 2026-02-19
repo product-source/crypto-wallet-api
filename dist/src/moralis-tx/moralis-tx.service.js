@@ -961,19 +961,21 @@ let TransactionService = TransactionService_1 = class TransactionService {
                 .select("_id paymentLinkId walletAddress amount transactionType");
             let walletList = paymentLinks.map((item) => item.walletAddress);
             let walletTxList = [];
-            try {
-                const response = await axios_1.default.post(constants_1.GET_BTC_TX_BATCH_URL, {
-                    addresses: walletList,
-                }, {
-                    headers: {
-                        accept: "application/json",
-                        "x-api-key": config_service_1.ConfigService.keys.TATUM_X_API_KEY,
-                    },
-                });
-                walletTxList = response.data;
-            }
-            catch (error) {
-                console.log("Error fetching BTC balance:", error.message);
+            if (walletList.length > 0) {
+                try {
+                    const response = await axios_1.default.post(constants_1.GET_BTC_TX_BATCH_URL, {
+                        addresses: walletList,
+                    }, {
+                        headers: {
+                            accept: "application/json",
+                            "x-api-key": config_service_1.ConfigService.keys.TATUM_X_API_KEY,
+                        },
+                    });
+                    walletTxList = response.data;
+                }
+                catch (error) {
+                    console.log("Error fetching BTC balance:", error.message);
+                }
             }
             const mergedData = paymentLinks.map((payment) => {
                 console.log('payment 122', payment);
@@ -1151,11 +1153,10 @@ let TransactionService = TransactionService_1 = class TransactionService {
                 .limit(50)
                 .select("_id merchantId TronWalletMnemonic.address");
             if (getAllAppsTronWallets && getAllAppsTronWallets.length > 0) {
-                const tronWalletDataList = await Promise.all(getAllAppsTronWallets
-                    .filter((wallet) => {
-                    return wallet?.TronWalletMnemonic?.address;
-                })
-                    .map(async (wallet) => {
+                const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+                const validWallets = getAllAppsTronWallets.filter((wallet) => wallet?.TronWalletMnemonic?.address);
+                const tronWalletDataList = [];
+                for (const wallet of validWallets) {
                     const tronWallet = wallet.TronWalletMnemonic.address;
                     const merchantId = wallet.merchantId;
                     try {
@@ -1261,13 +1262,14 @@ let TransactionService = TransactionService_1 = class TransactionService {
                                 }
                             }
                         }
-                        return null;
+                        tronWalletDataList.push(null);
                     }
                     catch (error) {
                         console.error(`Error fetching Tron Wallet Data for Merchant ${merchantId}:`, error.message);
-                        return null;
+                        tronWalletDataList.push(null);
                     }
-                }));
+                    await delay(500);
+                }
                 const validTronWalletData = tronWalletDataList.filter((data) => data !== null);
                 return validTronWalletData;
             }
@@ -1319,7 +1321,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
                 const headers = {
                     accept: "application/json",
                     "content-type": "application/json",
-                    "x-api-key": "t-670619093810b72fabd57238-8dc526a6df544ed98b60e4cf",
+                    "x-api-key": config_service_1.ConfigService.keys.TATUM_X_API_KEY,
                 };
                 const response = await axios_1.default.post(url, payload, {
                     headers: constants_1.postHeaders,

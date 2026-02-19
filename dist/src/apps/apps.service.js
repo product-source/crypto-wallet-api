@@ -186,10 +186,15 @@ let AppsService = class AppsService {
                             message: "App Created successfully",
                         });
                         await notificationModel.save();
-                        await moralis_1.default.Streams.addAddress({
-                            id: config_service_1.ConfigService.keys.WEB_STREAMER_ID,
-                            address: model?.EVMWalletMnemonic?.address,
-                        });
+                        try {
+                            await moralis_1.default.Streams.addAddress({
+                                id: config_service_1.ConfigService.keys.WEB_STREAMER_ID,
+                                address: model?.EVMWalletMnemonic?.address,
+                            });
+                        }
+                        catch (moralisError) {
+                            console.log("Warning: Moralis.Streams.addAddress failed (non-critical):", moralisError?.message || moralisError);
+                        }
                         const wallet = await new this.monitorModel();
                         wallet.appId = model?._id;
                         wallet.walletAddress = model?.EVMWalletMnemonic?.address;

@@ -1467,24 +1467,27 @@ export class TransactionService {
       let walletList = paymentLinks.map((item) => item.walletAddress);
       let walletTxList = [];
 
-      try {
-        const response = await axios.post(
-          GET_BTC_TX_BATCH_URL,
-          {
-            addresses: walletList,
-          },
-          {
-            headers: {
-              accept: "application/json",
-              "x-api-key": ConfigService.keys.TATUM_X_API_KEY,
+      // Fix: skip API call if no wallets to avoid 400 error
+      if (walletList.length > 0) {
+        try {
+          const response = await axios.post(
+            GET_BTC_TX_BATCH_URL,
+            {
+              addresses: walletList,
             },
-          }
-        );
+            {
+              headers: {
+                accept: "application/json",
+                "x-api-key": ConfigService.keys.TATUM_X_API_KEY,
+              },
+            }
+          );
 
-        walletTxList = response.data;
-        // console.log(response.data, "response.data1");
-      } catch (error) {
-        console.log("Error fetching BTC balance:", error.message);
+          walletTxList = response.data;
+          // console.log(response.data, "response.data1");
+        } catch (error) {
+          console.log("Error fetching BTC balance:", error.message);
+        }
       }
 
       const mergedData = paymentLinks.map((payment) => {
@@ -1753,179 +1756,178 @@ export class TransactionService {
 
       // For Tron wallets
       if (getAllAppsTronWallets && getAllAppsTronWallets.length > 0) {
-        // Fetch data for all valid Tron wallets concurrently
-        const tronWalletDataList = await Promise.all(
-          getAllAppsTronWallets
-            .filter((wallet) => {
-              return wallet?.TronWalletMnemonic?.address;
-            }) // Only wallets with Tron addresses
-            .map(async (wallet) => {
-              const tronWallet = wallet.TronWalletMnemonic.address;
-              const merchantId = wallet.merchantId;
+        // Fix: process wallets sequentially with delay to avoid 429 rate limiting
+        const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+        const validWallets = getAllAppsTronWallets.filter((wallet) => wallet?.TronWalletMnemonic?.address);
+        const tronWalletDataList = [];
 
-              try {
-                const tronWalletData =
-                  await getTronToAddressAllTransactions(tronWallet);
+        for (const wallet of validWallets) {
+          const tronWallet = wallet.TronWalletMnemonic.address;
+          const merchantId = wallet.merchantId;
 
-                const trc20Transactions = (
-                  await getTRC20Transactions(tronWallet)
-                ).data;
+          try {
+            const tronWalletData =
+              await getTronToAddressAllTransactions(tronWallet);
 
-                if (
-                  tronWalletData?.success &&
-                  tronWalletData?.data?.length > 0
-                ) {
-                  // Process each transaction
-                  for (const transaction of tronWalletData?.data) {
-                    const hash = transaction?.txID;
+            const trc20Transactions = (
+              await getTRC20Transactions(tronWallet)
+            ).data;
 
-                    const fAddress =
-                      transaction?.raw_data?.contract[0]?.parameter?.value
-                        ?.owner_address;
+            if (
+              tronWalletData?.success &&
+              tronWalletData?.data?.length > 0
+            ) {
+              // Process each transaction
+              for (const transaction of tronWalletData?.data) {
+                const hash = transaction?.txID;
 
-                    const tronFAddress =
-                      (await hexToTronAddress(fAddress.slice(2, 42))) || null;
+                const fAddress =
+                  transaction?.raw_data?.contract[0]?.parameter?.value
+                    ?.owner_address;
 
-                    const tAddress =
-                      transaction?.raw_data?.contract[0]?.parameter?.value
-                        ?.to_address;
+                const tronFAddress =
+                  (await hexToTronAddress(fAddress.slice(2, 42))) || null;
 
-                    const tronTAddress =
-                      (await hexToTronAddress(tAddress.slice(2, 42))) || null;
+                const tAddress =
+                  transaction?.raw_data?.contract[0]?.parameter?.value
+                    ?.to_address;
 
-                    // Check if the transaction already exists
-                    const existingTx = await this.merchantTxModel.findOne({
-                      hash,
-                    });
+                const tronTAddress =
+                  (await hexToTronAddress(tAddress.slice(2, 42))) || null;
 
-                    const paymentLinks = await this.paymentLinkModel
-                      .find({
-                        status: PaymentStatus.SUCCESS,
-                        chainId: { $in: ["TRON"] },
-                      })
-                      .select("toAddress");
+                // Check if the transaction already exists
+                const existingTx = await this.merchantTxModel.findOne({
+                  hash,
+                });
 
-                    const paymentLinkTxTypeCheck = async () => {
-                      let txTypeStatus;
-                      const paymentLink = await paymentLinks.map(
-                        (PL) => PL?.toAddress === tronFAddress
-                      );
+                const paymentLinks = await this.paymentLinkModel
+                  .find({
+                    status: PaymentStatus.SUCCESS,
+                    chainId: { $in: ["TRON"] },
+                  })
+                  .select("toAddress");
 
-                      for (const PL of paymentLink) {
-                        txTypeStatus = TransactionTypes.DEPOSIT;
-                        if (PL) {
-                          txTypeStatus = TransactionTypes.PAYMENT_LINKS;
-                        }
-                      }
-                      return txTypeStatus;
-                    };
+                const paymentLinkTxTypeCheck = async () => {
+                  let txTypeStatus;
+                  const paymentLink = await paymentLinks.map(
+                    (PL) => PL?.toAddress === tronFAddress
+                  );
 
-                    const txTypeOfPayment = await paymentLinkTxTypeCheck();
-
-                    if (!existingTx) {
-                      const newTxData = {
-                        appsId: wallet._id,
-                        status: PaymentStatus.SUCCESS,
-                        recivedAmount:
-                          transaction?.raw_data?.contract[0]?.parameter?.value
-                            ?.amount /
-                          10 ** 6 || 0, // Convert to proper unit
-                        hash,
-                        gas: 0, // Update if gas is available
-                        gasPrice: 0, // Update if gas price is available
-                        fromAddress: tronFAddress,
-                        toAddress: tronTAddress,
-                        note: "Deposit funds",
-                        blockNumber: transaction?.blockNumber,
-                        chainId: TRON_CHAIN_ID,
-                        symbol: "TRX",
-                        txType: txTypeOfPayment,
-                      };
-
-                      // Save the new transaction
-                      await this.merchantTxModel.create(newTxData);
+                  for (const PL of paymentLink) {
+                    txTypeStatus = TransactionTypes.DEPOSIT;
+                    if (PL) {
+                      txTypeStatus = TransactionTypes.PAYMENT_LINKS;
                     }
                   }
+                  return txTypeStatus;
+                };
 
-                  // return {
-                  //   merchantId,
-                  //   transactionsProcessed: tronWalletData.data.length,
-                  // };
+                const txTypeOfPayment = await paymentLinkTxTypeCheck();
+
+                if (!existingTx) {
+                  const newTxData = {
+                    appsId: wallet._id,
+                    status: PaymentStatus.SUCCESS,
+                    recivedAmount:
+                      transaction?.raw_data?.contract[0]?.parameter?.value
+                        ?.amount /
+                      10 ** 6 || 0, // Convert to proper unit
+                    hash,
+                    gas: 0, // Update if gas is available
+                    gasPrice: 0, // Update if gas price is available
+                    fromAddress: tronFAddress,
+                    toAddress: tronTAddress,
+                    note: "Deposit funds",
+                    blockNumber: transaction?.blockNumber,
+                    chainId: TRON_CHAIN_ID,
+                    symbol: "TRX",
+                    txType: txTypeOfPayment,
+                  };
+
+                  // Save the new transaction
+                  await this.merchantTxModel.create(newTxData);
                 }
-
-                if (
-                  trc20Transactions?.success &&
-                  trc20Transactions?.data?.length > 0
-                ) {
-                  // Process each transaction
-                  for (const transaction of trc20Transactions?.data) {
-                    const hash = transaction.transaction_id;
-
-                    const fAddress = transaction?.from;
-                    const tAddress = transaction?.to;
-
-                    // Check if the transaction already exists
-                    const existingTx = await this.merchantTxModel.findOne({
-                      hash,
-                    });
-
-                    const paymentLinks = await this.paymentLinkModel
-                      .find({
-                        status: PaymentStatus.SUCCESS,
-                        chainId: { $in: ["TRON"] },
-                      })
-                      .select("toAddress");
-
-                    const paymentLinkTxTypeCheck = async () => {
-                      let txTypeStatus;
-                      const paymentLink = await paymentLinks.map(
-                        (PL) => PL?.toAddress === fAddress
-                      );
-
-                      for (const PL of paymentLink) {
-                        txTypeStatus = TransactionTypes.DEPOSIT;
-                        if (PL) {
-                          txTypeStatus = TransactionTypes.PAYMENT_LINKS;
-                        }
-                      }
-                      return txTypeStatus;
-                    };
-
-                    const txTypeOfPayment = await paymentLinkTxTypeCheck();
-
-                    if (!existingTx) {
-                      const newTxData = {
-                        appsId: wallet._id,
-                        status: PaymentStatus.SUCCESS,
-                        recivedAmount: transaction?.value / 10 ** 6 || 0, // Convert to proper unit
-                        hash,
-                        gas: 0, // Update if gas is available
-                        gasPrice: 0, // Update if gas price is available
-                        fromAddress: fAddress,
-                        toAddress: tAddress,
-                        note: "Deposit funds",
-                        blockNumber: transaction?.blockNumber || 0, //
-                        chainId: TRON_CHAIN_ID,
-                        symbol: "TRX",
-                        txType: txTypeOfPayment,
-                      };
-
-                      // Save the new transaction
-                      await this.merchantTxModel.create(newTxData);
-                    }
-                  }
-                }
-
-                return null; // Skip wallets with no successful transactions
-              } catch (error) {
-                console.error(
-                  `Error fetching Tron Wallet Data for Merchant ${merchantId}:`,
-                  error.message
-                );
-                return null;
               }
-            })
-        );
+
+              // return {
+              //   merchantId,
+              //   transactionsProcessed: tronWalletData.data.length,
+              // };
+            }
+
+            if (
+              trc20Transactions?.success &&
+              trc20Transactions?.data?.length > 0
+            ) {
+              // Process each transaction
+              for (const transaction of trc20Transactions?.data) {
+                const hash = transaction.transaction_id;
+
+                const fAddress = transaction?.from;
+                const tAddress = transaction?.to;
+
+                // Check if the transaction already exists
+                const existingTx = await this.merchantTxModel.findOne({
+                  hash,
+                });
+
+                const paymentLinks = await this.paymentLinkModel
+                  .find({
+                    status: PaymentStatus.SUCCESS,
+                    chainId: { $in: ["TRON"] },
+                  })
+                  .select("toAddress");
+
+                const paymentLinkTxTypeCheck = async () => {
+                  let txTypeStatus;
+                  const paymentLink = await paymentLinks.map(
+                    (PL) => PL?.toAddress === fAddress
+                  );
+
+                  for (const PL of paymentLink) {
+                    txTypeStatus = TransactionTypes.DEPOSIT;
+                    if (PL) {
+                      txTypeStatus = TransactionTypes.PAYMENT_LINKS;
+                    }
+                  }
+                  return txTypeStatus;
+                };
+
+                const txTypeOfPayment = await paymentLinkTxTypeCheck();
+
+                if (!existingTx) {
+                  const newTxData = {
+                    appsId: wallet._id,
+                    status: PaymentStatus.SUCCESS,
+                    recivedAmount: transaction?.value / 10 ** 6 || 0, // Convert to proper unit
+                    hash,
+                    gas: 0, // Update if gas is available
+                    gasPrice: 0, // Update if gas price is available
+                    fromAddress: fAddress,
+                    toAddress: tAddress,
+                    note: "Deposit funds",
+                    blockNumber: transaction?.blockNumber || 0, //
+                    chainId: TRON_CHAIN_ID,
+                    symbol: "TRX",
+                    txType: txTypeOfPayment,
+                  };
+
+                  // Save the new transaction
+                  await this.merchantTxModel.create(newTxData);
+                }
+              }
+            }
+
+            tronWalletDataList.push(null); // Skip wallets with no successful transactions
+          } catch (error) {
+            console.error(
+              `Error fetching Tron Wallet Data for Merchant ${merchantId}:`,
+              error.message
+            );
+            tronWalletDataList.push(null);
+          }
+          await delay(500); // Fix: 500ms delay between wallets to avoid 429 rate limiting
+        }
 
         // Remove null entries caused by errors or invalid wallets
         const validTronWalletData = tronWalletDataList.filter(
@@ -1991,7 +1993,7 @@ export class TransactionService {
         const headers = {
           accept: "application/json",
           "content-type": "application/json",
-          "x-api-key": "t-670619093810b72fabd57238-8dc526a6df544ed98b60e4cf",
+          "x-api-key": ConfigService.keys.TATUM_X_API_KEY, // Fix: use env key, not hardcoded
         };
 
         const response = await axios.post(url, payload, {
