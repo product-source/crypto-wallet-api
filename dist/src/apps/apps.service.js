@@ -179,7 +179,14 @@ let AppsService = class AppsService {
                     console.log("isAdminBalance", isAdminBalance);
                     console.log("totalActivationCost", totalActivationCost);
                     const initialTronTransfer = await (0, tron_helper_2.transferTron)(tronAdminPvtKey, tronTokenContractAddress, tronWallet?.address, tronAmount, tronTokenDecimal);
-                    if (typeof initialTronTransfer === 'object' && initialTronTransfer !== null && 'result' in initialTronTransfer && initialTronTransfer.result) {
+                    console.log("initialTronTransfer receipt:", JSON.stringify(initialTronTransfer));
+                    const tronTransferOk = initialTronTransfer &&
+                        ((typeof initialTronTransfer === 'object' &&
+                            (initialTronTransfer.result === true ||
+                                typeof initialTronTransfer.txid === 'string')) ||
+                            (typeof initialTronTransfer === 'string' &&
+                                initialTronTransfer.length === 64));
+                    if (tronTransferOk) {
                         await model.save();
                         const notificationModel = new this.notificationModel({
                             merchantId: model?.merchantId,

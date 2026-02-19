@@ -207,7 +207,21 @@ export class AppsService {
             tronTokenDecimal
           );
 
-          if (typeof initialTronTransfer === 'object' && initialTronTransfer !== null && 'result' in initialTronTransfer && initialTronTransfer.result) {
+          // Log actual receipt to debug mainnet response shape
+          console.log("initialTronTransfer receipt:", JSON.stringify(initialTronTransfer));
+
+          // Accept any truthy receipt: { result: true }, { txid: '...' }, or 64-char txid string
+          const tronTransferOk =
+            initialTronTransfer &&
+            (
+              (typeof initialTronTransfer === 'object' &&
+                (initialTronTransfer.result === true ||
+                  typeof initialTronTransfer.txid === 'string')) ||
+              (typeof initialTronTransfer === 'string' &&
+                initialTronTransfer.length === 64)
+            );
+
+          if (tronTransferOk) {
             await model.save();
 
             // saving notification
