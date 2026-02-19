@@ -92,8 +92,8 @@ let AppsService = class AppsService {
             const tronTokenDecimal = await getTokens[0]?.decimal;
             const tronAdminPvtKey = config_service_1.ConfigService.keys.TRON_ADMIN_PRIVATE_KEY;
             const tronAdminAddress = config_service_1.ConfigService.keys.TRON_ADMIN_ADDRESS;
-            const tronAmount = 0.000001;
-            const totalActivationCost = tronAmount + 1.1;
+            const tronAmount = 1.1;
+            const totalActivationCost = tronAmount + 0.5;
             const isAdminBalance = await (0, tron_helper_1.getTronBalance)(tronAdminAddress);
             const appExist = await this.appsModel.findOne({ name });
             if (appExist) {
@@ -181,11 +181,9 @@ let AppsService = class AppsService {
                     const initialTronTransfer = await (0, tron_helper_2.transferTron)(tronAdminPvtKey, tronTokenContractAddress, tronWallet?.address, tronAmount, tronTokenDecimal);
                     console.log("initialTronTransfer receipt:", JSON.stringify(initialTronTransfer));
                     const tronTransferOk = initialTronTransfer &&
-                        ((typeof initialTronTransfer === 'object' &&
-                            (initialTronTransfer.result === true ||
-                                typeof initialTronTransfer.txid === 'string')) ||
-                            (typeof initialTronTransfer === 'string' &&
-                                initialTronTransfer.length === 64));
+                        typeof initialTronTransfer === 'object' &&
+                        initialTronTransfer.result === true &&
+                        !initialTronTransfer.code;
                     if (tronTransferOk) {
                         await model.save();
                         const notificationModel = new this.notificationModel({

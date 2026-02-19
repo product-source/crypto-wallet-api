@@ -77,8 +77,8 @@ export class AppsService {
       const tronTokenDecimal = await getTokens[0]?.decimal;
       const tronAdminPvtKey = ConfigService.keys.TRON_ADMIN_PRIVATE_KEY;
       const tronAdminAddress = ConfigService.keys.TRON_ADMIN_ADDRESS;
-      const tronAmount = 0.000001;
-      const totalActivationCost = tronAmount + 1.1;
+      const tronAmount = 1.1;          // Minimum TRX to activate a new TRON mainnet wallet
+      const totalActivationCost = tronAmount + 0.5;  // tronAmount + bandwidth fee buffer
       const isAdminBalance = await getTronBalance(tronAdminAddress);
 
       const appExist = await this.appsModel.findOne({ name });
@@ -210,16 +210,12 @@ export class AppsService {
           // Log actual receipt to debug mainnet response shape
           console.log("initialTronTransfer receipt:", JSON.stringify(initialTronTransfer));
 
-          // Accept any truthy receipt: { result: true }, { txid: '...' }, or 64-char txid string
+          // Success only if result===true AND no error code (e.g. BANDWITH_ERROR has txid but is a failure)
           const tronTransferOk =
             initialTronTransfer &&
-            (
-              (typeof initialTronTransfer === 'object' &&
-                (initialTronTransfer.result === true ||
-                  typeof initialTronTransfer.txid === 'string')) ||
-              (typeof initialTronTransfer === 'string' &&
-                initialTronTransfer.length === 64)
-            );
+            typeof initialTronTransfer === 'object' &&
+            initialTronTransfer.result === true &&
+            !initialTronTransfer.code;   // code field = error (BANDWITH_ERROR, etc.)
 
           if (tronTransferOk) {
             await model.save();
