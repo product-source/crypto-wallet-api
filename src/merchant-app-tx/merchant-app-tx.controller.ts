@@ -134,7 +134,7 @@ export class MerchantAppTxController {
     return this.merchantAppTxService.getmerchantWithdrawFiatTxList(user, query);
   }
 
-  @UseGuards(PermissionsGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions(Permission.FIAT_TRANSACTIONS)
   @Get("merchant-fiat-withdraw-list-admin")
   merchantFiatWithdrawListinAdmin(@Request() req, @Query() query) {
@@ -145,7 +145,7 @@ export class MerchantAppTxController {
     );
   }
 
-  @UseGuards(PermissionsGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions(Permission.FIAT_TRANSACTIONS)
   @Post("admin-fiat-transfer")
   adminFiatTransfer(
@@ -157,7 +157,7 @@ export class MerchantAppTxController {
     return this.merchantAppTxService.adminFiatTransfer(query, dto);
   }
 
-  @UseGuards(PermissionsGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions(Permission.FIAT_TRANSACTIONS)
   @Get("view-fiat-withdrawl")
   viewFiatWithdrawl(@Request() req, @Query() query) {

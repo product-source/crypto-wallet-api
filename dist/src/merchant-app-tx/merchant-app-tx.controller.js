@@ -173,7 +173,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], MerchantAppTxController.prototype, "merchantFiatWithdrawList", null);
 __decorate([
-    (0, common_1.UseGuards)(permissions_guard_1.PermissionsGuard),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, permissions_guard_1.PermissionsGuard),
     (0, permissions_decorator_1.Permissions)(role_enum_1.Permission.FIAT_TRANSACTIONS),
     (0, common_1.Get)("merchant-fiat-withdraw-list-admin"),
     __param(0, (0, common_1.Request)()),
@@ -183,7 +183,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], MerchantAppTxController.prototype, "merchantFiatWithdrawListinAdmin", null);
 __decorate([
-    (0, common_1.UseGuards)(permissions_guard_1.PermissionsGuard),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, permissions_guard_1.PermissionsGuard),
     (0, permissions_decorator_1.Permissions)(role_enum_1.Permission.FIAT_TRANSACTIONS),
     (0, common_1.Post)("admin-fiat-transfer"),
     __param(0, (0, common_1.Request)()),
@@ -194,7 +194,7 @@ __decorate([
     __metadata("design:returntype", void 0)
 ], MerchantAppTxController.prototype, "adminFiatTransfer", null);
 __decorate([
-    (0, common_1.UseGuards)(permissions_guard_1.PermissionsGuard),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, permissions_guard_1.PermissionsGuard),
     (0, permissions_decorator_1.Permissions)(role_enum_1.Permission.FIAT_TRANSACTIONS),
     (0, common_1.Get)("view-fiat-withdrawl"),
     __param(0, (0, common_1.Request)()),
