@@ -28,6 +28,7 @@ class Keys {
         this.EVM_OWNER_ADDRESS = null;
         this.BTC_OWNER_ADDRESS = null;
         this.TRON_NODE = null;
+        this.NETWORK_MODE = null;
         this.ETH_CHAIN_ID = null;
         this.ETH_RPC_URL = null;
         this.ETH_EXPLORER_URL = null;
@@ -74,6 +75,7 @@ class Keys {
         this.EVM_OWNER_ADDRESS = process.env.EVM_OWNER_ADDRESS;
         this.BTC_OWNER_ADDRESS = process.env.BTC_OWNER_ADDRESS;
         this.TRON_NODE = process.env.TRON_NODE;
+        this.NETWORK_MODE = process.env.NETWORK_MODE || 'mainnet';
         this.ETH_CHAIN_ID = process.env.ETH_CHAIN_ID;
         this.ETH_RPC_URL = process.env.ETH_RPC_URL;
         this.ETH_EXPLORER_URL = process.env.ETH_EXPLORER_URL;

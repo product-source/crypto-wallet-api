@@ -24,6 +24,7 @@ export declare class Keys {
     EVM_OWNER_ADDRESS: string;
     BTC_OWNER_ADDRESS: string;
     TRON_NODE: string;
+    NETWORK_MODE: string;
     ETH_CHAIN_ID: string;
     ETH_RPC_URL: string;
     ETH_EXPLORER_URL: string;

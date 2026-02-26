@@ -25,6 +25,9 @@ export class Keys {
   BTC_OWNER_ADDRESS: string = null;
   TRON_NODE: string = null;
 
+  // Network Mode (mainnet or testnet)
+  NETWORK_MODE: string = null;
+
   // EVM Network Config
   ETH_CHAIN_ID: string = null;
   ETH_RPC_URL: string = null;
@@ -78,6 +81,9 @@ export class Keys {
     this.EVM_OWNER_ADDRESS = process.env.EVM_OWNER_ADDRESS;
     this.BTC_OWNER_ADDRESS = process.env.BTC_OWNER_ADDRESS;
     this.TRON_NODE = process.env.TRON_NODE;
+
+    // Network Mode
+    this.NETWORK_MODE = process.env.NETWORK_MODE || 'mainnet';
 
     // EVM Network Config
     this.ETH_CHAIN_ID = process.env.ETH_CHAIN_ID;

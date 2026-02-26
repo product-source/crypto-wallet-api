@@ -11,6 +11,8 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TokenSchema = exports.Token = void 0;
 const mongoose_1 = require("@nestjs/mongoose");
+const networkMode = process.env.NETWORK_MODE || "mainnet";
+const tokenCollectionName = networkMode === "testnet" ? "testTokens" : "tokens";
 let Token = class Token {
 };
 exports.Token = Token;
@@ -47,7 +49,8 @@ __decorate([
     __metadata("design:type", Number)
 ], Token.prototype, "decimal", void 0);
 exports.Token = Token = __decorate([
-    (0, mongoose_1.Schema)({ timestamps: true })
+    (0, mongoose_1.Schema)({ timestamps: true, collection: tokenCollectionName })
 ], Token);
 exports.TokenSchema = mongoose_1.SchemaFactory.createForClass(Token);
+console.log(`[Token Schema] NETWORK_MODE=${networkMode}, using collection: "${tokenCollectionName}"`);
 //# sourceMappingURL=token.schema.js.map
