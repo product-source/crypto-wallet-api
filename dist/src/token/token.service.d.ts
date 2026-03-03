@@ -3,10 +3,12 @@ import { Token, TokenDocument } from "./schema/token.schema";
 import { Model } from "mongoose";
 import { AddTokenDto, UpdateMinWithdrawDto } from "./dto/token.dto";
 import { NotificationDocument } from "src/notification/schema/notification.schema";
+import { FiatCurrencyService } from "src/fiat-currency/fiat-currency.service";
 export declare class TokenService {
     private readonly tokenModel;
     private readonly notificationModel;
-    constructor(tokenModel: Model<TokenDocument>, notificationModel: Model<NotificationDocument>);
+    private readonly fiatCurrencyService;
+    constructor(tokenModel: Model<TokenDocument>, notificationModel: Model<NotificationDocument>, fiatCurrencyService: FiatCurrencyService);
     ensureDefaultTokensExist(): Promise<void>;
     addToken(dto: AddTokenDto): Promise<{
         message: string;
@@ -45,5 +47,30 @@ export declare class TokenService {
     }>;
     getValidateTronAddress(query: any): Promise<{
         isValid: boolean;
+    }>;
+    convertCurrency(query: {
+        from: string;
+        to: string;
+        amount: number;
+    }): Promise<{
+        success: boolean;
+        from: string;
+        to: string;
+        amount: number;
+        convertedAmount: number;
+        rate: number;
+        timestamp: string;
+    }>;
+    getSupportedCurrencies(): Promise<{
+        crypto: {
+            code: string;
+            symbol: string;
+            network: string;
+        }[];
+        fiat: {
+            code: string;
+            name: string;
+            symbol: string;
+        }[];
     }>;
 }

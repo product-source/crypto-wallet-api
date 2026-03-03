@@ -98,6 +98,14 @@ __decorate([
 ], UserWithdrawal.prototype, "adminFee", void 0);
 __decorate([
     (0, mongoose_1.Prop)(),
+    __metadata("design:type", Number)
+], UserWithdrawal.prototype, "adminFeePercent", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], UserWithdrawal.prototype, "adminFeeTxHash", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
 ], UserWithdrawal.prototype, "failureReason", void 0);
 __decorate([

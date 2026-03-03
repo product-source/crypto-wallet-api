@@ -74,7 +74,7 @@ export class MerchantAppTxService {
     private readonly adminService: AdminService,
     private readonly tokenService: TokenService,
     private encryptionService: EncryptionService
-  ) {}
+  ) { }
 
   async uploadFile(file: Express.Multer.File): Promise<string> {
     // Use process.cwd() to get the root directory of the project
@@ -776,7 +776,7 @@ export class MerchantAppTxService {
                 <!-- Header Section -->
                 <tr>
                   <td style="padding: 20px; background: #fff; text-align: center; border-bottom: 1px solid #e0e0e0;">
-                    <img src="https://crypto-wallet-api.devtechnosys.tech/logo/logo.png" width="200"
+                    <img src="https://crypto-wallet-api.devtechnosys.tech/logo/logo-black.svg" width="200"
                       style="max-width: 100%; height: auto;" />
                   </td>
                 </tr>
@@ -882,21 +882,21 @@ export class MerchantAppTxService {
                         color: #666;
                       ">
                     If you have any questions, feel free to contact us at
-                    <a href="mailto:newsletter@coinpera.com"
-                      style="color: #000; text-decoration: mailto:none;">newsletter@coinpera.com</a>.
+                    <a href="mailto:newsletter@paycoinz.com"
+                      style="color: #000; text-decoration: mailto:none;">newsletter@paycoinz.com</a>.
                   </td>
                 </tr>
                 <tr>
                   <td style="padding: 10px 20px 20px; text-align: center;">
                     <p style="margin: 0; color: #999;">
-                      © ${new Date().getFullYear()} Coinpera. All rights reserved.
+                      © ${new Date().getFullYear()} Paycoinz. All rights reserved.
                     </p>
                     <p style="margin: 5px 0 0; color: #999;">
                       Tbilisi, 0144 Tbilisi ,Georgia
                     </p>
                     <p style="margin: 5px 0 0; color: #999;">
                       <a href="https://crypto-wallet.devtechnosys.tech"
-                        style="color: #000; text-decoration: none;">Coinpera</a>
+                        style="color: #000; text-decoration: none;">Paycoinz</a>
                     </p>
                   </td>
                 </tr>
@@ -1090,21 +1090,62 @@ export class MerchantAppTxService {
 
   async getmerchantWithdrawFiatTxListinAdmin(user, query) {
     try {
-      const { pageNo, limitVal } = query;
+      const { pageNo, limitVal, search } = query;
 
       const page = pageNo ? parseInt(pageNo, 10) : 1;
 
       const limit = limitVal ? parseInt(limitVal, 10) : 10;
 
+      let queryObj: any = {};
+
+      // Search across fiat withdrawal fields
+      if (search && search.trim()) {
+        const searchTerm = search.trim();
+
+        // Find merchant IDs matching the search by name/email
+        const matchingMerchants = await this.merchantModel.find({
+          $or: [
+            { name: { $regex: searchTerm, $options: "i" } },
+            { email: { $regex: searchTerm, $options: "i" } },
+          ],
+        }).select("_id");
+        const merchantIds = matchingMerchants.map((m) => m._id);
+
+        // Find app IDs matching the search by name
+        const matchingApps = await this.appsModel.find({
+          name: { $regex: searchTerm, $options: "i" },
+        }).select("_id");
+        const appIds = matchingApps.map((a) => a._id);
+
+        const orConditions: any[] = [
+          { currency: { $regex: searchTerm, $options: "i" } },
+          { status: { $regex: searchTerm, $options: "i" } },
+        ];
+
+        if (!isNaN(parseFloat(searchTerm))) {
+          orConditions.push({ withdrawlAmount: parseFloat(searchTerm) });
+          orConditions.push({ cryptoValue: parseFloat(searchTerm) });
+        }
+
+        if (merchantIds.length > 0) {
+          orConditions.push({ merchantId: { $in: merchantIds } });
+        }
+        if (appIds.length > 0) {
+          orConditions.push({ appsId: { $in: appIds } });
+        }
+
+        queryObj.$or = orConditions;
+      }
+
       // Total count
-      const totalCount = await this.fiatWithdrawModel.countDocuments();
+      const totalCount = await this.fiatWithdrawModel.countDocuments(queryObj);
 
       // Pagination skip
       const skip = (page - 1) * limit;
 
       // Paginated data
       const transactions = await this.fiatWithdrawModel
-        .find()
+        .find(queryObj)
         .populate({
           path: "merchantId",
           select: "name countryCode contactNumber email",

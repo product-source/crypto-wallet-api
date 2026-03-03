@@ -17,7 +17,7 @@ function profileUpdateTemplate(user) {
                 <table cellpadding="0" cellspacing="0" border="0" width="600" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);">
                   <tr>
                     <td align="center" style="padding: 20px; background-color: #ffffff;">
-                      <img src="https://crypto-wallet-api.devtechnosys.tech/logo/logo.png" alt="Company Logo" style="max-width: 200px; height: auto;">
+                      <img src="https://crypto-wallet-api.devtechnosys.tech/logo/logo-black.svg" alt="Company Logo" style="max-width: 200px; height: auto;">
                     </td>
                   </tr>
                   <tr>
@@ -66,13 +66,13 @@ function profileUpdateTemplate(user) {
                         </tr>
                       </table>
                       <p>If you did not make these changes or have any concerns, please contact our support team immediately.</p>
-                      <p>Best regards,<br>The Coinpera Team</p>
+                      <p>Best regards,<br>The Paycoinz Team</p>
                     </td>
                   </tr>
                   <tr>
                     <td style="background-color: #f0f0f0; text-align: center; padding: 15px; font-size: 12px; color: #999999;">
-                      &copy; ${new Date().getFullYear()} Coinpera. All rights reserved.<br>
-                      Need help? <a href="mailto:support@coinpera.com" style="color: #007bff;">Contact Support</a>
+                      &copy; ${new Date().getFullYear()} Paycoinz. All rights reserved.<br>
+                      Need help? <a href="mailto:support@paycoinz.com" style="color: #007bff;">Contact Support</a>
                     </td>
                   </tr>
                 </table>

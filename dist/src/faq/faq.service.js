@@ -59,7 +59,7 @@ let FaqService = class FaqService {
     async ensureDefaultFaqExist() {
         const tokenCount = await this.faqModel.countDocuments();
         if (tokenCount === 0) {
-            const filePath = (0, path_1.join)(process.cwd(), "src/utils/data", "coinpera-web.faqs.json");
+            const filePath = (0, path_1.join)(process.cwd(), "src/utils/data", "paycoinz-web.faqs.json");
             const fileContent = await fs.readFile(filePath, "utf8");
             const rawTokensData = JSON.parse(fileContent);
             const faqData = rawTokensData.map(({ _id, createdAt, updatedAt, ...rest }) => rest);

@@ -143,6 +143,10 @@ export class ListWithdrawalsDto {
     @IsOptional()
     @IsString()
     endDate?: string;
+
+    @IsOptional()
+    @IsString()
+    search?: string;
 }
 
 // DTO for listing withdrawals (External API)

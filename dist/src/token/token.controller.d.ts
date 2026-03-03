@@ -41,4 +41,25 @@ export declare class TokenController {
     getValidateTronAddress(query: any): Promise<{
         isValid: boolean;
     }>;
+    convertCurrency(from: string, to: string, amount: number): Promise<{
+        success: boolean;
+        from: string;
+        to: string;
+        amount: number;
+        convertedAmount: number;
+        rate: number;
+        timestamp: string;
+    }>;
+    getSupportedCurrencies(): Promise<{
+        crypto: {
+            code: string;
+            symbol: string;
+            network: string;
+        }[];
+        fiat: {
+            code: string;
+            name: string;
+            symbol: string;
+        }[];
+    }>;
 }

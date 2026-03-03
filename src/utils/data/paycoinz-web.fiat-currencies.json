@@ -1,0 +1,26 @@
+[
+    {
+        "code": "try",
+        "name": "Turkish Lira",
+        "symbol": "₺",
+        "isActive": true
+    },
+    {
+        "code": "usd",
+        "name": "US Dollar",
+        "symbol": "$",
+        "isActive": true
+    },
+    {
+        "code": "eur",
+        "name": "Euro",
+        "symbol": "€",
+        "isActive": true
+    },
+    {
+        "code": "gbp",
+        "name": "British Pound",
+        "symbol": "£",
+        "isActive": true
+    }
+]

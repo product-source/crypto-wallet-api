@@ -21,6 +21,7 @@ import { ConfigService } from "src/config/config.service";
 import { merchantEvmFundWithdraw, evmCryptoBalanceCheck, getNetwork } from "src/helpers/evm.helper";
 import { merchantTronFundWithdraw, getTronBalance, getTRC20Balance } from "src/helpers/tron.helper";
 import { merchantBtcFundWithdraw } from "src/helpers/bitcoin.helper";
+import { AdminService } from "src/admin/admin.service";
 import {
     CreateWithdrawalRequestDto,
     ApproveWithdrawalDto,
@@ -41,7 +42,8 @@ export class UserWithdrawalService {
         @InjectModel(Merchant.name)
         private readonly merchantModel: Model<MerchantDocument>,
         private readonly encryptionService: EncryptionService,
-        private readonly webhookService: WebhookService
+        private readonly webhookService: WebhookService,
+        private readonly adminService: AdminService
     ) { }
 
     /**
@@ -471,7 +473,7 @@ export class UserWithdrawalService {
      */
     async listWithdrawals(dto: ListWithdrawalsDto, merchantId?: string) {
         try {
-            const { appId, status, userId, pageNo = 1, limitVal = 10, startDate, endDate } = dto;
+            const { appId, status, userId, pageNo = 1, limitVal = 10, startDate, endDate, search } = dto;
 
             const query: any = { appsId: appId };
 
@@ -489,6 +491,23 @@ export class UserWithdrawalService {
 
             if (userId) {
                 query.userId = userId;
+            }
+
+            // Search across multiple fields
+            if (search && search.trim()) {
+                const searchTerm = search.trim();
+                const orConditions: any[] = [
+                    { userName: { $regex: searchTerm, $options: "i" } },
+                    { userEmail: { $regex: searchTerm, $options: "i" } },
+                    { userId: { $regex: searchTerm, $options: "i" } },
+                    { txHash: { $regex: searchTerm, $options: "i" } },
+                    { externalReference: { $regex: searchTerm, $options: "i" } },
+                ];
+                // Also match amount as exact string
+                if (!isNaN(parseFloat(searchTerm))) {
+                    orConditions.push({ amount: searchTerm });
+                }
+                query.$or = orConditions;
             }
 
             if (startDate || endDate) {
@@ -760,6 +779,93 @@ export class UserWithdrawalService {
             withdrawal.status = UserWithdrawalStatus.SUCCESS;
             withdrawal.txHash = receipt?.data?.transactionHash || receipt?.txid || "";
             withdrawal.processedAt = new Date();
+
+            // ── Admin Fee Transfer ──
+            // After user gets their full amount, transfer platform fee from merchant wallet to admin wallet
+            try {
+                const adminFeeInfo = await this.adminService.getPlatformFee() as any;
+                const feeData = adminFeeInfo?.data;
+
+                if (feeData) {
+                    let feePercent = 0;
+                    let adminWalletAddress = "";
+
+                    // Determine chain-specific fee and admin wallet
+                    if (chainId === "TRON") {
+                        feePercent = feeData.tronPlatformFee || 0;
+                        adminWalletAddress = feeData.tronAdminWallet || "";
+                    } else if (chainId === "BTC") {
+                        feePercent = feeData.btcPlatformFee || 0;
+                        adminWalletAddress = feeData.btcAdminWallet || "";
+                    } else {
+                        // EVM chains
+                        feePercent = feeData.platformFee || 0;
+                        adminWalletAddress = feeData.adminWallet || "";
+                    }
+
+                    const adminFeeAmount = (parseFloat(withdrawal.amount) * feePercent) / 100;
+
+                    if (adminFeeAmount > 0 && adminWalletAddress) {
+                        console.log(`[Withdrawal Fee] Transferring ${adminFeeAmount.toFixed(token.decimal)} ${token.symbol} (${feePercent}%) to admin wallet ${adminWalletAddress}`);
+
+                        let adminReceipt: any;
+
+                        if (chainId === "TRON") {
+                            const privateKey = this.encryptionService.decryptData(
+                                app.TronWalletMnemonic.privateKey
+                            );
+                            adminReceipt = await merchantTronFundWithdraw(
+                                privateKey,
+                                token.address,
+                                adminFeeAmount.toFixed(token.decimal),
+                                adminWalletAddress,
+                                token.decimal
+                            );
+                        } else if (chainId === "BTC") {
+                            const privateKey = this.encryptionService.decryptData(
+                                app.BtcWalletMnemonic.privateKey
+                            );
+                            adminReceipt = await merchantBtcFundWithdraw(
+                                privateKey,
+                                Number(adminFeeAmount.toFixed(token.decimal)),
+                                adminWalletAddress,
+                                app.BtcWalletMnemonic.address,
+                                0,
+                                ""
+                            );
+                        } else {
+                            // EVM chains
+                            const privateKey = this.encryptionService.decryptData(
+                                app.EVMWalletMnemonic.privateKey
+                            );
+                            adminReceipt = await merchantEvmFundWithdraw(
+                                chainId,
+                                privateKey,
+                                token.address,
+                                Number(adminFeeAmount.toFixed(token.decimal)),
+                                adminWalletAddress,
+                                token.decimal,
+                                null
+                            );
+                        }
+
+                        // Store fee details regardless of success
+                        withdrawal.adminFee = adminFeeAmount.toFixed(token.decimal);
+                        withdrawal.adminFeePercent = feePercent;
+                        withdrawal.adminFeeTxHash = adminReceipt?.data?.transactionHash || adminReceipt?.txid || "";
+
+                        if (adminReceipt?.status === false || adminReceipt?.error) {
+                            console.error(`[Withdrawal Fee] Admin fee transfer failed: ${adminReceipt?.error}`);
+                        } else {
+                            console.log(`[Withdrawal Fee] Admin fee transferred successfully. TxHash: ${withdrawal.adminFeeTxHash}`);
+                        }
+                    }
+                }
+            } catch (feeError) {
+                // Admin fee failure should NOT fail the user withdrawal
+                console.error("[Withdrawal Fee] Error transferring admin fee:", feeError?.message || feeError);
+            }
+
             await withdrawal.save();
 
             // Send success webhook
@@ -1142,13 +1248,22 @@ export class UserWithdrawalService {
                 queryObj.merchantId = merchantId;
             }
 
-            // Search by userId or userEmail or walletAddress
+            // Search by userId, userEmail, userName, walletAddress, txHash, externalReference, amount
             if (search) {
-                queryObj.$or = [
-                    { userId: { $regex: search, $options: "i" } },
-                    { userEmail: { $regex: search, $options: "i" } },
-                    { walletAddress: { $regex: search, $options: "i" } },
+                const searchTerm = search.trim();
+                const orConditions: any[] = [
+                    { userId: { $regex: searchTerm, $options: "i" } },
+                    { userEmail: { $regex: searchTerm, $options: "i" } },
+                    { userName: { $regex: searchTerm, $options: "i" } },
+                    { walletAddress: { $regex: searchTerm, $options: "i" } },
+                    { txHash: { $regex: searchTerm, $options: "i" } },
+                    { externalReference: { $regex: searchTerm, $options: "i" } },
                 ];
+                // Also match amount as exact string if numeric
+                if (!isNaN(parseFloat(searchTerm))) {
+                    orConditions.push({ amount: searchTerm });
+                }
+                queryObj.$or = orConditions;
             }
 
             const [withdrawals, total] = await Promise.all([

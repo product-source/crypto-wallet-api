@@ -17,7 +17,7 @@ export class PricingService {
   constructor(
     @InjectModel(Pricing.name)
     private readonly pricingModel: Model<PricingDocument>
-  ) {}
+  ) { }
 
   async ensureDefaultPricingExist() {
     const pricingCount = await this.pricingModel.countDocuments();
@@ -26,7 +26,7 @@ export class PricingService {
       const filePath = join(
         process.cwd(),
         "src/utils/data",
-        "coinpera-web.pricings.json"
+        "paycoinz-web.pricings.json"
       );
 
       // Read the file and parse the JSON

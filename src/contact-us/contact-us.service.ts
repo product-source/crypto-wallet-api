@@ -49,7 +49,7 @@ export class ContactUsService {
       await model.save();
 
       try {
-        const emailRecipient = "newsletter@coinpera.com";
+        const emailRecipient = "newsletter@paycoinz.com";
         const emailSubject = "New Contact Us Submission";
 
         const emailHtml = `
@@ -93,7 +93,7 @@ export class ContactUsService {
                   <!-- Footer -->
                   <tr>
                     <td style="background-color: #f0f0f0; text-align: center; padding: 15px; font-size: 12px; color: #999999;">
-                      &copy; ${new Date().getFullYear()} Coinpera. All rights reserved.
+                      &copy; ${new Date().getFullYear()} Paycoinz. All rights reserved.
                     </td>
                   </tr>
                 </table>
@@ -235,7 +235,7 @@ export class ContactUsService {
           <!-- Logo -->
           <tr>
             <td align="center" style="padding: 20px; background-color: #ffffff;">
-              <img src="https://crypto-wallet-api.devtechnosys.tech/logo/logo.png" alt="Company Logo" style="max-width: 200px; height: auto;">
+              <img src="https://crypto-wallet-api.devtechnosys.tech/logo/logo-black.svg" alt="Company Logo" style="max-width: 200px; height: auto;">
             </td>
           </tr>
           <!-- Header -->
@@ -254,13 +254,13 @@ export class ContactUsService {
                ${adminReply}:</p>
               
               <p>If you need immediate assistance, feel free to contact us directly.</p>
-              <p>Best regards,<br>The Coinpera Company Team</p>
+              <p>Best regards,<br>The Paycoinz Company Team</p>
             </td>
           </tr>
           <!-- Footer -->
           <tr>
             <td style="background-color: #f0f0f0; text-align: center; padding: 15px; font-size: 12px; color: #999999;">
-              &copy; ${new Date().getFullYear()} Coinpera. All rights reserved.<br>
+              &copy; ${new Date().getFullYear()} Paycoinz. All rights reserved.<br>
             </td>
           </tr>
         </table>

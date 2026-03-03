@@ -51,18 +51,21 @@ const mongoose_1 = require("@nestjs/mongoose");
 const token_schema_1 = require("./schema/token.schema");
 const mongoose_2 = require("mongoose");
 const tron_helper_1 = require("../helpers/tron.helper");
+const helper_1 = require("../helpers/helper");
 const notification_schema_1 = require("../notification/schema/notification.schema");
 const path_1 = require("path");
 const fs = __importStar(require("fs/promises"));
+const fiat_currency_service_1 = require("../fiat-currency/fiat-currency.service");
 let TokenService = class TokenService {
-    constructor(tokenModel, notificationModel) {
+    constructor(tokenModel, notificationModel, fiatCurrencyService) {
         this.tokenModel = tokenModel;
         this.notificationModel = notificationModel;
+        this.fiatCurrencyService = fiatCurrencyService;
     }
     async ensureDefaultTokensExist() {
         const tokenCount = await this.tokenModel.countDocuments();
         if (tokenCount === 0) {
-            const filePath = (0, path_1.join)(process.cwd(), "src/utils/data", "coinpera-web.tokens.json");
+            const filePath = (0, path_1.join)(process.cwd(), "src/utils/data", "paycoinz-web.tokens.json");
             const fileContent = await fs.readFile(filePath, "utf8");
             const rawTokensData = JSON.parse(fileContent);
             const tokensData = rawTokensData.map(({ _id, createdAt, updatedAt, ...rest }) => rest);
@@ -254,6 +257,93 @@ let TokenService = class TokenService {
             }
         }
     }
+    async convertCurrency(query) {
+        try {
+            const { from, to, amount } = query;
+            if (!from || !to || !amount || amount <= 0) {
+                throw new common_1.BadRequestException("Invalid parameters. Provide from, to, and a positive amount.");
+            }
+            const fiatCurrencies = await this.fiatCurrencyService.getAllCodes();
+            const allTokens = await this.tokenModel.find().select("code symbol");
+            const tokenCodeMap = {};
+            allTokens.forEach((t) => {
+                tokenCodeMap[t.code.toUpperCase()] = t.symbol.toUpperCase();
+            });
+            const supportedCryptoCodes = Object.keys(tokenCodeMap);
+            const fromUpper = from.toUpperCase();
+            const toUpper = to.toUpperCase();
+            const isCryptoFrom = supportedCryptoCodes.includes(fromUpper);
+            const isCryptoTo = supportedCryptoCodes.includes(toUpper);
+            const isFiatFrom = fiatCurrencies.includes(fromUpper);
+            const isFiatTo = fiatCurrencies.includes(toUpper);
+            if (!isCryptoFrom && !isFiatFrom) {
+                throw new common_1.BadRequestException(`Unsupported 'from' currency: ${fromUpper}. Supported crypto codes: ${supportedCryptoCodes.join(", ")}. Supported fiat: ${fiatCurrencies.join(", ")}.`);
+            }
+            if (!isCryptoTo && !isFiatTo) {
+                throw new common_1.BadRequestException(`Unsupported 'to' currency: ${toUpper}. Supported crypto codes: ${supportedCryptoCodes.join(", ")}. Supported fiat: ${fiatCurrencies.join(", ")}.`);
+            }
+            const fromSymbol = isCryptoFrom ? tokenCodeMap[fromUpper] : fromUpper;
+            const toSymbol = isCryptoTo ? tokenCodeMap[toUpper] : toUpper;
+            let convertedAmount;
+            let rate;
+            if (isCryptoFrom && isFiatTo) {
+                rate = await (0, helper_1.getTatumPrice)(fromSymbol, toSymbol);
+                if (!rate)
+                    throw new common_1.BadRequestException(`Unable to fetch price for ${fromUpper}/${toUpper}`);
+                convertedAmount = amount * rate;
+            }
+            else if (isFiatFrom && isCryptoTo) {
+                rate = await (0, helper_1.getTatumPrice)(toSymbol, fromSymbol);
+                if (!rate)
+                    throw new common_1.BadRequestException(`Unable to fetch price for ${toUpper}/${fromUpper}`);
+                convertedAmount = amount / rate;
+                rate = 1 / rate;
+            }
+            else if (isCryptoFrom && isCryptoTo) {
+                const fromUsd = await (0, helper_1.getTatumPrice)(fromSymbol, "USD");
+                const toUsd = await (0, helper_1.getTatumPrice)(toSymbol, "USD");
+                if (!fromUsd || !toUsd)
+                    throw new common_1.BadRequestException(`Unable to fetch USD prices for ${fromUpper} or ${toUpper}`);
+                rate = fromUsd / toUsd;
+                convertedAmount = amount * rate;
+            }
+            else if (isFiatFrom && isFiatTo) {
+                const fromRate = await (0, helper_1.getTatumPrice)("USDT", fromSymbol);
+                const toRate = await (0, helper_1.getTatumPrice)("USDT", toSymbol);
+                if (!fromRate || !toRate)
+                    throw new common_1.BadRequestException(`Unable to fetch fiat rates for ${fromUpper}/${toUpper}`);
+                rate = toRate / fromRate;
+                convertedAmount = amount * rate;
+            }
+            else {
+                throw new common_1.BadRequestException("Unsupported conversion pair.");
+            }
+            return {
+                success: true,
+                from: fromUpper,
+                to: toUpper,
+                amount,
+                convertedAmount: parseFloat(convertedAmount.toFixed(8)),
+                rate: parseFloat(rate.toFixed(8)),
+                timestamp: new Date().toISOString(),
+            };
+        }
+        catch (error) {
+            if (error instanceof common_1.BadRequestException) {
+                throw error;
+            }
+            console.log("Currency conversion error:", error.message);
+            throw new common_1.BadRequestException("Currency conversion failed: " + error.message);
+        }
+    }
+    async getSupportedCurrencies() {
+        const allTokens = await this.tokenModel.find().select("code symbol network");
+        const fiatCurrencies = await this.fiatCurrencyService.getAllWithDetails();
+        return {
+            crypto: allTokens.map((t) => ({ code: t.code, symbol: t.symbol, network: t.network })),
+            fiat: fiatCurrencies,
+        };
+    }
 };
 exports.TokenService = TokenService;
 exports.TokenService = TokenService = __decorate([
@@ -261,6 +351,7 @@ exports.TokenService = TokenService = __decorate([
     __param(0, (0, mongoose_1.InjectModel)(token_schema_1.Token.name)),
     __param(1, (0, mongoose_1.InjectModel)(notification_schema_1.Notification.name)),
     __metadata("design:paramtypes", [mongoose_2.Model,
-        mongoose_2.Model])
+        mongoose_2.Model,
+        fiat_currency_service_1.FiatCurrencyService])
 ], TokenService);
 //# sourceMappingURL=token.service.js.map

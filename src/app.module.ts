@@ -30,6 +30,7 @@ import { join } from "path";
 import { NotificationModule } from "./notification/notification.module";
 import { UserWithdrawalModule } from "./user-withdrawal/user-withdrawal.module";
 import { CommonController } from "./common/common.controller";
+import { FiatCurrencyModule } from "./fiat-currency/fiat-currency.module";
 
 @Module({
   imports: [
@@ -52,7 +53,7 @@ import { CommonController } from "./common/common.controller";
         },
       },
       defaults: {
-        from: "newsletter@coinpera.com",
+        from: "newsletter@paycoinz.com",
       },
     }),
     ConfigModule,
@@ -78,6 +79,7 @@ import { CommonController } from "./common/common.controller";
     MoralisTxModule,
     NotificationModule,
     UserWithdrawalModule,
+    FiatCurrencyModule,
     // MerchantTransactionsModule,
   ],
   controllers: [AppController, CommonController],

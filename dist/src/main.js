@@ -18,6 +18,7 @@ const other_pages_service_1 = require("./other-pages/other-pages.service");
 const testimonial_service_1 = require("./testimonial/testimonial.service");
 const how_it_works_service_1 = require("./how-it-works/how-it-works.service");
 const pricing_service_1 = require("./pricing/pricing.service");
+const fiat_currency_service_1 = require("./fiat-currency/fiat-currency.service");
 async function bootstrap() {
     console.log("--------------------------- : ", config_service_1.ConfigService.keys.BTC_OWNER_ADDRESS);
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
@@ -31,6 +32,8 @@ async function bootstrap() {
     });
     const tokenService = app.get(token_service_1.TokenService);
     await tokenService.ensureDefaultTokensExist();
+    const fiatCurrencyService = app.get(fiat_currency_service_1.FiatCurrencyService);
+    await fiatCurrencyService.ensureDefaultFiatCurrenciesExist();
     const adminService = app.get(admin_service_1.AdminService);
     await adminService.ensureDefaultAdminExist();
     const faqService = app.get(faq_service_1.FaqService);

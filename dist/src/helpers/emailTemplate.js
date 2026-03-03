@@ -54,12 +54,12 @@ exports.emailTemplate = `
         <div class="email-body">
             <p>We hope this message finds you well.</p>
             <p>Please find attached your invoice for the recent transaction. If you have any questions, feel free to reply to this email or contact our support team.</p>
-            <p>Best regards,<br>COINPERA PRIVATE LIMITED</p>
-            // <img src= ${logo} alt="Coinpera Logo" style="width: 150px;">
-            <img src=  alt="Coinpera Logo" style="width: 150px;">
+            <p>Best regards,<br>PAYCOINZ PRIVATE LIMITED</p>
+            // <img src= ${logo} alt="Paycoinz Logo" style="width: 150px;">
+            <img src=  alt="Paycoinz Logo" style="width: 150px;">
         </div>
         <div class="email-footer">
-            This email was sent to you by COINPERA PRIVATE LIMITED
+            This email was sent to you by PAYCOINZ PRIVATE LIMITED
         </div>
     </div>
 </body>

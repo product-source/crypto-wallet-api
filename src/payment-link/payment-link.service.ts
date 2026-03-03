@@ -244,16 +244,22 @@ export class PaymentLinkService {
         if (fiatCurrency.toUpperCase() === "USD") {
           fiatUsd = Number(amount);
         } else {
-          const fiatUrl = `https://api.frankfurter.app/latest?amount=${amount}&from=${fiatCurrency}&to=USD`;
+          // Use Tatum API: get price of 1 USD in target fiat currency
+          // e.g. getTatumPrice("USD", "TRY") = 36.5 (1 USD = 36.5 TRY)
+          // Then fiatUsd = fiatAmount / rate (e.g. 3000 TRY / 36.5 = 82.19 USD)
           try {
-            const re = await axios.get(fiatUrl);
-            const usdPrice = re.data;
-            fiatUsd = usdPrice?.rates?.USD;
+            const usdToFiatRate = await getTatumPrice("USD", fiatCurrency.toUpperCase());
+            if (usdToFiatRate && usdToFiatRate > 0) {
+              fiatUsd = Number(amount) / usdToFiatRate;
+            } else {
+              // Fallback to cryptoUsd if rate unavailable
+              console.warn("Tatum fiat rate unavailable, using cryptoUsd as fallback");
+              fiatUsd = cryptoUsd;
+            }
           } catch (e) {
-            console.error("Frankfurter API Error:", e.message);
-            // Fallback: Calculate via cryptoUsd?
-            // fiatUsd = cryptoUsd; // Approximate
-            fiatUsd = 0; // Or keep 0/null if failing
+            console.error("Tatum fiat conversion error:", e.message);
+            // Fallback to cryptoUsd (same deposit value, different calculation path)
+            fiatUsd = cryptoUsd;
           }
           console.log("fiatUsd", fiatUsd);
         }
@@ -483,28 +489,27 @@ export class PaymentLinkService {
         queryObject.appId = { $in: appIds };
       }
 
-      if (search) {
-        queryObject = {
-          $or: [
-            { tokenSymbol: { $regex: search, $options: "i" } },
-            { fromAddress: { $regex: search, $options: "i" } },
-            { toAddress: { $regex: search, $options: "i" } },
-            { symbol: { $regex: symbol, $options: "i" } },
-          ],
-        };
-      } else if (symbol === "ALL") {
-        queryObject = {
-          appId: { $in: appIds },
-        };
-      } else if (symbol) {
-        queryObject = {
-          symbol: { $regex: symbol, $options: "i" },
-          appId: { $in: appIds },
-        };
-      } else if (chainId) {
-        queryObject = {
-          chainId: { $regex: chainId, $options: "i" },
-        };
+      if (symbol && symbol !== "ALL") {
+        queryObject.symbol = { $regex: symbol, $options: "i" };
+      }
+
+      if (chainId) {
+        queryObject.chainId = { $regex: chainId, $options: "i" };
+      }
+
+      if (search && search.trim()) {
+        const searchTerm = search.trim();
+        const orConditions: any[] = [
+          { hash: { $regex: searchTerm, $options: "i" } },
+          { fromAddress: { $regex: searchTerm, $options: "i" } },
+          { toAddress: { $regex: searchTerm, $options: "i" } },
+          { tokenSymbol: { $regex: searchTerm, $options: "i" } },
+        ];
+        // Also match recivedAmount as exact string
+        if (!isNaN(parseFloat(searchTerm))) {
+          orConditions.push({ recivedAmount: searchTerm });
+        }
+        queryObject.$or = orConditions;
       }
 
       // Apply date range filter if provided

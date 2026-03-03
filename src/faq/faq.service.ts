@@ -15,7 +15,7 @@ export class FaqService {
   constructor(
     @InjectModel(Faq.name)
     private readonly faqModel: Model<FaqDocument>
-  ) {}
+  ) { }
 
   async ensureDefaultFaqExist() {
     const tokenCount = await this.faqModel.countDocuments();
@@ -24,7 +24,7 @@ export class FaqService {
       const filePath = join(
         process.cwd(),
         "src/utils/data",
-        "coinpera-web.faqs.json"
+        "paycoinz-web.faqs.json"
       );
 
       // Read the file and parse the JSON

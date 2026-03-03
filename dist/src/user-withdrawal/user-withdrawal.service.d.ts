@@ -6,6 +6,7 @@ import { TokenDocument } from "src/token/schema/token.schema";
 import { MerchantDocument } from "src/merchants/schema/merchant.schema";
 import { EncryptionService } from "src/utils/encryption.service";
 import { WebhookService } from "src/webhook/webhook.service";
+import { AdminService } from "src/admin/admin.service";
 import { CreateWithdrawalRequestDto, ApproveWithdrawalDto, DeclineWithdrawalDto, ListWithdrawalsDto, UpdateWithdrawalSettingsDto } from "./dto/user-withdrawal.dto";
 export declare class UserWithdrawalService {
     private readonly userWithdrawalModel;
@@ -14,7 +15,8 @@ export declare class UserWithdrawalService {
     private readonly merchantModel;
     private readonly encryptionService;
     private readonly webhookService;
-    constructor(userWithdrawalModel: Model<UserWithdrawalDocument>, appsModel: Model<AppsDocument>, tokenModel: Model<TokenDocument>, merchantModel: Model<MerchantDocument>, encryptionService: EncryptionService, webhookService: WebhookService);
+    private readonly adminService;
+    constructor(userWithdrawalModel: Model<UserWithdrawalDocument>, appsModel: Model<AppsDocument>, tokenModel: Model<TokenDocument>, merchantModel: Model<MerchantDocument>, encryptionService: EncryptionService, webhookService: WebhookService, adminService: AdminService);
     validateAppCredentials(appId: string, apiKey: string, secretKey: string): Promise<import("mongoose").Document<unknown, {}, AppsDocument, {}, {}> & Apps & import("mongoose").Document<import("mongoose").Types.ObjectId, any, any, Record<string, any>, {}> & Required<{
         _id: import("mongoose").Types.ObjectId;
     }> & {

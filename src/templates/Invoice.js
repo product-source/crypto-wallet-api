@@ -1,12 +1,12 @@
 import React, { forwardRef, useEffect } from "react";
 import "./Invoice.css";
-import Logo from "./logo.png";
+import Logo from "./logo-black.svg";
 import { trimAddress, formatNumber } from "../../helper/helper";
 
 const Invoice = forwardRef((props, ref) => {
-  const sellerName = "COINPERA PRIVATE LIMITED";
+  const sellerName = "PAYCOINZ PRIVATE LIMITED";
 
-  useEffect(() => {}, [props.details]);
+  useEffect(() => { }, [props.details]);
 
   return (
     <div className="invoice-wrapper">

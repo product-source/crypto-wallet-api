@@ -32,14 +32,16 @@ const config_service_1 = require("../config/config.service");
 const evm_helper_1 = require("../helpers/evm.helper");
 const tron_helper_1 = require("../helpers/tron.helper");
 const bitcoin_helper_1 = require("../helpers/bitcoin.helper");
+const admin_service_1 = require("../admin/admin.service");
 let UserWithdrawalService = class UserWithdrawalService {
-    constructor(userWithdrawalModel, appsModel, tokenModel, merchantModel, encryptionService, webhookService) {
+    constructor(userWithdrawalModel, appsModel, tokenModel, merchantModel, encryptionService, webhookService, adminService) {
         this.userWithdrawalModel = userWithdrawalModel;
         this.appsModel = appsModel;
         this.tokenModel = tokenModel;
         this.merchantModel = merchantModel;
         this.encryptionService = encryptionService;
         this.webhookService = webhookService;
+        this.adminService = adminService;
     }
     async validateAppCredentials(appId, apiKey, secretKey) {
         if (!appId || !apiKey || !secretKey) {
@@ -329,7 +331,7 @@ let UserWithdrawalService = class UserWithdrawalService {
     }
     async listWithdrawals(dto, merchantId) {
         try {
-            const { appId, status, userId, pageNo = 1, limitVal = 10, startDate, endDate } = dto;
+            const { appId, status, userId, pageNo = 1, limitVal = 10, startDate, endDate, search } = dto;
             const query = { appsId: appId };
             if (merchantId) {
                 const app = await this.appsModel.findById(appId);
@@ -342,6 +344,20 @@ let UserWithdrawalService = class UserWithdrawalService {
             }
             if (userId) {
                 query.userId = userId;
+            }
+            if (search && search.trim()) {
+                const searchTerm = search.trim();
+                const orConditions = [
+                    { userName: { $regex: searchTerm, $options: "i" } },
+                    { userEmail: { $regex: searchTerm, $options: "i" } },
+                    { userId: { $regex: searchTerm, $options: "i" } },
+                    { txHash: { $regex: searchTerm, $options: "i" } },
+                    { externalReference: { $regex: searchTerm, $options: "i" } },
+                ];
+                if (!isNaN(parseFloat(searchTerm))) {
+                    orConditions.push({ amount: searchTerm });
+                }
+                query.$or = orConditions;
             }
             if (startDate || endDate) {
                 query.createdAt = {};
@@ -504,6 +520,55 @@ let UserWithdrawalService = class UserWithdrawalService {
             withdrawal.status = user_withdrawal_enum_1.UserWithdrawalStatus.SUCCESS;
             withdrawal.txHash = receipt?.data?.transactionHash || receipt?.txid || "";
             withdrawal.processedAt = new Date();
+            try {
+                const adminFeeInfo = await this.adminService.getPlatformFee();
+                const feeData = adminFeeInfo?.data;
+                if (feeData) {
+                    let feePercent = 0;
+                    let adminWalletAddress = "";
+                    if (chainId === "TRON") {
+                        feePercent = feeData.tronPlatformFee || 0;
+                        adminWalletAddress = feeData.tronAdminWallet || "";
+                    }
+                    else if (chainId === "BTC") {
+                        feePercent = feeData.btcPlatformFee || 0;
+                        adminWalletAddress = feeData.btcAdminWallet || "";
+                    }
+                    else {
+                        feePercent = feeData.platformFee || 0;
+                        adminWalletAddress = feeData.adminWallet || "";
+                    }
+                    const adminFeeAmount = (parseFloat(withdrawal.amount) * feePercent) / 100;
+                    if (adminFeeAmount > 0 && adminWalletAddress) {
+                        console.log(`[Withdrawal Fee] Transferring ${adminFeeAmount.toFixed(token.decimal)} ${token.symbol} (${feePercent}%) to admin wallet ${adminWalletAddress}`);
+                        let adminReceipt;
+                        if (chainId === "TRON") {
+                            const privateKey = this.encryptionService.decryptData(app.TronWalletMnemonic.privateKey);
+                            adminReceipt = await (0, tron_helper_1.merchantTronFundWithdraw)(privateKey, token.address, adminFeeAmount.toFixed(token.decimal), adminWalletAddress, token.decimal);
+                        }
+                        else if (chainId === "BTC") {
+                            const privateKey = this.encryptionService.decryptData(app.BtcWalletMnemonic.privateKey);
+                            adminReceipt = await (0, bitcoin_helper_1.merchantBtcFundWithdraw)(privateKey, Number(adminFeeAmount.toFixed(token.decimal)), adminWalletAddress, app.BtcWalletMnemonic.address, 0, "");
+                        }
+                        else {
+                            const privateKey = this.encryptionService.decryptData(app.EVMWalletMnemonic.privateKey);
+                            adminReceipt = await (0, evm_helper_1.merchantEvmFundWithdraw)(chainId, privateKey, token.address, Number(adminFeeAmount.toFixed(token.decimal)), adminWalletAddress, token.decimal, null);
+                        }
+                        withdrawal.adminFee = adminFeeAmount.toFixed(token.decimal);
+                        withdrawal.adminFeePercent = feePercent;
+                        withdrawal.adminFeeTxHash = adminReceipt?.data?.transactionHash || adminReceipt?.txid || "";
+                        if (adminReceipt?.status === false || adminReceipt?.error) {
+                            console.error(`[Withdrawal Fee] Admin fee transfer failed: ${adminReceipt?.error}`);
+                        }
+                        else {
+                            console.log(`[Withdrawal Fee] Admin fee transferred successfully. TxHash: ${withdrawal.adminFeeTxHash}`);
+                        }
+                    }
+                }
+            }
+            catch (feeError) {
+                console.error("[Withdrawal Fee] Error transferring admin fee:", feeError?.message || feeError);
+            }
             await withdrawal.save();
             await this.sendWithdrawalWebhook(withdrawalId, webhook_log_schema_1.WebhookEvent.WITHDRAWAL_SUCCESS, withdrawal);
             await this.sendWithdrawalEmail(withdrawal, "success");
@@ -775,11 +840,19 @@ let UserWithdrawalService = class UserWithdrawalService {
                 queryObj.merchantId = merchantId;
             }
             if (search) {
-                queryObj.$or = [
-                    { userId: { $regex: search, $options: "i" } },
-                    { userEmail: { $regex: search, $options: "i" } },
-                    { walletAddress: { $regex: search, $options: "i" } },
+                const searchTerm = search.trim();
+                const orConditions = [
+                    { userId: { $regex: searchTerm, $options: "i" } },
+                    { userEmail: { $regex: searchTerm, $options: "i" } },
+                    { userName: { $regex: searchTerm, $options: "i" } },
+                    { walletAddress: { $regex: searchTerm, $options: "i" } },
+                    { txHash: { $regex: searchTerm, $options: "i" } },
+                    { externalReference: { $regex: searchTerm, $options: "i" } },
                 ];
+                if (!isNaN(parseFloat(searchTerm))) {
+                    orConditions.push({ amount: searchTerm });
+                }
+                queryObj.$or = orConditions;
             }
             const [withdrawals, total] = await Promise.all([
                 this.userWithdrawalModel
@@ -821,6 +894,7 @@ exports.UserWithdrawalService = UserWithdrawalService = __decorate([
         mongoose_2.Model,
         mongoose_2.Model,
         encryption_service_1.EncryptionService,
-        webhook_service_1.WebhookService])
+        webhook_service_1.WebhookService,
+        admin_service_1.AdminService])
 ], UserWithdrawalService);
 //# sourceMappingURL=user-withdrawal.service.js.map

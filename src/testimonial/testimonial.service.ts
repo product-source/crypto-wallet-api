@@ -17,7 +17,7 @@ export class TestimonialService {
   constructor(
     @InjectModel(Testimonial.name)
     private readonly testimonialModel: Model<TestimonialDocument>
-  ) {}
+  ) { }
 
   async ensureDefaultTestimonialExist() {
     const testiCount = await this.testimonialModel.countDocuments();
@@ -26,7 +26,7 @@ export class TestimonialService {
       const filePath = join(
         process.cwd(),
         "src/utils/data",
-        "coinpera-web.testimonials.json"
+        "paycoinz-web.testimonials.json"
       );
 
       // Read the file and parse the JSON

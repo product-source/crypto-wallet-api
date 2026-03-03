@@ -39,6 +39,7 @@ const path_1 = require("path");
 const notification_module_1 = require("./notification/notification.module");
 const user_withdrawal_module_1 = require("./user-withdrawal/user-withdrawal.module");
 const common_controller_1 = require("./common/common.controller");
+const fiat_currency_module_1 = require("./fiat-currency/fiat-currency.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -64,7 +65,7 @@ exports.AppModule = AppModule = __decorate([
                     },
                 },
                 defaults: {
-                    from: "newsletter@coinpera.com",
+                    from: "newsletter@paycoinz.com",
                 },
             }),
             config_1.ConfigModule,
@@ -90,6 +91,7 @@ exports.AppModule = AppModule = __decorate([
             moralis_tx_module_1.MoralisTxModule,
             notification_module_1.NotificationModule,
             user_withdrawal_module_1.UserWithdrawalModule,
+            fiat_currency_module_1.FiatCurrencyModule,
         ],
         controllers: [app_controller_1.AppController, common_controller_1.CommonController],
         providers: [app_service_1.AppService],

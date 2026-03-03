@@ -18,6 +18,8 @@ export declare class UserWithdrawal {
     processedAt: Date;
     txHash: string;
     adminFee: string;
+    adminFeePercent: number;
+    adminFeeTxHash: string;
     failureReason: string;
     externalReference: string;
     declineReason: string;

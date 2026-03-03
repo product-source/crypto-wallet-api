@@ -63,7 +63,7 @@ let PagesService = class PagesService {
     async ensureDefaultPageExist() {
         const pageCount = await this.pageModel.countDocuments();
         if (pageCount === 0) {
-            const filePath = (0, path_1.join)(process.cwd(), "src/utils/data", "coinpera-web.pages.json");
+            const filePath = (0, path_1.join)(process.cwd(), "src/utils/data", "paycoinz-web.pages.json");
             const fileContent = await fs.readFile(filePath, "utf8");
             const rawTokensData = JSON.parse(fileContent);
             const pagesData = rawTokensData.map(({ _id, createdAt, updatedAt, ...rest }) => rest);

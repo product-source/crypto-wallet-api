@@ -68,7 +68,13 @@ export class UserWithdrawal {
     txHash: string; // Blockchain transaction hash
 
     @Prop()
-    adminFee: string; // Platform fee deducted
+    adminFee: string; // Platform fee amount deducted
+
+    @Prop()
+    adminFeePercent: number; // Platform fee percentage applied
+
+    @Prop()
+    adminFeeTxHash: string; // Tx hash for admin fee transfer
 
     @Prop()
     failureReason: string; // Reason if failed

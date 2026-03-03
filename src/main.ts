@@ -13,6 +13,7 @@ import { OtherPagesService } from "./other-pages/other-pages.service";
 import { TestimonialService } from "./testimonial/testimonial.service";
 import { HowItWorksService } from "./how-it-works/how-it-works.service";
 import { PricingService } from "./pricing/pricing.service";
+import { FiatCurrencyService } from "./fiat-currency/fiat-currency.service";
 // For test only --
 
 async function bootstrap() {
@@ -33,6 +34,9 @@ async function bootstrap() {
   // Import default data entryies +++++++++++++++++++++++++++++++++
   const tokenService = app.get(TokenService);
   await tokenService.ensureDefaultTokensExist();
+
+  const fiatCurrencyService = app.get(FiatCurrencyService);
+  await fiatCurrencyService.ensureDefaultFiatCurrenciesExist();
 
   const adminService = app.get(AdminService);
   await adminService.ensureDefaultAdminExist();

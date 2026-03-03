@@ -39,7 +39,6 @@ const bitcoin_helper_1 = require("../helpers/bitcoin.helper");
 const helper_1 = require("../helpers/helper");
 const constants_1 = require("../constants");
 const enum_1 = require("../merchant-app-tx/schema/enum");
-const axios_1 = __importDefault(require("axios"));
 const webhook_service_1 = require("../webhook/webhook.service");
 const webhook_log_schema_1 = require("../webhook/schema/webhook-log.schema");
 let PaymentLinkService = class PaymentLinkService {
@@ -144,15 +143,19 @@ let PaymentLinkService = class PaymentLinkService {
                     fiatUsd = Number(amount);
                 }
                 else {
-                    const fiatUrl = `https://api.frankfurter.app/latest?amount=${amount}&from=${fiatCurrency}&to=USD`;
                     try {
-                        const re = await axios_1.default.get(fiatUrl);
-                        const usdPrice = re.data;
-                        fiatUsd = usdPrice?.rates?.USD;
+                        const usdToFiatRate = await (0, helper_1.getTatumPrice)("USD", fiatCurrency.toUpperCase());
+                        if (usdToFiatRate && usdToFiatRate > 0) {
+                            fiatUsd = Number(amount) / usdToFiatRate;
+                        }
+                        else {
+                            console.warn("Tatum fiat rate unavailable, using cryptoUsd as fallback");
+                            fiatUsd = cryptoUsd;
+                        }
                     }
                     catch (e) {
-                        console.error("Frankfurter API Error:", e.message);
-                        fiatUsd = 0;
+                        console.error("Tatum fiat conversion error:", e.message);
+                        fiatUsd = cryptoUsd;
                     }
                     console.log("fiatUsd", fiatUsd);
                 }
@@ -323,31 +326,24 @@ let PaymentLinkService = class PaymentLinkService {
             else {
                 queryObject.appId = { $in: appIds };
             }
-            if (search) {
-                queryObject = {
-                    $or: [
-                        { tokenSymbol: { $regex: search, $options: "i" } },
-                        { fromAddress: { $regex: search, $options: "i" } },
-                        { toAddress: { $regex: search, $options: "i" } },
-                        { symbol: { $regex: symbol, $options: "i" } },
-                    ],
-                };
+            if (symbol && symbol !== "ALL") {
+                queryObject.symbol = { $regex: symbol, $options: "i" };
             }
-            else if (symbol === "ALL") {
-                queryObject = {
-                    appId: { $in: appIds },
-                };
+            if (chainId) {
+                queryObject.chainId = { $regex: chainId, $options: "i" };
             }
-            else if (symbol) {
-                queryObject = {
-                    symbol: { $regex: symbol, $options: "i" },
-                    appId: { $in: appIds },
-                };
-            }
-            else if (chainId) {
-                queryObject = {
-                    chainId: { $regex: chainId, $options: "i" },
-                };
+            if (search && search.trim()) {
+                const searchTerm = search.trim();
+                const orConditions = [
+                    { hash: { $regex: searchTerm, $options: "i" } },
+                    { fromAddress: { $regex: searchTerm, $options: "i" } },
+                    { toAddress: { $regex: searchTerm, $options: "i" } },
+                    { tokenSymbol: { $regex: searchTerm, $options: "i" } },
+                ];
+                if (!isNaN(parseFloat(searchTerm))) {
+                    orConditions.push({ recivedAmount: searchTerm });
+                }
+                queryObject.$or = orConditions;
             }
             if (startDate || endDate) {
                 queryObject.createdAt = {};

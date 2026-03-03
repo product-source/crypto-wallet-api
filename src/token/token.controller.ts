@@ -56,4 +56,18 @@ export class TokenController {
   getValidateTronAddress(@Query() query) {
     return this.tokenService.getValidateTronAddress(query);
   }
+
+  @Get("convert")
+  convertCurrency(
+    @Query("from") from: string,
+    @Query("to") to: string,
+    @Query("amount") amount: number
+  ) {
+    return this.tokenService.convertCurrency({ from, to, amount: Number(amount) });
+  }
+
+  @Get("supported-currencies")
+  getSupportedCurrencies() {
+    return this.tokenService.getSupportedCurrencies();
+  }
 }

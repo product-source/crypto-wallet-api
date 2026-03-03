@@ -18,6 +18,7 @@ const merchant_schema_1 = require("../merchants/schema/merchant.schema");
 const encryption_service_1 = require("../utils/encryption.service");
 const webhook_module_1 = require("../webhook/webhook.module");
 const api_key_auth_guard_1 = require("../auth/guards/api-key-auth.guard");
+const admin_module_1 = require("../admin/admin.module");
 let UserWithdrawalModule = class UserWithdrawalModule {
 };
 exports.UserWithdrawalModule = UserWithdrawalModule;
@@ -31,6 +32,7 @@ exports.UserWithdrawalModule = UserWithdrawalModule = __decorate([
                 { name: merchant_schema_1.Merchant.name, schema: merchant_schema_1.MerchantSchema },
             ]),
             webhook_module_1.WebhookModule,
+            admin_module_1.AdminModule,
         ],
         controllers: [user_withdrawal_controller_1.UserWithdrawalController],
         providers: [user_withdrawal_service_1.UserWithdrawalService, api_key_auth_guard_1.ApiKeyAuthGuard, encryption_service_1.EncryptionService],

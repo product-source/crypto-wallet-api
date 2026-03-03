@@ -136,7 +136,7 @@ export class AuthService {
                           <table cellpadding="0" cellspacing="0" border="0" width="600" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);">
                             <tr>
                               <td align="center" style="padding: 20px; background-color: #ffffff;">
-                                <img src="https://crypto-wallet-api.devtechnosys.tech/logo/logo.png" alt="Company Logo" style="max-width: 200px; height: auto;">
+                                <img src="https://crypto-wallet-api.devtechnosys.tech/logo/logo-black.svg" alt="Company Logo" style="max-width: 200px; height: auto;">
                               </td>
                             </tr>
                             <tr>
@@ -159,12 +159,12 @@ export class AuthService {
                                 </tr>
                                 </table>
                                 <p>This OTP is valid for a limited time. If you did not request this, please ignore this email.</p>
-                                <p>Best regards,<br>The Coinpera Team</p>
+                                <p>Best regards,<br>The Paycoinz Team</p>
                               </td>
                             </tr>
                             <tr>
                               <td style="background-color: #f0f0f0; text-align: center; padding: 15px; font-size: 12px; color: #999999;">
-                                &copy; ${new Date().getFullYear()} Coinpera. All rights reserved.<br>
+                                &copy; ${new Date().getFullYear()} Paycoinz. All rights reserved.<br>
                               </td>
                             </tr>
                           </table>

@@ -38,6 +38,7 @@ export declare class ListWithdrawalsDto {
     limitVal?: number;
     startDate?: string;
     endDate?: string;
+    search?: string;
 }
 export declare class ExternalListWithdrawalsDto extends BaseAuthDto {
     status?: string;

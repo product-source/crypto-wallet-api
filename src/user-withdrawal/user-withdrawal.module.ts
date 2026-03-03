@@ -12,6 +12,7 @@ import { Merchant, MerchantSchema } from "src/merchants/schema/merchant.schema";
 import { EncryptionService } from "src/utils/encryption.service";
 import { WebhookModule } from "src/webhook/webhook.module";
 import { ApiKeyAuthGuard } from "src/auth/guards/api-key-auth.guard";
+import { AdminModule } from "src/admin/admin.module";
 
 @Module({
     imports: [
@@ -22,6 +23,7 @@ import { ApiKeyAuthGuard } from "src/auth/guards/api-key-auth.guard";
             { name: Merchant.name, schema: MerchantSchema },
         ]),
         WebhookModule,
+        AdminModule,
     ],
     controllers: [UserWithdrawalController],
     providers: [UserWithdrawalService, ApiKeyAuthGuard, EncryptionService],

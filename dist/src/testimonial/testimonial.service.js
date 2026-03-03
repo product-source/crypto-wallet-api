@@ -59,7 +59,7 @@ let TestimonialService = class TestimonialService {
     async ensureDefaultTestimonialExist() {
         const testiCount = await this.testimonialModel.countDocuments();
         if (testiCount === 0) {
-            const filePath = (0, path_1.join)(process.cwd(), "src/utils/data", "coinpera-web.testimonials.json");
+            const filePath = (0, path_1.join)(process.cwd(), "src/utils/data", "paycoinz-web.testimonials.json");
             const fileContent = await fs.readFile(filePath, "utf8");
             const rawTokensData = JSON.parse(fileContent);
             const otherPageData = rawTokensData.map(({ _id, createdAt, updatedAt, ...rest }) => rest);

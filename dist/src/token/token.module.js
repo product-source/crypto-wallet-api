@@ -13,6 +13,7 @@ const token_controller_1 = require("./token.controller");
 const mongoose_1 = require("@nestjs/mongoose");
 const token_schema_1 = require("./schema/token.schema");
 const notification_schema_1 = require("../notification/schema/notification.schema");
+const fiat_currency_module_1 = require("../fiat-currency/fiat-currency.module");
 let TokenModule = class TokenModule {
 };
 exports.TokenModule = TokenModule;
@@ -23,6 +24,7 @@ exports.TokenModule = TokenModule = __decorate([
                 { name: token_schema_1.Token.name, schema: token_schema_1.TokenSchema },
                 { name: notification_schema_1.Notification.name, schema: notification_schema_1.NotificationSchema },
             ]),
+            fiat_currency_module_1.FiatCurrencyModule,
         ],
         controllers: [token_controller_1.TokenController],
         providers: [token_service_1.TokenService],

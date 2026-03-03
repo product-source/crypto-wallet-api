@@ -59,7 +59,7 @@ let HowItWorksService = class HowItWorksService {
     async ensureDefaultWorkExist() {
         const workCount = await this.howItWorksModel.countDocuments();
         if (workCount === 0) {
-            const filePath = (0, path_1.join)(process.cwd(), "src/utils/data", "coinpera-web.howitworks.json");
+            const filePath = (0, path_1.join)(process.cwd(), "src/utils/data", "paycoinz-web.howitworks.json");
             const fileContent = await fs.readFile(filePath, "utf8");
             const rawTokensData = JSON.parse(fileContent);
             const HowItWorkData = rawTokensData.map(({ _id, createdAt, updatedAt, ...rest }) => rest);

@@ -59,7 +59,7 @@ let PricingService = class PricingService {
     async ensureDefaultPricingExist() {
         const pricingCount = await this.pricingModel.countDocuments();
         if (pricingCount === 0) {
-            const filePath = (0, path_1.join)(process.cwd(), "src/utils/data", "coinpera-web.pricings.json");
+            const filePath = (0, path_1.join)(process.cwd(), "src/utils/data", "paycoinz-web.pricings.json");
             const fileContent = await fs.readFile(filePath, "utf8");
             const rawTokensData = JSON.parse(fileContent);
             const pricingData = rawTokensData.map(({ _id, createdAt, updatedAt, ...rest }) => rest);

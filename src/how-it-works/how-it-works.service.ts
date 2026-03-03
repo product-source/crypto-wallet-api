@@ -20,7 +20,7 @@ export class HowItWorksService {
   constructor(
     @InjectModel(HowItWorks.name)
     private readonly howItWorksModel: Model<HowItWorksDocument>
-  ) {}
+  ) { }
 
   async ensureDefaultWorkExist() {
     const workCount = await this.howItWorksModel.countDocuments();
@@ -29,7 +29,7 @@ export class HowItWorksService {
       const filePath = join(
         process.cwd(),
         "src/utils/data",
-        "coinpera-web.howitworks.json"
+        "paycoinz-web.howitworks.json"
       );
 
       // Read the file and parse the JSON

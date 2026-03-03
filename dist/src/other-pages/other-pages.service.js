@@ -59,7 +59,7 @@ let OtherPagesService = class OtherPagesService {
     async ensureDefaultOtherPageExist() {
         const otherPageCount = await this.otherPageModel.countDocuments();
         if (otherPageCount === 0) {
-            const filePath = (0, path_1.join)(process.cwd(), "src/utils/data", "coinpera-web.otherpages.json");
+            const filePath = (0, path_1.join)(process.cwd(), "src/utils/data", "paycoinz-web.otherpages.json");
             const fileContent = await fs.readFile(filePath, "utf8");
             const rawTokensData = JSON.parse(fileContent);
             const otherPageData = rawTokensData.map(({ _id, createdAt, updatedAt, ...rest }) => rest);

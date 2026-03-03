@@ -7,6 +7,7 @@ import {
   Notification,
   NotificationSchema,
 } from "src/notification/schema/notification.schema";
+import { FiatCurrencyModule } from "src/fiat-currency/fiat-currency.module";
 
 @Module({
   imports: [
@@ -14,9 +15,11 @@ import {
       { name: Token.name, schema: TokenSchema },
       { name: Notification.name, schema: NotificationSchema },
     ]),
+    FiatCurrencyModule,
   ],
   controllers: [TokenController],
   providers: [TokenService],
   exports: [TokenService],
 })
-export class TokenModule {}
+export class TokenModule { }
+

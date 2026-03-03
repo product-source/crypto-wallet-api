@@ -22,7 +22,7 @@ export class PagesService {
     private readonly pageModel: Model<PageDocument>,
     @InjectModel(UploadFile.name)
     private readonly imageModel: Model<UploadFileDocument>
-  ) {}
+  ) { }
 
   async ensureDefaultPageExist() {
     const pageCount = await this.pageModel.countDocuments();
@@ -31,7 +31,7 @@ export class PagesService {
       const filePath = join(
         process.cwd(),
         "src/utils/data",
-        "coinpera-web.pages.json"
+        "paycoinz-web.pages.json"
       );
 
       // Read the file and parse the JSON

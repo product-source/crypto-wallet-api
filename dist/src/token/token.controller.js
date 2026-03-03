@@ -43,6 +43,12 @@ let TokenController = class TokenController {
     getValidateTronAddress(query) {
         return this.tokenService.getValidateTronAddress(query);
     }
+    convertCurrency(from, to, amount) {
+        return this.tokenService.convertCurrency({ from, to, amount: Number(amount) });
+    }
+    getSupportedCurrencies() {
+        return this.tokenService.getSupportedCurrencies();
+    }
 };
 exports.TokenController = TokenController;
 __decorate([
@@ -94,6 +100,21 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], TokenController.prototype, "getValidateTronAddress", null);
+__decorate([
+    (0, common_1.Get)("convert"),
+    __param(0, (0, common_1.Query)("from")),
+    __param(1, (0, common_1.Query)("to")),
+    __param(2, (0, common_1.Query)("amount")),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Number]),
+    __metadata("design:returntype", void 0)
+], TokenController.prototype, "convertCurrency", null);
+__decorate([
+    (0, common_1.Get)("supported-currencies"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], TokenController.prototype, "getSupportedCurrencies", null);
 exports.TokenController = TokenController = __decorate([
     (0, common_1.Controller)("token"),
     __metadata("design:paramtypes", [token_service_1.TokenService])

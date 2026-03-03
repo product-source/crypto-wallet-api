@@ -17,7 +17,7 @@ export class OtherPagesService {
   constructor(
     @InjectModel(OtherPage.name)
     private readonly otherPageModel: Model<OtherPageDocument>
-  ) {}
+  ) { }
 
   async ensureDefaultOtherPageExist() {
     const otherPageCount = await this.otherPageModel.countDocuments();
@@ -26,7 +26,7 @@ export class OtherPagesService {
       const filePath = join(
         process.cwd(),
         "src/utils/data",
-        "coinpera-web.otherpages.json"
+        "paycoinz-web.otherpages.json"
       );
 
       // Read the file and parse the JSON

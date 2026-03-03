@@ -176,6 +176,11 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], ListWithdrawalsDto.prototype, "endDate", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], ListWithdrawalsDto.prototype, "search", void 0);
 class ExternalListWithdrawalsDto extends BaseAuthDto {
     constructor() {
         super(...arguments);
