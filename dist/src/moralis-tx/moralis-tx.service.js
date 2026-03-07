@@ -128,7 +128,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
                         console.log("Create Paymentlink Transaction");
                         await this.paymentLinkModel.updateOne({ _id: resultTo._id }, {
                             $set: {
-                                recivedAmount: txAmount,
+                                recivedAmount: resultTo.accumulatedAmount,
                                 status: payment_enum_1.PaymentStatus.PARTIALLY_SUCCESS,
                                 block: tx?.block,
                                 hash: tx?.hash,
@@ -150,9 +150,30 @@ let TransactionService = TransactionService_1 = class TransactionService {
                                 status: payment_enum_1.PaymentStatus.PARTIALLY_SUCCESS,
                                 hash: tx?.hash,
                                 fromAddress: tx?.fromAddress,
-                                recivedAmount: txAmount,
+                                recivedAmount: resultTo.accumulatedAmount,
                             });
                         }
+                    }
+                    else if (resultTo &&
+                        resultTo.transactionType === "PARTIAL_PAYMENT_LINK" &&
+                        !isPaymentExist) {
+                        console.log("Create Partial Paymentlink Transaction");
+                        await this.paymentLinkModel.updateOne({ _id: resultTo._id }, {
+                            $set: {
+                                recivedAmount: resultTo.accumulatedAmount,
+                                block: tx?.block,
+                                hash: tx?.hash,
+                                gas: tx?.gas,
+                                gasPrice: tx?.gasPrice,
+                                nonce: tx?.nonce,
+                                fromAddress: tx?.fromAddress,
+                                tokenName: tx?.tokenName,
+                                tokenSymbol: tx?.tokenSymbol,
+                                tokenDecimals: tx?.tokenDecimals,
+                                txType: enum_1.TransactionTypes.PAYMENT_LINKS,
+                            },
+                        });
+                        console.log("Partial payment synced to database but kept in PENDING status.");
                     }
                     else if (resultTo &&
                         resultTo.transactionType === "APP" &&
@@ -310,7 +331,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
                 });
                 console.log("receiverAddress change now ---------------> ", receiverAddress);
                 const privateKey = this.encryptionService.decryptData(wallet?.privateKey);
-                if (wallet?.tokenAddress === constants_1.NATIVE) {
+                if (wallet?.tokenAddress === constants_1.NATIVE && chainId !== "TRON" && chainId !== "BTC") {
                     try {
                         let feeDetails = await this.adminService.getPlatformFee();
                         console.log("feeDetails : ---------- : ", feeDetails);
@@ -330,14 +351,14 @@ let TransactionService = TransactionService_1 = class TransactionService {
                             nativeReceipt = await (0, evm_helper_1.evmNativeTokenTransferFromPaymentLinks)(chainId, privateKey, fullAmount, receiverAddress, tokenDecimal, paymentLinkCharges, paymentLinkWalletAddress, currentWithdrawStatus);
                         }
                         console.log("nativeReceipt ---*-*-* : ", nativeReceipt);
-                        if (nativeReceipt.adminReceipt) {
+                        if (nativeReceipt?.adminReceipt) {
                             await this.updatePaymentLinkModel(wallet?._id, {
                                 withdrawStatus: payment_enum_1.WithdrawPaymentStatus.ADMIN_CHARGES,
                                 adminFee: nativeReceipt?.adminAmount,
                                 adminFeeWallet: paymentLinkWalletAddress,
                             });
                         }
-                        if (nativeReceipt.merchantReceipt) {
+                        if (nativeReceipt?.merchantReceipt) {
                             await this.updatePaymentLinkModel(wallet?._id, {
                                 withdrawStatus: payment_enum_1.WithdrawPaymentStatus.SUCCESS,
                                 status: payment_enum_1.PaymentStatus.SUCCESS,
@@ -354,52 +375,54 @@ let TransactionService = TransactionService_1 = class TransactionService {
                     }
                 }
                 else {
-                    let feeDetails = await this.adminService.getPlatformFee();
-                    let txCost;
-                    let paymentLinkCharges;
-                    let paymentLinkWalletAddress;
-                    if (feeDetails instanceof common_1.NotFoundException) {
-                        throw Error;
-                    }
-                    else {
-                        paymentLinkCharges = feeDetails.data.merchantFee;
-                        paymentLinkWalletAddress = feeDetails.data.merchantFeeWallet;
-                        txCost = await (0, evm_helper_1.getERC20TxFee)(chainId, senderWalletAddress, receiverAddress, tokenContractAddress, fullAmount, tokenDecimal, paymentLinkCharges, paymentLinkWalletAddress);
-                    }
-                    if (wallet?.withdrawStatus === payment_enum_1.WithdrawPaymentStatus.PENDING) {
-                        const nativeTxReceipt = await (0, evm_helper_1.evmNativeTokenTransferToPaymentLinks)(chainId, txCost?.totalGas * txCost?.gasPrice, senderWalletAddress);
-                        if (nativeTxReceipt) {
-                            await this.updatePaymentLinkModel(wallet?._id, {
-                                withdrawStatus: payment_enum_1.WithdrawPaymentStatus.NATIVE_TRANSFER,
-                            });
+                    if (chainId !== "TRON") {
+                        let feeDetails = await this.adminService.getPlatformFee();
+                        let txCost;
+                        let paymentLinkCharges;
+                        let paymentLinkWalletAddress;
+                        if (feeDetails instanceof common_1.NotFoundException) {
+                            throw Error;
                         }
-                    }
-                    try {
-                        const erc20Receipt = await (0, evm_helper_1.evmERC20TokenTransfer)(chainId, privateKey, txCost, tokenContractAddress, fullAmount, receiverAddress, tokenDecimal, paymentLinkCharges, paymentLinkWalletAddress);
-                        if (erc20Receipt.receipt1) {
-                            const adminFeeValue = fullAmount / (1 + parseFloat(paymentLinkCharges) / 100);
-                            const adminFeeAmount = fullAmount - adminFeeValue;
-                            const amountAfterTaxValue = fullAmount - adminFeeAmount;
-                            await this.updatePaymentLinkModel(wallet?._id, {
-                                withdrawStatus: payment_enum_1.WithdrawPaymentStatus.ADMIN_CHARGES,
-                                adminFee: adminFeeAmount,
-                                adminFeeWallet: paymentLinkWalletAddress,
-                                amountAfterTax: amountAfterTaxValue,
-                            });
+                        else {
+                            paymentLinkCharges = feeDetails.data.merchantFee;
+                            paymentLinkWalletAddress = feeDetails.data.merchantFeeWallet;
+                            txCost = await (0, evm_helper_1.getERC20TxFee)(chainId, senderWalletAddress, receiverAddress, tokenContractAddress, fullAmount, tokenDecimal, paymentLinkCharges, paymentLinkWalletAddress);
                         }
-                        if (erc20Receipt.receipt2) {
-                            await this.updatePaymentLinkModel(wallet?._id, {
-                                withdrawStatus: payment_enum_1.WithdrawPaymentStatus.SUCCESS,
-                                status: payment_enum_1.PaymentStatus.SUCCESS,
-                            });
-                            const paymentLink = await this.paymentLinkModel.findById(wallet?._id);
-                            if (paymentLink) {
-                                await this.webhookService.sendWebhook(paymentLink.appId.toString(), paymentLink._id.toString(), webhook_log_schema_1.WebhookEvent.PAYMENT_SUCCESS, paymentLink.toObject());
+                        if (wallet?.withdrawStatus === payment_enum_1.WithdrawPaymentStatus.PENDING) {
+                            const nativeTxReceipt = await (0, evm_helper_1.evmNativeTokenTransferToPaymentLinks)(chainId, txCost?.totalGas * txCost?.gasPrice, senderWalletAddress);
+                            if (nativeTxReceipt) {
+                                await this.updatePaymentLinkModel(wallet?._id, {
+                                    withdrawStatus: payment_enum_1.WithdrawPaymentStatus.NATIVE_TRANSFER,
+                                });
                             }
                         }
-                    }
-                    catch (error) {
-                        console.log("An error occurred:", error.message);
+                        try {
+                            const erc20Receipt = await (0, evm_helper_1.evmERC20TokenTransfer)(chainId, privateKey, txCost, tokenContractAddress, fullAmount, receiverAddress, tokenDecimal, paymentLinkCharges, paymentLinkWalletAddress);
+                            if (erc20Receipt.receipt1) {
+                                const adminFeeValue = fullAmount / (1 + parseFloat(paymentLinkCharges) / 100);
+                                const adminFeeAmount = fullAmount - adminFeeValue;
+                                const amountAfterTaxValue = fullAmount - adminFeeAmount;
+                                await this.updatePaymentLinkModel(wallet?._id, {
+                                    withdrawStatus: payment_enum_1.WithdrawPaymentStatus.ADMIN_CHARGES,
+                                    adminFee: adminFeeAmount,
+                                    adminFeeWallet: paymentLinkWalletAddress,
+                                    amountAfterTax: amountAfterTaxValue,
+                                });
+                            }
+                            if (erc20Receipt.receipt2) {
+                                await this.updatePaymentLinkModel(wallet?._id, {
+                                    withdrawStatus: payment_enum_1.WithdrawPaymentStatus.SUCCESS,
+                                    status: payment_enum_1.PaymentStatus.SUCCESS,
+                                });
+                                const paymentLink = await this.paymentLinkModel.findById(wallet?._id);
+                                if (paymentLink) {
+                                    await this.webhookService.sendWebhook(paymentLink.appId.toString(), paymentLink._id.toString(), webhook_log_schema_1.WebhookEvent.PAYMENT_SUCCESS, paymentLink.toObject());
+                                }
+                            }
+                        }
+                        catch (error) {
+                            console.log("An error occurred:", error.message);
+                        }
                     }
                 }
             }
@@ -424,17 +447,38 @@ let TransactionService = TransactionService_1 = class TransactionService {
         };
         console.log("forPaymentLink : ", forPaymentLink);
         const paymentLink = await this.paymentLinkModel.findOne(forPaymentLink);
+        let toleranceMargin = 0;
+        if (paymentLink) {
+            const appForLink = await this.appModel.findById(paymentLink.appId);
+            toleranceMargin = appForLink?.toleranceMargin || 0;
+        }
         const app = await this.appModel.findOne({
             "EVMWalletMnemonic.address": {
                 $regex: new RegExp(`^${walletAddress}$`, "i"),
             },
         });
-        if (paymentLink && parseFloat(txAmount) >= parseFloat(paymentLink.amount)) {
+        const minRequiredAmount = paymentLink
+            ? parseFloat(paymentLink.amount) * (1 - (toleranceMargin / 100))
+            : 0;
+        const previousReceived = paymentLink ? parseFloat(paymentLink.recivedAmount || "0") : 0;
+        const accumulatedAmount = previousReceived + parseFloat(txAmount);
+        if (paymentLink && accumulatedAmount >= minRequiredAmount) {
             console.log("this is a payment link tx ----------");
             result = {
                 _id: paymentLink?._id,
                 id: paymentLink?.appId,
                 transactionType: "PAYMENT_LINK",
+                accumulatedAmount: accumulatedAmount
+            };
+            return result;
+        }
+        else if (paymentLink && accumulatedAmount > 0) {
+            console.log("this is a partial payment link tx ----------");
+            result = {
+                _id: paymentLink?._id,
+                id: paymentLink?.appId,
+                transactionType: "PARTIAL_PAYMENT_LINK",
+                accumulatedAmount: accumulatedAmount
             };
             return result;
         }
@@ -525,33 +569,32 @@ let TransactionService = TransactionService_1 = class TransactionService {
                     fromAddress: undefined,
                 };
                 if (link?.tokenAddress === constants_1.NATIVE) {
-                    const tronValueInDecimal = Number(link?.amount) * tron_helper_1.tronDecimal;
+                    const app = await this.appModel.findById(link?.appId);
+                    const toleranceMargin = app?.toleranceMargin || 0;
+                    const minRequiredAmountTRX = Number(link?.amount) * (1 - (toleranceMargin / 100));
                     const tronBalance = await (0, tron_helper_2.getTronBalance)(link?.toAddress);
-                    if (tronBalance >= Number(link.amount)) {
+                    if (tronBalance > 0) {
                         const transactions = await (0, tron_helper_1.getTronTransactions)(link?.toAddress);
                         const paymentLinkCreationTime = new Date(link['createdAt']).getTime();
-                        const matchingTransaction = transactions?.data?.data
-                            .filter((tx) => {
-                            const isAmountMatch = tx?.raw_data?.contract[0]?.parameter?.value?.amount >= tronValueInDecimal;
-                            const isTimeMatch = tx?.block_timestamp > paymentLinkCreationTime;
-                            return isAmountMatch && isTimeMatch;
-                        })
+                        const recentTx = transactions?.data?.data
+                            .filter((tx) => tx?.block_timestamp > paymentLinkCreationTime)
                             .sort((a, b) => b?.block_timestamp - a?.block_timestamp)[0];
-                        if (matchingTransaction) {
-                            const toAddress = await matchingTransaction?.raw_data?.contract[0]?.parameter
-                                ?.value?.to_address;
+                        if (recentTx) {
+                            const toAddress = recentTx?.raw_data?.contract[0]?.parameter?.value?.to_address;
                             const toAddressInHex = await (0, tron_helper_1.hexToTronAddress)(toAddress?.slice(2, 42));
                             if (toAddressInHex === link?.toAddress) {
-                                const fromAddress = await matchingTransaction?.raw_data.contract[0]?.parameter
-                                    ?.value?.owner_address;
-                                status.hash = await matchingTransaction?.txID;
+                                const fromAddress = recentTx?.raw_data?.contract[0]?.parameter?.value?.owner_address;
+                                status.hash = await recentTx?.txID;
                                 status.fromAddress = await (0, tron_helper_1.hexToTronAddress)(fromAddress.slice(2, 42));
-                                status.recivedAmount =
-                                    (await matchingTransaction?.raw_data.contract[0]?.parameter
-                                        ?.value?.amount) / tron_helper_1.tronDecimal;
-                                status.status = payment_enum_1.PaymentStatus.PARTIALLY_SUCCESS;
+                                status.recivedAmount = tronBalance;
+                                if (tronBalance >= minRequiredAmountTRX) {
+                                    status.status = payment_enum_1.PaymentStatus.PARTIALLY_SUCCESS;
+                                }
+                                else {
+                                    status.status = payment_enum_1.PaymentStatus.PENDING;
+                                }
                                 const updatedLink = await this.paymentLinkModel.findOneAndUpdate({ _id: link?._id }, { $set: status }, { new: true });
-                                if (updatedLink) {
+                                if (updatedLink && status.status === payment_enum_1.PaymentStatus.PARTIALLY_SUCCESS) {
                                     updatedPaymentLinks.push(updatedLink);
                                     await this.webhookService.sendWebhook(updatedLink.appId.toString(), updatedLink._id.toString(), webhook_log_schema_1.WebhookEvent.PAYMENT_CONFIRMED, {
                                         ...updatedLink.toObject(),
@@ -574,32 +617,36 @@ let TransactionService = TransactionService_1 = class TransactionService {
                     fromAddress: undefined,
                 };
                 if (link?.tokenAddress !== constants_1.NATIVE) {
+                    const app = await this.appModel.findById(link?.appId);
+                    const toleranceMargin = app?.toleranceMargin || 0;
                     const tronValueInDecimal = Number(link?.amount) * tron_helper_1.tronDecimal;
+                    const minRequiredAmount = tronValueInDecimal * (1 - (toleranceMargin / 100));
                     const decryptPrivateKey = await this.encryptionService.decryptData(link?.privateKey);
                     const tronBalance = await (0, tron_helper_1.getTRC20Balance)(trc20FilteredPaymentLinks, decryptPrivateKey);
                     for (const e of tronBalance) {
                         const trc20balanceAmount = await e.balance;
-                        if (Number(trc20balanceAmount) >= Number(link?.amount)) {
+                        const minRequiredBalance = Number(link?.amount) * (1 - (toleranceMargin / 100));
+                        if (Number(trc20balanceAmount) > 0) {
                             const transactions = await (0, tron_helper_1.getTRC20Transactions)(link?.toAddress);
                             const paymentLinkCreationTime = new Date(link['createdAt']).getTime();
-                            const matchingTransaction = transactions?.data?.data
-                                .filter((tx) => {
-                                const isAmountMatch = tx?.value >= tronValueInDecimal;
-                                const isTimeMatch = tx?.block_timestamp > paymentLinkCreationTime;
-                                return isAmountMatch && isTimeMatch;
-                            })
+                            const recentTx = transactions?.data?.data
+                                .filter((tx) => tx?.block_timestamp > paymentLinkCreationTime)
                                 .sort((a, b) => b?.block_timestamp - a?.block_timestamp)[0];
-                            if (matchingTransaction) {
-                                const toAddress = await matchingTransaction?.to;
+                            if (recentTx) {
+                                const toAddress = await recentTx?.to;
                                 if (toAddress === link?.toAddress) {
-                                    const fromAddress = await matchingTransaction?.from;
-                                    status.hash = await matchingTransaction?.transaction_id;
+                                    const fromAddress = await recentTx?.from;
+                                    status.hash = await recentTx?.transaction_id;
                                     status.fromAddress = await fromAddress;
-                                    status.recivedAmount =
-                                        (await matchingTransaction?.value) / tron_helper_1.tronDecimal;
-                                    status.status = payment_enum_1.PaymentStatus.PARTIALLY_SUCCESS;
+                                    status.recivedAmount = Number(trc20balanceAmount);
+                                    if (Number(trc20balanceAmount) >= minRequiredBalance) {
+                                        status.status = payment_enum_1.PaymentStatus.PARTIALLY_SUCCESS;
+                                    }
+                                    else {
+                                        status.status = payment_enum_1.PaymentStatus.PENDING;
+                                    }
                                     const updatedLink = await this.paymentLinkModel.findOneAndUpdate({ _id: link?._id }, { $set: status }, { new: true });
-                                    if (updatedLink) {
+                                    if (updatedLink && status.status === payment_enum_1.PaymentStatus.PARTIALLY_SUCCESS) {
                                         updatedPaymentLinks.push(updatedLink);
                                         await this.webhookService.sendWebhook(updatedLink.appId.toString(), updatedLink._id.toString(), webhook_log_schema_1.WebhookEvent.PAYMENT_CONFIRMED, {
                                             ...updatedLink.toObject(),
@@ -622,7 +669,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
     }
     async withdrawTronPaymentFromLinks() {
         try {
-            this.logger.debug("--------------------- Cron Job Started for every 3 minute (To withdraw tron amount from payment links) -----------------------");
+            this.logger.debug("--------------------- Cron Job Started for every 10 seconds (To withdraw tron amount from payment links) -----------------------");
             const partialPaymentLinks = await this.paymentLinkModel.aggregate([
                 {
                     $match: {
@@ -652,7 +699,10 @@ let TransactionService = TransactionService_1 = class TransactionService {
                 throw new common_1.NotFoundException("Partial Payment links not found or not paid");
             }
             for (const link of partialPaymentLinks) {
-                if (link?.recivedAmount >= link?.amount) {
+                const appForLink = await this.appModel.findById(link?.appId);
+                const toleranceMargin = appForLink?.toleranceMargin || 0;
+                const minRequiredAmount = Number(link?.amount) * (1 - (toleranceMargin / 100));
+                if (link?.recivedAmount >= minRequiredAmount) {
                     let status = {
                         status: undefined,
                         withdrawStatus: undefined,
@@ -958,7 +1008,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
             })
                 .sort({ createdAt: -1 })
                 .limit(50)
-                .select("_id paymentLinkId walletAddress amount transactionType");
+                .select("_id paymentLinkId walletAddress amount transactionType appId");
             let walletList = paymentLinks.map((item) => item.walletAddress);
             let walletTxList = [];
             if (walletList.length > 0) {
@@ -977,6 +1027,10 @@ let TransactionService = TransactionService_1 = class TransactionService {
                     console.log("Error fetching BTC balance:", error.message);
                 }
             }
+            const appIds = [...new Set(paymentLinks.map(p => p.appId))];
+            const apps = await this.appModel.find({ _id: { $in: appIds } });
+            const appMap = new Map();
+            apps.forEach(app => appMap.set(app._id.toString(), app));
             const mergedData = paymentLinks.map((payment) => {
                 console.log('payment 122', payment);
                 const walletTx = walletTxList.find((wallet) => {
@@ -992,6 +1046,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
                 };
             });
             const finalOutput = [];
+            const partialOutput = [];
             mergedData.forEach((element) => {
                 let tx = {
                     id: element.payment._id,
@@ -1004,33 +1059,56 @@ let TransactionService = TransactionService_1 = class TransactionService {
                     gas: null,
                     hash: null,
                     status: false,
+                    isPartial: false,
                     transactionType: element.payment.transactionType,
                 };
                 console.log(element, "element2");
                 if (element.transactions && element.transactions.length > 0) {
+                    const app = appMap.get(element.payment.appId?.toString());
+                    const toleranceMargin = app?.toleranceMargin || 0;
+                    const minRequiredAmount = Number(tx.paymentLinkAmount) * (1 - (toleranceMargin / 100));
+                    let accumulatedAmount = 0;
+                    let latestBlock = null;
+                    let latestHash = null;
+                    let latestGas = null;
+                    let latestSender = null;
                     element.transactions.forEach((transaction) => {
-                        tx.block = transaction.blockNumber;
-                        tx.gas = transaction.fee;
-                        tx.hash = transaction.hash;
+                        latestBlock = transaction.blockNumber;
+                        latestGas = transaction.fee;
+                        latestHash = transaction.hash;
                         if (transaction.inputs && transaction.inputs.length > 0) {
-                            tx.senderAddress = transaction.inputs[0].coin.address;
+                            latestSender = transaction.inputs[0].coin.address;
                         }
                         transaction.outputs.forEach((output) => {
                             if (output.address === tx.paymentLinkWalletAddress) {
                                 const outputAmount = output.value / 10 ** 8;
-                                if (Number(outputAmount) >= Number(tx.paymentLinkAmount)) {
-                                    tx.txAmount = outputAmount;
-                                    tx.status = true;
-                                }
+                                accumulatedAmount += Number(outputAmount);
                             }
                         });
                     });
+                    if (accumulatedAmount > 0) {
+                        tx.txAmount = accumulatedAmount;
+                        tx.block = latestBlock;
+                        tx.gas = latestGas;
+                        tx.hash = latestHash;
+                        tx.senderAddress = latestSender;
+                        if (accumulatedAmount >= minRequiredAmount) {
+                            tx.status = true;
+                        }
+                        else {
+                            tx.isPartial = true;
+                        }
+                    }
                 }
                 if (tx.status) {
                     finalOutput.push(tx);
                 }
+                else if (tx.isPartial) {
+                    partialOutput.push(tx);
+                }
             });
-            const bulkOperations = finalOutput.map((item) => ({
+            const allDetectedTxs = [...finalOutput, ...partialOutput];
+            const bulkOperations = allDetectedTxs.map((item) => ({
                 updateOne: {
                     filter: { _id: item.id },
                     update: {
@@ -1040,9 +1118,11 @@ let TransactionService = TransactionService_1 = class TransactionService {
                     },
                 },
             }));
-            await this.monitorModel.bulkWrite(bulkOperations);
+            if (bulkOperations.length > 0) {
+                await this.monitorModel.bulkWrite(bulkOperations);
+            }
             for (const item of finalOutput) {
-                console.log(item, "item2");
+                console.log("Processing full BTC payment: ", item);
                 await this.paymentLinkModel.updateOne({ _id: item.paymentLinkId }, {
                     $set: {
                         status: payment_enum_1.PaymentStatus.PARTIALLY_SUCCESS,
@@ -1066,7 +1146,21 @@ let TransactionService = TransactionService_1 = class TransactionService {
                     });
                 }
             }
-            this.logger.debug(`------------ Cron Job Started 1 MINUTE (To process btc payment) -------------- ${finalOutput.length}`);
+            for (const item of partialOutput) {
+                console.log("Processing partial BTC payment: ", item);
+                await this.paymentLinkModel.updateOne({ _id: item.paymentLinkId }, {
+                    $set: {
+                        block: item.block,
+                        fromAddress: item.senderAddress,
+                        gas: item.fee,
+                        hash: item.hash,
+                        recivedAmount: item.txAmount,
+                        tokenDecimals: "8",
+                        tokenName: "BTC",
+                    },
+                });
+            }
+            this.logger.debug(`------------ Cron Job Started 1 MINUTE (To process btc payment) -------------- Full: ${finalOutput.length}, Partial: ${partialOutput.length}`);
             return finalOutput;
         }
         catch (error) {
@@ -1386,7 +1480,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], TransactionService.prototype, "deleteAppsWhichIsNotExistAnymore", null);
 __decorate([
-    (0, schedule_1.Cron)(schedule_1.CronExpression.EVERY_30_SECONDS),
+    (0, schedule_1.Cron)("*/10 * * * * *"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
@@ -1398,7 +1492,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], TransactionService.prototype, "tronPaymentLink", null);
 __decorate([
-    (0, schedule_1.Cron)("0 */3 * * * *"),
+    (0, schedule_1.Cron)("*/10 * * * * *"),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)

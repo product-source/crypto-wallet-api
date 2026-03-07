@@ -16,7 +16,7 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
 import { extname } from "path";
 import { AppsService } from "./apps.service";
-import { AppListDto, CreateAppsDto, UpdateAppsDto } from "./dto/apps.dto";
+import { AppListDto, CreateAppsDto, UpdateAppsDto, AddWhitelistDto, RemoveWhitelistDto, RequestWhitelistOtpDto } from "./dto/apps.dto";
 import { JwtAuthGuard } from "src/auth/jwt-auth.guard";
 import { PermissionsGuard } from "src/auth/guards/permissions.guard";
 import { Permissions } from "src/auth/decorators/permissions.decorator";
@@ -143,6 +143,31 @@ export class AppsController {
   getUnreadNotificationCount(@Request() req) {
     const { user } = req;
     return this.appsService.getUnreadNotificationCount(user);
+  }
+
+  // Wallet Whitelist Endpoints
+  @UseGuards(JwtAuthGuard)
+  @Post("whitelist/request-otp")
+  requestWhitelistOtp(@Request() req, @Body() dto: RequestWhitelistOtpDto) {
+    return this.appsService.requestWhitelistOtp(req.user, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post("whitelist/add")
+  addWhitelistWallet(@Request() req, @Body() dto: AddWhitelistDto) {
+    return this.appsService.addWhitelistWallet(req.user, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete("whitelist/remove")
+  removeWhitelistWallet(@Request() req, @Body() dto: RemoveWhitelistDto) {
+    return this.appsService.removeWhitelistWallet(req.user, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get("whitelist")
+  getWhitelistWallets(@Request() req, @Query('appId') appId: string) {
+    return this.appsService.getWhitelistWallets(req.user, appId);
   }
 
   //admin pannel

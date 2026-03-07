@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AppsService } from "./apps.service";
+import { EmailModule } from "src/emails/email.module";
 import { AppsController } from "./apps.controller";
 import { MongooseModule } from "@nestjs/mongoose";
 import { Apps, AppsSchema } from "./schema/apps.schema";
@@ -27,6 +28,7 @@ import { WebhookModule } from "src/webhook/webhook.module";
 
 @Module({
   imports: [
+    EmailModule,
     MongooseModule.forFeature([
       { name: Apps.name, schema: AppsSchema },
       { name: WalletMonitor.name, schema: WalletMonitorSchema },
@@ -41,4 +43,4 @@ import { WebhookModule } from "src/webhook/webhook.module";
   controllers: [AppsController],
   providers: [AppsService, EncryptionService],
 })
-export class AppsModule {}
+export class AppsModule { }

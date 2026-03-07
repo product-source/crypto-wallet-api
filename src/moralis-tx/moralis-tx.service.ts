@@ -197,7 +197,6 @@ export class TransactionService {
           if (
             resultTo &&
             resultTo.transactionType === "PAYMENT_LINK" &&
-            // WalletType.PAYMENT_LINK
             !isPaymentExist
           ) {
             console.log("Create Paymentlink Transaction");
@@ -205,7 +204,7 @@ export class TransactionService {
               { _id: resultTo._id }, // Assuming `tx` contains the `_id` of the document to be updated
               {
                 $set: {
-                  recivedAmount: txAmount,
+                  recivedAmount: resultTo.accumulatedAmount,
                   status: PaymentStatus.PARTIALLY_SUCCESS,
                   block: tx?.block,
                   hash: tx?.hash,
@@ -236,10 +235,36 @@ export class TransactionService {
                   status: PaymentStatus.PARTIALLY_SUCCESS,
                   hash: tx?.hash,
                   fromAddress: tx?.fromAddress,
-                  recivedAmount: txAmount,
+                  recivedAmount: resultTo.accumulatedAmount,
                 }
               );
             }
+          } else if (
+            resultTo &&
+            resultTo.transactionType === "PARTIAL_PAYMENT_LINK" &&
+            !isPaymentExist
+          ) {
+            console.log("Create Partial Paymentlink Transaction");
+            await this.paymentLinkModel.updateOne(
+              { _id: resultTo._id },
+              {
+                $set: {
+                  recivedAmount: resultTo.accumulatedAmount,
+                  // MUST Keep Status PENDING for partial payments
+                  block: tx?.block,
+                  hash: tx?.hash,
+                  gas: tx?.gas,
+                  gasPrice: tx?.gasPrice,
+                  nonce: tx?.nonce,
+                  fromAddress: tx?.fromAddress,
+                  tokenName: tx?.tokenName,
+                  tokenSymbol: tx?.tokenSymbol,
+                  tokenDecimals: tx?.tokenDecimals,
+                  txType: TransactionTypes.PAYMENT_LINKS,
+                },
+              }
+            );
+            console.log("Partial payment synced to database but kept in PENDING status.");
           } else if (
             resultTo &&
             resultTo.transactionType === "APP" &&
@@ -407,7 +432,7 @@ export class TransactionService {
   }
 
 
-  @Cron(CronExpression.EVERY_30_SECONDS)
+  @Cron("*/10 * * * * *")
   async withdrawPaymentFromLinksAndUpdateStatus(): Promise<any> {
     try {
       this.logger.debug(
@@ -458,7 +483,7 @@ export class TransactionService {
           wallet?.privateKey
         );
 
-        if (wallet?.tokenAddress === NATIVE) {
+        if (wallet?.tokenAddress === NATIVE && chainId !== "TRON" && chainId !== "BTC") {
           try {
             let feeDetails = await this.adminService.getPlatformFee();
             console.log("feeDetails : ---------- : ", feeDetails);
@@ -491,7 +516,7 @@ export class TransactionService {
             }
             console.log("nativeReceipt ---*-*-* : ", nativeReceipt);
 
-            if (nativeReceipt.adminReceipt) {
+            if (nativeReceipt?.adminReceipt) {
               // Update payment link model for admin transaction
               await this.updatePaymentLinkModel(wallet?._id, {
                 withdrawStatus: WithdrawPaymentStatus.ADMIN_CHARGES,
@@ -500,7 +525,7 @@ export class TransactionService {
               });
             }
 
-            if (nativeReceipt.merchantReceipt) {
+            if (nativeReceipt?.merchantReceipt) {
               // Update payment link model
               await this.updatePaymentLinkModel(wallet?._id, {
                 withdrawStatus: WithdrawPaymentStatus.SUCCESS,
@@ -526,89 +551,91 @@ export class TransactionService {
             );
           }
         } else {
-          let feeDetails = await this.adminService.getPlatformFee();
-          let txCost;
-          let paymentLinkCharges;
-          let paymentLinkWalletAddress;
-          if (feeDetails instanceof NotFoundException) {
-            throw Error;
-          } else {
-            paymentLinkCharges = feeDetails.data.merchantFee;
-            paymentLinkWalletAddress = feeDetails.data.merchantFeeWallet;
+          if (chainId !== "TRON") {
+            let feeDetails = await this.adminService.getPlatformFee();
+            let txCost;
+            let paymentLinkCharges;
+            let paymentLinkWalletAddress;
+            if (feeDetails instanceof NotFoundException) {
+              throw Error;
+            } else {
+              paymentLinkCharges = feeDetails.data.merchantFee;
+              paymentLinkWalletAddress = feeDetails.data.merchantFeeWallet;
 
-            txCost = await getERC20TxFee(
-              chainId,
-              senderWalletAddress,
-              receiverAddress,
-              tokenContractAddress,
-              fullAmount,
-              tokenDecimal,
-              paymentLinkCharges,
-              paymentLinkWalletAddress
-            );
-          }
-
-          if (wallet?.withdrawStatus === WithdrawPaymentStatus.PENDING) {
-            // Transfer evm native tokens to the payment links
-            const nativeTxReceipt = await evmNativeTokenTransferToPaymentLinks(
-              chainId,
-              txCost?.totalGas * txCost?.gasPrice,
-              senderWalletAddress
-            );
-            if (nativeTxReceipt) {
-              await this.updatePaymentLinkModel(wallet?._id, {
-                withdrawStatus: WithdrawPaymentStatus.NATIVE_TRANSFER,
-              });
-            }
-          }
-
-          try {
-            const erc20Receipt = await evmERC20TokenTransfer(
-              chainId,
-              privateKey,
-              txCost,
-              tokenContractAddress,
-              fullAmount,
-              receiverAddress,
-              tokenDecimal,
-              paymentLinkCharges,
-              paymentLinkWalletAddress
-            );
-
-            if (erc20Receipt.receipt1) {
-              // Update payment link model
-              const adminFeeValue =
-                fullAmount / (1 + parseFloat(paymentLinkCharges) / 100);
-              const adminFeeAmount = fullAmount - adminFeeValue;
-              const amountAfterTaxValue = fullAmount - adminFeeAmount;
-              await this.updatePaymentLinkModel(wallet?._id, {
-                withdrawStatus: WithdrawPaymentStatus.ADMIN_CHARGES,
-                adminFee: adminFeeAmount,
-                adminFeeWallet: paymentLinkWalletAddress,
-                amountAfterTax: amountAfterTaxValue,
-              });
+              txCost = await getERC20TxFee(
+                chainId,
+                senderWalletAddress,
+                receiverAddress,
+                tokenContractAddress,
+                fullAmount,
+                tokenDecimal,
+                paymentLinkCharges,
+                paymentLinkWalletAddress
+              );
             }
 
-            if (erc20Receipt.receipt2) {
-              // Update payment link model
-              await this.updatePaymentLinkModel(wallet?._id, {
-                withdrawStatus: WithdrawPaymentStatus.SUCCESS,
-                status: PaymentStatus.SUCCESS,
-              });
-
-              // Trigger webhook for payment success
-              const paymentLink = await this.paymentLinkModel.findById(wallet?._id);
-              if (paymentLink) {
-                await this.webhookService.sendWebhook(
-                  paymentLink.appId.toString(),
-                  paymentLink._id.toString(),
-                  WebhookEvent.PAYMENT_SUCCESS,
-                  paymentLink.toObject()
-                );
+            if (wallet?.withdrawStatus === WithdrawPaymentStatus.PENDING) {
+              // Transfer evm native tokens to the payment links
+              const nativeTxReceipt = await evmNativeTokenTransferToPaymentLinks(
+                chainId,
+                txCost?.totalGas * txCost?.gasPrice,
+                senderWalletAddress
+              );
+              if (nativeTxReceipt) {
+                await this.updatePaymentLinkModel(wallet?._id, {
+                  withdrawStatus: WithdrawPaymentStatus.NATIVE_TRANSFER,
+                });
               }
             }
-          } catch (error) {
-            console.log("An error occurred:", error.message);
+
+            try {
+              const erc20Receipt = await evmERC20TokenTransfer(
+                chainId,
+                privateKey,
+                txCost,
+                tokenContractAddress,
+                fullAmount,
+                receiverAddress,
+                tokenDecimal,
+                paymentLinkCharges,
+                paymentLinkWalletAddress
+              );
+
+              if (erc20Receipt.receipt1) {
+                // Update payment link model
+                const adminFeeValue =
+                  fullAmount / (1 + parseFloat(paymentLinkCharges) / 100);
+                const adminFeeAmount = fullAmount - adminFeeValue;
+                const amountAfterTaxValue = fullAmount - adminFeeAmount;
+                await this.updatePaymentLinkModel(wallet?._id, {
+                  withdrawStatus: WithdrawPaymentStatus.ADMIN_CHARGES,
+                  adminFee: adminFeeAmount,
+                  adminFeeWallet: paymentLinkWalletAddress,
+                  amountAfterTax: amountAfterTaxValue,
+                });
+              }
+
+              if (erc20Receipt.receipt2) {
+                // Update payment link model
+                await this.updatePaymentLinkModel(wallet?._id, {
+                  withdrawStatus: WithdrawPaymentStatus.SUCCESS,
+                  status: PaymentStatus.SUCCESS,
+                });
+
+                // Trigger webhook for payment success
+                const paymentLink = await this.paymentLinkModel.findById(wallet?._id);
+                if (paymentLink) {
+                  await this.webhookService.sendWebhook(
+                    paymentLink.appId.toString(),
+                    paymentLink._id.toString(),
+                    WebhookEvent.PAYMENT_SUCCESS,
+                    paymentLink.toObject()
+                  );
+                }
+              }
+            } catch (error) {
+              console.log("An error occurred:", error.message);
+            }
           }
         }
       }
@@ -649,20 +676,44 @@ export class TransactionService {
 
     const paymentLink = await this.paymentLinkModel.findOne(forPaymentLink);
 
+    let toleranceMargin = 0;
+    if (paymentLink) {
+      // Fetch App to get toleranceMargin for the payment link
+      const appForLink = await this.appModel.findById(paymentLink.appId);
+      toleranceMargin = appForLink?.toleranceMargin || 0;
+    }
+
     const app = await this.appModel.findOne({
       "EVMWalletMnemonic.address": {
         $regex: new RegExp(`^${walletAddress}$`, "i"),
       },
     });
 
-    if (paymentLink && parseFloat(txAmount) >= parseFloat(paymentLink.amount)) {
+    const minRequiredAmount = paymentLink
+      ? parseFloat(paymentLink.amount) * (1 - (toleranceMargin / 100))
+      : 0;
+
+    // Calculate accumulated amount including past partial payments
+    const previousReceived = paymentLink ? parseFloat(paymentLink.recivedAmount || "0") : 0;
+    const accumulatedAmount = previousReceived + parseFloat(txAmount);
+
+    if (paymentLink && accumulatedAmount >= minRequiredAmount) {
       console.log("this is a payment link tx ----------");
 
       result = {
         _id: paymentLink?._id,
         id: paymentLink?.appId,
         transactionType: "PAYMENT_LINK",
-        // transactionType: WalletType.PAYMENT_LINK,
+        accumulatedAmount: accumulatedAmount
+      };
+      return result;
+    } else if (paymentLink && accumulatedAmount > 0) {
+      console.log("this is a partial payment link tx ----------");
+      result = {
+        _id: paymentLink?._id,
+        id: paymentLink?.appId,
+        transactionType: "PARTIAL_PAYMENT_LINK",
+        accumulatedAmount: accumulatedAmount
       };
       return result;
     } else if (app) {
@@ -779,47 +830,42 @@ export class TransactionService {
         };
 
         if (link?.tokenAddress === NATIVE) {
-          const tronValueInDecimal = Number(link?.amount) * tronDecimal;
+          // Fetch App to get toleranceMargin
+          const app = await this.appModel.findById(link?.appId);
+          const toleranceMargin = app?.toleranceMargin || 0;
+
+          const minRequiredAmountTRX = Number(link?.amount) * (1 - (toleranceMargin / 100));
+
           const tronBalance = await getTronBalance(link?.toAddress);
 
-          if (tronBalance >= Number(link.amount)) {
+          if (tronBalance > 0) {
             const transactions = await getTronTransactions(link?.toAddress);
 
-            // Filter transactions that:
-            // 1. Have enough amount
-            // 2. Are newer than the payment link creation time
             const paymentLinkCreationTime = new Date(link['createdAt']).getTime();
 
-            const matchingTransaction = transactions?.data?.data
-              .filter(
-                (tx) => {
-                  const isAmountMatch = tx?.raw_data?.contract[0]?.parameter?.value?.amount >= tronValueInDecimal;
-                  const isTimeMatch = tx?.block_timestamp > paymentLinkCreationTime;
-                  return isAmountMatch && isTimeMatch;
-                }
-              )
+            // Find the most recent transaction to this wallet after creation time
+            const recentTx = transactions?.data?.data
+              .filter((tx) => tx?.block_timestamp > paymentLinkCreationTime)
               .sort((a, b) => b?.block_timestamp - a?.block_timestamp)[0];
 
-            if (matchingTransaction) {
-              const toAddress =
-                await matchingTransaction?.raw_data?.contract[0]?.parameter
-                  ?.value?.to_address;
-              const toAddressInHex = await hexToTronAddress(
-                toAddress?.slice(2, 42)
-              );
+            if (recentTx) {
+              const toAddress = recentTx?.raw_data?.contract[0]?.parameter?.value?.to_address;
+              const toAddressInHex = await hexToTronAddress(toAddress?.slice(2, 42));
 
               if (toAddressInHex === link?.toAddress) {
-                const fromAddress =
-                  await matchingTransaction?.raw_data.contract[0]?.parameter
-                    ?.value?.owner_address;
-                status.hash = await matchingTransaction?.txID;
-                status.fromAddress = await hexToTronAddress(
-                  fromAddress.slice(2, 42)
-                );
-                status.recivedAmount =
-                  (await matchingTransaction?.raw_data.contract[0]?.parameter
-                    ?.value?.amount) / tronDecimal;
-                status.status = PaymentStatus.PARTIALLY_SUCCESS;
+                const fromAddress = recentTx?.raw_data?.contract[0]?.parameter?.value?.owner_address;
+                status.hash = await recentTx?.txID;
+                status.fromAddress = await hexToTronAddress(fromAddress.slice(2, 42));
+
+                // Set received amount to the actual cumulative wallet balance
+                status.recivedAmount = tronBalance;
+
+                // Determine if the total balance is enough to mark it success
+                if (tronBalance >= minRequiredAmountTRX) {
+                  status.status = PaymentStatus.PARTIALLY_SUCCESS;
+                } else {
+                  status.status = PaymentStatus.PENDING;
+                }
 
                 const updatedLink = await this.paymentLinkModel.findOneAndUpdate(
                   { _id: link?._id },
@@ -827,7 +873,7 @@ export class TransactionService {
                   { new: true }
                 );
 
-                if (updatedLink) {
+                if (updatedLink && status.status === PaymentStatus.PARTIALLY_SUCCESS) {
                   updatedPaymentLinks.push(updatedLink);
 
                   // Trigger webhook for TRON payment confirmed
@@ -859,7 +905,12 @@ export class TransactionService {
           // tokenDecimals: 6,
         };
         if (link?.tokenAddress !== NATIVE) {
+          // Fetch App to get toleranceMargin
+          const app = await this.appModel.findById(link?.appId);
+          const toleranceMargin = app?.toleranceMargin || 0;
+
           const tronValueInDecimal = Number(link?.amount) * tronDecimal;
+          const minRequiredAmount = tronValueInDecimal * (1 - (toleranceMargin / 100));
 
           const decryptPrivateKey = await this.encryptionService.decryptData(
             link?.privateKey
@@ -872,28 +923,31 @@ export class TransactionService {
 
           for (const e of tronBalance) {
             const trc20balanceAmount = await e.balance;
-            if (Number(trc20balanceAmount) >= Number(link?.amount)) {
+            const minRequiredBalance = Number(link?.amount) * (1 - (toleranceMargin / 100));
+            if (Number(trc20balanceAmount) > 0) {
               const transactions = await getTRC20Transactions(link?.toAddress);
 
               const paymentLinkCreationTime = new Date(link['createdAt']).getTime();
 
-              const matchingTransaction = transactions?.data?.data
-                .filter((tx) => {
-                  const isAmountMatch = tx?.value >= tronValueInDecimal;
-                  const isTimeMatch = tx?.block_timestamp > paymentLinkCreationTime;
-                  return isAmountMatch && isTimeMatch;
-                })
+              const recentTx = transactions?.data?.data
+                .filter((tx) => tx?.block_timestamp > paymentLinkCreationTime)
                 .sort((a, b) => b?.block_timestamp - a?.block_timestamp)[0];
 
-              if (matchingTransaction) {
-                const toAddress = await matchingTransaction?.to;
+              if (recentTx) {
+                const toAddress = await recentTx?.to;
                 if (toAddress === link?.toAddress) {
-                  const fromAddress = await matchingTransaction?.from;
-                  status.hash = await matchingTransaction?.transaction_id;
+                  const fromAddress = await recentTx?.from;
+                  status.hash = await recentTx?.transaction_id;
                   status.fromAddress = await fromAddress;
-                  status.recivedAmount =
-                    (await matchingTransaction?.value) / tronDecimal;
-                  status.status = PaymentStatus.PARTIALLY_SUCCESS;
+
+                  // Set received amount to the actual cumulative TRC20 wallet balance
+                  status.recivedAmount = Number(trc20balanceAmount);
+
+                  if (Number(trc20balanceAmount) >= minRequiredBalance) {
+                    status.status = PaymentStatus.PARTIALLY_SUCCESS;
+                  } else {
+                    status.status = PaymentStatus.PENDING;
+                  }
 
                   const updatedLink = await this.paymentLinkModel.findOneAndUpdate(
                     { _id: link?._id },
@@ -901,7 +955,7 @@ export class TransactionService {
                     { new: true }
                   );
 
-                  if (updatedLink) {
+                  if (updatedLink && status.status === PaymentStatus.PARTIALLY_SUCCESS) {
                     updatedPaymentLinks.push(updatedLink);
 
                     // Trigger webhook for TRC20 payment confirmed
@@ -930,11 +984,11 @@ export class TransactionService {
     }
   }
 
-  @Cron("0 */3 * * * *")
+  @Cron("*/10 * * * * *")
   async withdrawTronPaymentFromLinks() {
     try {
       this.logger.debug(
-        "--------------------- Cron Job Started for every 3 minute (To withdraw tron amount from payment links) -----------------------"
+        "--------------------- Cron Job Started for every 10 seconds (To withdraw tron amount from payment links) -----------------------"
       );
 
       const partialPaymentLinks = await this.paymentLinkModel.aggregate([
@@ -971,7 +1025,12 @@ export class TransactionService {
       }
 
       for (const link of partialPaymentLinks) {
-        if (link?.recivedAmount >= link?.amount) {
+        // Fetch tolerance margin from the app
+        const appForLink = await this.appModel.findById(link?.appId);
+        const toleranceMargin = appForLink?.toleranceMargin || 0;
+        const minRequiredAmount = Number(link?.amount) * (1 - (toleranceMargin / 100));
+
+        if (link?.recivedAmount >= minRequiredAmount) {
           let status = {
             status: undefined, // explicitly declare status as optional
             withdrawStatus: undefined,
@@ -1461,7 +1520,7 @@ export class TransactionService {
         })
         .sort({ createdAt: -1 }) // Sort by createdAt in descending order (latest first)
         .limit(50)
-        .select("_id paymentLinkId walletAddress amount transactionType"); // Replace with the specific field names you want
+        .select("_id paymentLinkId walletAddress amount transactionType appId"); // Include appId for tolerance margin lookup
 
       // get wallet addresses of the payment links
       let walletList = paymentLinks.map((item) => item.walletAddress);
@@ -1490,6 +1549,12 @@ export class TransactionService {
         }
       }
 
+      // Fetch Apps mapping for tolerance Margins
+      const appIds = [...new Set(paymentLinks.map(p => p.appId))];
+      const apps = await this.appModel.find({ _id: { $in: appIds } });
+      const appMap = new Map();
+      apps.forEach(app => appMap.set(app._id.toString(), app));
+
       const mergedData = paymentLinks.map((payment) => {
         console.log('payment 122', payment)
         const walletTx = walletTxList.find((wallet) => {
@@ -1514,8 +1579,8 @@ export class TransactionService {
 
 
       });
-
       const finalOutput = [];
+      const partialOutput = [];
       // Iterate over the mergedData and check the transaction details and store in finalOutput
       mergedData.forEach((element) => {
         let tx = {
@@ -1529,42 +1594,68 @@ export class TransactionService {
           gas: null,
           hash: null,
           status: false,
+          isPartial: false,
           transactionType: element.payment.transactionType,  // <-- IMPORTANT
         };
 
         console.log(element, "element2")
 
         if (element.transactions && element.transactions.length > 0) {
+          // get App toleranceMargin
+          const app = appMap.get(element.payment.appId?.toString());
+          const toleranceMargin = app?.toleranceMargin || 0;
+          const minRequiredAmount = Number(tx.paymentLinkAmount) * (1 - (toleranceMargin / 100));
+
+          // Initialize accumulated amount and latest variables
+          let accumulatedAmount = 0;
+          let latestBlock = null;
+          let latestHash = null;
+          let latestGas = null;
+          let latestSender = null;
+
           element.transactions.forEach((transaction) => {
-            tx.block = transaction.blockNumber;
-            tx.gas = transaction.fee;
-            tx.hash = transaction.hash;
+            // Keep track of the latest tx properties
+            latestBlock = transaction.blockNumber;
+            latestGas = transaction.fee;
+            latestHash = transaction.hash;
             if (transaction.inputs && transaction.inputs.length > 0) {
-              tx.senderAddress = transaction.inputs[0].coin.address; // Check for existence before accessing
+              latestSender = transaction.inputs[0].coin.address; // Check for existence before accessing
             }
+
             transaction.outputs.forEach((output) => {
               if (output.address === tx.paymentLinkWalletAddress) {
                 const outputAmount = output.value / 10 ** 8;
-
-                if (Number(outputAmount) >= Number(tx.paymentLinkAmount)) {
-                  // Compare outputAmount directly
-                  tx.txAmount = outputAmount; // Update txAmount
-                  tx.status = true;
-                }
+                accumulatedAmount += Number(outputAmount);
               }
             });
           });
+
+          if (accumulatedAmount > 0) {
+            tx.txAmount = accumulatedAmount;
+            tx.block = latestBlock;
+            tx.gas = latestGas;
+            tx.hash = latestHash;
+            tx.senderAddress = latestSender;
+
+            if (accumulatedAmount >= minRequiredAmount) {
+              tx.status = true;
+            } else {
+              tx.isPartial = true;
+            }
+          }
         }
-        // if status is true, then only push into the list
+
+        // if status is true, then push into the corresponding lists
         if (tx.status) {
           finalOutput.push(tx);
+        } else if (tx.isPartial) {
+          partialOutput.push(tx);
         }
-
-        // console.log("tx : ", tx);
       });
 
-      // Update in monitor models
-      const bulkOperations = finalOutput.map((item) => ({
+      // Update in monitor models for BOTH full and partial payments
+      const allDetectedTxs = [...finalOutput, ...partialOutput];
+      const bulkOperations = allDetectedTxs.map((item) => ({
         updateOne: {
           filter: { _id: item.id },
           update: {
@@ -1574,25 +1665,25 @@ export class TransactionService {
           },
         },
       }));
-      // console.log("bulkOperations : ", bulkOperations.filter);
-      await this.monitorModel.bulkWrite(bulkOperations);
+      if (bulkOperations.length > 0) {
+        await this.monitorModel.bulkWrite(bulkOperations);
+      }
 
-      // Update in payment links
+      // Update in payment links for FULL success
       for (const item of finalOutput) {
-        console.log(item, "item2")
+        console.log("Processing full BTC payment: ", item);
         await this.paymentLinkModel.updateOne(
           { _id: item.paymentLinkId },
           {
             $set: {
               status: PaymentStatus.PARTIALLY_SUCCESS,
               block: item.block,
-              fromAddress: item.senderAddress, // Use senderAddress from finalOutput item
+              fromAddress: item.senderAddress,
               gas: item.fee,
               hash: item.hash,
               recivedAmount: item.txAmount,
               tokenDecimals: "8",
               tokenName: "BTC",
-
             },
           }
         );
@@ -1615,15 +1706,30 @@ export class TransactionService {
         }
       }
 
+      // Update in payment links for PARTIAL payments (PENDING)
+      for (const item of partialOutput) {
+        console.log("Processing partial BTC payment: ", item);
+        await this.paymentLinkModel.updateOne(
+          { _id: item.paymentLinkId },
+          {
+            $set: {
+              // Status remains PENDING
+              block: item.block,
+              fromAddress: item.senderAddress,
+              gas: item.fee,
+              hash: item.hash,
+              recivedAmount: item.txAmount,
+              tokenDecimals: "8",
+              tokenName: "BTC",
+            },
+          }
+        );
+      }
+
       this.logger.debug(
-        `------------ Cron Job Started 1 MINUTE (To process btc payment) -------------- ${finalOutput.length}`
+        `------------ Cron Job Started 1 MINUTE (To process btc payment) -------------- Full: ${finalOutput.length}, Partial: ${partialOutput.length}`
       );
 
-      // console.log(
-      //   "processBitcoinPaymentLinks ended --------------------------------"
-      // );
-
-      // return updatedLinks;
       return finalOutput;
       // return mergedData;
     } catch (error) {

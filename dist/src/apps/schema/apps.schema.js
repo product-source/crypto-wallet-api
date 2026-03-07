@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.AppsSchema = exports.Apps = exports.EvmDetails = void 0;
+exports.AppsSchema = exports.Apps = exports.WhitelistedWalletSchema = exports.WhitelistedWallet = exports.EvmDetails = void 0;
 const mongoose_1 = require("@nestjs/mongoose");
 const mongoose_2 = __importDefault(require("mongoose"));
 const merchant_schema_1 = require("../../merchants/schema/merchant.schema");
@@ -45,6 +45,25 @@ __decorate([
     (0, mongoose_1.Prop)({ type: Mnemonic, required: true, select: false }),
     __metadata("design:type", Mnemonic)
 ], EvmDetails.prototype, "mnemonic", void 0);
+let WhitelistedWallet = class WhitelistedWallet {
+};
+exports.WhitelistedWallet = WhitelistedWallet;
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], WhitelistedWallet.prototype, "address", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", String)
+], WhitelistedWallet.prototype, "label", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], WhitelistedWallet.prototype, "network", void 0);
+exports.WhitelistedWallet = WhitelistedWallet = __decorate([
+    (0, mongoose_1.Schema)()
+], WhitelistedWallet);
+exports.WhitelistedWalletSchema = mongoose_1.SchemaFactory.createForClass(WhitelistedWallet);
 let Apps = class Apps {
 };
 exports.Apps = Apps;
@@ -144,6 +163,14 @@ __decorate([
     (0, mongoose_1.Prop)({ default: 0 }),
     __metadata("design:type", Number)
 ], Apps.prototype, "withdrawalCooldownMinutes", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: 0 }),
+    __metadata("design:type", Number)
+], Apps.prototype, "toleranceMargin", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: [exports.WhitelistedWalletSchema], default: [] }),
+    __metadata("design:type", Array)
+], Apps.prototype, "whitelistedWallets", void 0);
 exports.Apps = Apps = __decorate([
     (0, mongoose_1.Schema)({
         timestamps: true,

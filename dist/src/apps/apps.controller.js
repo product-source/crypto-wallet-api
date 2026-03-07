@@ -58,6 +58,18 @@ let AppsController = class AppsController {
         const { user } = req;
         return this.appsService.getUnreadNotificationCount(user);
     }
+    requestWhitelistOtp(req, dto) {
+        return this.appsService.requestWhitelistOtp(req.user, dto);
+    }
+    addWhitelistWallet(req, dto) {
+        return this.appsService.addWhitelistWallet(req.user, dto);
+    }
+    removeWhitelistWallet(req, dto) {
+        return this.appsService.removeWhitelistWallet(req.user, dto);
+    }
+    getWhitelistWallets(req, appId) {
+        return this.appsService.getWhitelistWallets(req.user, appId);
+    }
     appList(query) {
         return this.appsService.appList(query);
     }
@@ -180,6 +192,42 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], AppsController.prototype, "getUnreadNotificationCount", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Post)("whitelist/request-otp"),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, apps_dto_1.RequestWhitelistOtpDto]),
+    __metadata("design:returntype", void 0)
+], AppsController.prototype, "requestWhitelistOtp", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Post)("whitelist/add"),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, apps_dto_1.AddWhitelistDto]),
+    __metadata("design:returntype", void 0)
+], AppsController.prototype, "addWhitelistWallet", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Delete)("whitelist/remove"),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, apps_dto_1.RemoveWhitelistDto]),
+    __metadata("design:returntype", void 0)
+], AppsController.prototype, "removeWhitelistWallet", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Get)("whitelist"),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Query)('appId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:returntype", void 0)
+], AppsController.prototype, "getWhitelistWallets", null);
 __decorate([
     (0, common_1.UseGuards)(permissions_guard_1.PermissionsGuard),
     (0, permissions_decorator_1.Permissions)(role_enum_1.Permission.MERCHANT_MANAGEMENT),

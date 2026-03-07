@@ -526,6 +526,17 @@ export class MerchantAppTxService {
         throw new BadRequestException("Invalid appsId");
       }
 
+      // ==== Wallet Whitelist Enforcement ====
+      if (!app.whitelistedWallets || app.whitelistedWallets.length === 0) {
+        throw new BadRequestException("Please whitelist a wallet address first in the App Settings.");
+      }
+
+      const isWhitelisted = app.whitelistedWallets.find(w => w.address.toLowerCase() === withdrawalAddress.toLowerCase());
+      if (!isWhitelisted) {
+        throw new BadRequestException("Destination address is not whitelisted for this App.");
+      }
+      // ======================================
+
       // get token info
       let token;
       try {

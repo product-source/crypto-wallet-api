@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AppsModule = void 0;
 const common_1 = require("@nestjs/common");
 const apps_service_1 = require("./apps.service");
+const email_module_1 = require("../emails/email.module");
 const apps_controller_1 = require("./apps.controller");
 const mongoose_1 = require("@nestjs/mongoose");
 const apps_schema_1 = require("./schema/apps.schema");
@@ -26,6 +27,7 @@ exports.AppsModule = AppsModule;
 exports.AppsModule = AppsModule = __decorate([
     (0, common_1.Module)({
         imports: [
+            email_module_1.EmailModule,
             mongoose_1.MongooseModule.forFeature([
                 { name: apps_schema_1.Apps.name, schema: apps_schema_1.AppsSchema },
                 { name: wallet_monitor_schema_1.WalletMonitor.name, schema: wallet_monitor_schema_1.WalletMonitorSchema },

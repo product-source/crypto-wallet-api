@@ -1,7 +1,7 @@
 import { NotFoundException } from "@nestjs/common";
 import { Model } from "mongoose";
 import { Apps, AppsDocument } from "./schema/apps.schema";
-import { CreateAppsDto, UpdateAppsDto } from "./dto/apps.dto";
+import { CreateAppsDto, UpdateAppsDto, AddWhitelistDto, RemoveWhitelistDto, RequestWhitelistOtpDto } from "./dto/apps.dto";
 import { EncryptionService } from "src/utils/encryption.service";
 import { WalletMonitorDocument } from "src/wallet-monitor/schema/wallet-monitor.schema";
 import { NotificationDocument } from "src/notification/schema/notification.schema";
@@ -10,6 +10,7 @@ import { PaymentLinkDocument } from "src/payment-link/schema/payment-link.schema
 import { FiatWithdrawDocument } from "src/merchant-app-tx/schema/fiat-withdraw.schema";
 import { MerchantDocument } from "src/merchants/schema/merchant.schema";
 import { WebhookService } from "src/webhook/webhook.service";
+import { EmailService } from "src/emails/email.service";
 export declare class AppsService {
     private readonly appsModel;
     private readonly merchantModel;
@@ -20,7 +21,8 @@ export declare class AppsService {
     private readonly fiatWithdrawModel;
     private encryptionService;
     private webhookService;
-    constructor(appsModel: Model<AppsDocument>, merchantModel: Model<MerchantDocument>, monitorModel: Model<WalletMonitorDocument>, notificationModel: Model<NotificationDocument>, tokenModel: Model<TokenDocument>, paymentLinkModel: Model<PaymentLinkDocument>, fiatWithdrawModel: Model<FiatWithdrawDocument>, encryptionService: EncryptionService, webhookService: WebhookService);
+    private readonly emailService;
+    constructor(appsModel: Model<AppsDocument>, merchantModel: Model<MerchantDocument>, monitorModel: Model<WalletMonitorDocument>, notificationModel: Model<NotificationDocument>, tokenModel: Model<TokenDocument>, paymentLinkModel: Model<PaymentLinkDocument>, fiatWithdrawModel: Model<FiatWithdrawDocument>, encryptionService: EncryptionService, webhookService: WebhookService, emailService: EmailService);
     addApp(user: any, dto: CreateAppsDto, file: any): Promise<{
         message: string;
     }>;
@@ -123,6 +125,8 @@ export declare class AppsService {
             dailyWithdrawalRequestLimit: number;
             dailyWithdrawalAmountLimit: number;
             withdrawalCooldownMinutes: number;
+            toleranceMargin: number;
+            whitelistedWallets: import("./schema/apps.schema").WhitelistedWallet[];
             _id: import("mongoose").Types.ObjectId;
             $locals: Record<string, unknown>;
             $op: "save" | "validate" | "remove" | null;
@@ -147,4 +151,20 @@ export declare class AppsService {
         webhookUrl: any;
     }>;
     getWebhookLogsWithApiKey(dto: any): Promise<any>;
+    requestWhitelistOtp(user: any, dto: RequestWhitelistOtpDto): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    addWhitelistWallet(user: any, dto: AddWhitelistDto): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    removeWhitelistWallet(user: any, dto: RemoveWhitelistDto): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    getWhitelistWallets(user: any, appId: string): Promise<{
+        success: boolean;
+        data: import("./schema/apps.schema").WhitelistedWallet[];
+    }>;
 }

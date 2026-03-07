@@ -69,8 +69,10 @@ const payment_link_schema_1 = require("../payment-link/schema/payment-link.schem
 const fiat_withdraw_schema_1 = require("../merchant-app-tx/schema/fiat-withdraw.schema");
 const merchant_schema_1 = require("../merchants/schema/merchant.schema");
 const webhook_service_1 = require("../webhook/webhook.service");
+const email_service_1 = require("../emails/email.service");
+const helper_1 = require("../helpers/helper");
 let AppsService = class AppsService {
-    constructor(appsModel, merchantModel, monitorModel, notificationModel, tokenModel, paymentLinkModel, fiatWithdrawModel, encryptionService, webhookService) {
+    constructor(appsModel, merchantModel, monitorModel, notificationModel, tokenModel, paymentLinkModel, fiatWithdrawModel, encryptionService, webhookService, emailService) {
         this.appsModel = appsModel;
         this.merchantModel = merchantModel;
         this.monitorModel = monitorModel;
@@ -80,6 +82,7 @@ let AppsService = class AppsService {
         this.fiatWithdrawModel = fiatWithdrawModel;
         this.encryptionService = encryptionService;
         this.webhookService = webhookService;
+        this.emailService = emailService;
     }
     async addApp(user, dto, file) {
         try {
@@ -136,10 +139,13 @@ let AppsService = class AppsService {
                 model.name = name.trim();
                 model.description = description.trim();
                 console.log("Adding App - DTO:", JSON.stringify(dto));
-                const { theme } = dto;
+                const { theme, toleranceMargin } = dto;
                 if (theme) {
                     console.log("Setting theme:", theme);
                     model.theme = theme;
+                }
+                if (toleranceMargin !== undefined) {
+                    model.toleranceMargin = toleranceMargin;
                 }
                 if (file) {
                     model.logo = file.path.replace(/\\/g, "/");
@@ -422,9 +428,12 @@ let AppsService = class AppsService {
                 app.name = name.trim();
             if (description)
                 app.description = description.trim();
-            const { theme, removeLogo } = dto;
+            const { theme, removeLogo, toleranceMargin } = dto;
             if (theme) {
                 app.theme = theme;
+            }
+            if (toleranceMargin !== undefined) {
+                app.toleranceMargin = toleranceMargin;
             }
             if (removeLogo === "true") {
                 app.logo = "";
@@ -656,6 +665,111 @@ let AppsService = class AppsService {
             }
         }
     }
+    async requestWhitelistOtp(user, dto) {
+        try {
+            const merchant = await this.merchantModel.findById(user.userId);
+            if (!merchant)
+                throw new common_1.NotFoundException("Merchant not found");
+            const app = await this.appsModel.findOne({ _id: dto.appId, merchantId: user.userId });
+            if (!app)
+                throw new common_1.NotFoundException("App not found");
+            const otp = (0, helper_1.betweenRandomNumber)(100000, 999999);
+            merchant.otp = otp;
+            merchant.otpExpire = Date.now() + 600000;
+            const emailRecipient = merchant.email;
+            const emailSubject = "OTP for Wallet Whitelist Management";
+            const emailHtml = `
+        <div style="font-family: Arial, sans-serif; text-align: center; max-width: 600px; margin: auto;">
+          <p>Hi ${merchant.name || 'Merchant'},</p>
+          <p>Please use the following One-Time Password (OTP) to add or remove a whitelisted wallet for <b>${app.name}</b>:</p>
+          <div style="border: 2px solid #000; padding: 15px; margin: 10px 0; font-size: 18px; font-weight: bold; text-align: center;">
+            <span style="display: inline-block; padding: 10px; font-size: 24px;">${otp}</span>
+          </div>
+          <p>This OTP is valid for 10 minutes.</p>
+        </div>
+      `;
+            await this.emailService.sendEmail(emailRecipient, emailSubject, emailHtml);
+            await merchant.save();
+            return { success: true, message: "OTP sent to registered email address." };
+        }
+        catch (error) {
+            throw new common_1.BadRequestException(error.message);
+        }
+    }
+    async addWhitelistWallet(user, dto) {
+        try {
+            const merchant = await this.merchantModel.findById(user.userId).select('+otp');
+            if (!merchant)
+                throw new common_1.NotFoundException("Merchant not found");
+            if (Number(merchant.otp) !== Number(dto.otp) || merchant.otpExpire < Date.now()) {
+                throw new common_1.BadRequestException("Invalid or expired OTP");
+            }
+            const app = await this.appsModel.findOne({ _id: dto.appId, merchantId: user.userId });
+            if (!app)
+                throw new common_1.NotFoundException("App not found");
+            merchant.otp = undefined;
+            merchant.otpExpire = undefined;
+            await merchant.save();
+            const exists = app.whitelistedWallets.find(w => w.address.toLowerCase() === dto.address.toLowerCase() && w.network === dto.network);
+            if (exists)
+                throw new common_1.BadRequestException("Address already whitelisted");
+            app.whitelistedWallets.push({
+                address: dto.address,
+                label: dto.label,
+                network: dto.network || '',
+            });
+            await app.save();
+            return { success: true, message: "Wallet whitelisted successfully" };
+        }
+        catch (error) {
+            if (error instanceof common_1.NotFoundException || error instanceof common_1.BadRequestException) {
+                throw error;
+            }
+            throw new common_1.BadRequestException(error.message);
+        }
+    }
+    async removeWhitelistWallet(user, dto) {
+        try {
+            const merchant = await this.merchantModel.findById(user.userId).select('+otp');
+            if (!merchant)
+                throw new common_1.NotFoundException("Merchant not found");
+            if (Number(merchant.otp) !== Number(dto.otp) || merchant.otpExpire < Date.now()) {
+                throw new common_1.BadRequestException("Invalid or expired OTP");
+            }
+            const app = await this.appsModel.findOne({ _id: dto.appId, merchantId: user.userId });
+            if (!app)
+                throw new common_1.NotFoundException("App not found");
+            merchant.otp = undefined;
+            merchant.otpExpire = undefined;
+            await merchant.save();
+            const initialLength = app.whitelistedWallets.length;
+            app.whitelistedWallets = app.whitelistedWallets.filter(w => w.address.toLowerCase() !== dto.address.toLowerCase());
+            if (app.whitelistedWallets.length === initialLength) {
+                throw new common_1.NotFoundException("Address not found in whitelist");
+            }
+            await app.save();
+            return { success: true, message: "Wallet removed from whitelist" };
+        }
+        catch (error) {
+            if (error instanceof common_1.NotFoundException || error instanceof common_1.BadRequestException) {
+                throw error;
+            }
+            throw new common_1.BadRequestException(error.message);
+        }
+    }
+    async getWhitelistWallets(user, appId) {
+        try {
+            if (!appId)
+                throw new common_1.BadRequestException("App ID required");
+            const app = await this.appsModel.findOne({ _id: appId, merchantId: user.userId });
+            if (!app)
+                throw new common_1.NotFoundException("App not found");
+            return { success: true, data: app.whitelistedWallets || [] };
+        }
+        catch (error) {
+            throw new common_1.BadRequestException(error.message);
+        }
+    }
 };
 exports.AppsService = AppsService;
 exports.AppsService = AppsService = __decorate([
@@ -675,6 +789,7 @@ exports.AppsService = AppsService = __decorate([
         mongoose_1.Model,
         mongoose_1.Model,
         encryption_service_1.EncryptionService,
-        webhook_service_1.WebhookService])
+        webhook_service_1.WebhookService,
+        email_service_1.EmailService])
 ], AppsService);
 //# sourceMappingURL=apps.service.js.map

@@ -1,5 +1,5 @@
 import { AppsService } from "./apps.service";
-import { CreateAppsDto, UpdateAppsDto } from "./dto/apps.dto";
+import { CreateAppsDto, UpdateAppsDto, AddWhitelistDto, RemoveWhitelistDto, RequestWhitelistOtpDto } from "./dto/apps.dto";
 import { UpdateWebhookDto, GetWebhookLogsDto } from "src/webhook/dto/webhook.dto";
 import { WebhookService } from "src/webhook/webhook.service";
 export declare class AppsController {
@@ -54,6 +54,22 @@ export declare class AppsController {
         message: string;
         count: number;
     }>;
+    requestWhitelistOtp(req: any, dto: RequestWhitelistOtpDto): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    addWhitelistWallet(req: any, dto: AddWhitelistDto): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    removeWhitelistWallet(req: any, dto: RemoveWhitelistDto): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    getWhitelistWallets(req: any, appId: string): Promise<{
+        success: boolean;
+        data: import("./schema/apps.schema").WhitelistedWallet[];
+    }>;
     appList(query: any): Promise<{
         message: string;
         total: number;
@@ -95,6 +111,8 @@ export declare class AppsController {
             dailyWithdrawalRequestLimit: number;
             dailyWithdrawalAmountLimit: number;
             withdrawalCooldownMinutes: number;
+            toleranceMargin: number;
+            whitelistedWallets: import("./schema/apps.schema").WhitelistedWallet[];
             _id: import("mongoose").Types.ObjectId;
             $locals: Record<string, unknown>;
             $op: "save" | "validate" | "remove" | null;

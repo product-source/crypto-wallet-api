@@ -8,7 +8,7 @@ import {
 import { Model } from "mongoose";
 import { InjectModel } from "@nestjs/mongoose";
 import { Apps, AppsDocument } from "./schema/apps.schema";
-import { CreateAppsDto, UpdateAppsDto } from "./dto/apps.dto";
+import { CreateAppsDto, UpdateAppsDto, AddWhitelistDto, RemoveWhitelistDto, RequestWhitelistOtpDto } from "./dto/apps.dto";
 import * as crypto from "crypto";
 import { EncryptionService } from "src/utils/encryption.service";
 import { generateEvmWallet, generateMnemonic } from "src/helpers/evm.helper";
@@ -37,6 +37,8 @@ import {
 } from "src/merchant-app-tx/schema/fiat-withdraw.schema";
 import { Merchant, MerchantDocument } from "src/merchants/schema/merchant.schema";
 import { WebhookService } from "src/webhook/webhook.service";
+import { EmailService } from "src/emails/email.service";
+import { betweenRandomNumber } from "src/helpers/helper";
 
 @Injectable()
 export class AppsService {
@@ -61,7 +63,8 @@ export class AppsService {
     private readonly fiatWithdrawModel: Model<FiatWithdrawDocument>,
 
     private encryptionService: EncryptionService,
-    private webhookService: WebhookService
+    private webhookService: WebhookService,
+    private readonly emailService: EmailService
   ) { }
 
   async addApp(user, dto: CreateAppsDto, file: any) {
@@ -150,10 +153,13 @@ export class AppsService {
         model.name = name.trim();
         model.description = description.trim();
         console.log("Adding App - DTO:", JSON.stringify(dto));
-        const { theme } = dto;
+        const { theme, toleranceMargin } = dto;
         if (theme) {
           console.log("Setting theme:", theme);
           model.theme = theme;
+        }
+        if (toleranceMargin !== undefined) {
+          model.toleranceMargin = toleranceMargin;
         }
         if (file) {
           model.logo = file.path.replace(/\\/g, "/");
@@ -600,9 +606,12 @@ export class AppsService {
 
       if (name) app.name = name.trim();
       if (description) app.description = description.trim();
-      const { theme, removeLogo } = dto;
+      const { theme, removeLogo, toleranceMargin } = dto;
       if (theme) {
         app.theme = theme;
+      }
+      if (toleranceMargin !== undefined) {
+        app.toleranceMargin = toleranceMargin;
       }
       // Handle logo removal
       if (removeLogo === "true") {
@@ -876,5 +885,123 @@ export class AppsService {
       }
     }
   }
-}
 
+  // ============== Wallet Whitelist Feature ==============
+
+  async requestWhitelistOtp(user, dto: RequestWhitelistOtpDto) {
+    try {
+      const merchant = await this.merchantModel.findById(user.userId);
+      if (!merchant) throw new NotFoundException("Merchant not found");
+
+      const app = await this.appsModel.findOne({ _id: dto.appId, merchantId: user.userId });
+      if (!app) throw new NotFoundException("App not found");
+
+      const otp = betweenRandomNumber(100000, 999999);
+      merchant.otp = otp;
+      merchant.otpExpire = Date.now() + 600000; // 10 minutes
+
+      const emailRecipient = merchant.email;
+      const emailSubject = "OTP for Wallet Whitelist Management";
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; text-align: center; max-width: 600px; margin: auto;">
+          <p>Hi ${merchant.name || 'Merchant'},</p>
+          <p>Please use the following One-Time Password (OTP) to add or remove a whitelisted wallet for <b>${app.name}</b>:</p>
+          <div style="border: 2px solid #000; padding: 15px; margin: 10px 0; font-size: 18px; font-weight: bold; text-align: center;">
+            <span style="display: inline-block; padding: 10px; font-size: 24px;">${otp}</span>
+          </div>
+          <p>This OTP is valid for 10 minutes.</p>
+        </div>
+      `;
+
+      await this.emailService.sendEmail(emailRecipient, emailSubject, emailHtml);
+      await merchant.save();
+
+      return { success: true, message: "OTP sent to registered email address." };
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  async addWhitelistWallet(user, dto: AddWhitelistDto) {
+    try {
+      const merchant = await this.merchantModel.findById(user.userId).select('+otp');
+      if (!merchant) throw new NotFoundException("Merchant not found");
+
+      if (Number(merchant.otp) !== Number(dto.otp) || merchant.otpExpire < Date.now()) {
+        throw new BadRequestException("Invalid or expired OTP");
+      }
+
+      const app = await this.appsModel.findOne({ _id: dto.appId, merchantId: user.userId });
+      if (!app) throw new NotFoundException("App not found");
+
+      // clear OTP
+      merchant.otp = undefined;
+      merchant.otpExpire = undefined;
+      await merchant.save();
+
+      // Check if address already whitelisted
+      const exists = app.whitelistedWallets.find(w => w.address.toLowerCase() === dto.address.toLowerCase() && w.network === dto.network);
+      if (exists) throw new BadRequestException("Address already whitelisted");
+
+      app.whitelistedWallets.push({
+        address: dto.address,
+        label: dto.label,
+        network: dto.network || '',
+      });
+
+      await app.save();
+      return { success: true, message: "Wallet whitelisted successfully" };
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  async removeWhitelistWallet(user, dto: RemoveWhitelistDto) {
+    try {
+      const merchant = await this.merchantModel.findById(user.userId).select('+otp');
+      if (!merchant) throw new NotFoundException("Merchant not found");
+
+      if (Number(merchant.otp) !== Number(dto.otp) || merchant.otpExpire < Date.now()) {
+        throw new BadRequestException("Invalid or expired OTP");
+      }
+
+      const app = await this.appsModel.findOne({ _id: dto.appId, merchantId: user.userId });
+      if (!app) throw new NotFoundException("App not found");
+
+      // clear OTP
+      merchant.otp = undefined;
+      merchant.otpExpire = undefined;
+      await merchant.save();
+
+      const initialLength = app.whitelistedWallets.length;
+      app.whitelistedWallets = app.whitelistedWallets.filter(w => w.address.toLowerCase() !== dto.address.toLowerCase());
+
+      if (app.whitelistedWallets.length === initialLength) {
+        throw new NotFoundException("Address not found in whitelist");
+      }
+
+      await app.save();
+      return { success: true, message: "Wallet removed from whitelist" };
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException(error.message);
+    }
+  }
+
+  async getWhitelistWallets(user, appId: string) {
+    try {
+      if (!appId) throw new BadRequestException("App ID required");
+      const app = await this.appsModel.findOne({ _id: appId, merchantId: user.userId });
+      if (!app) throw new NotFoundException("App not found");
+
+      return { success: true, data: app.whitelistedWallets || [] };
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
+}

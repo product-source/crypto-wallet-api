@@ -10,6 +10,20 @@ export declare class EvmDetails {
     privateKey: string;
     mnemonic: Mnemonic;
 }
+export declare class WhitelistedWallet {
+    address: string;
+    label: string;
+    network: string;
+}
+export declare const WhitelistedWalletSchema: mongoose.Schema<WhitelistedWallet, mongoose.Model<WhitelistedWallet, any, any, any, mongoose.Document<unknown, any, WhitelistedWallet, any, {}> & WhitelistedWallet & {
+    _id: mongoose.Types.ObjectId;
+} & {
+    __v: number;
+}, any>, {}, {}, {}, {}, mongoose.DefaultSchemaOptions, WhitelistedWallet, mongoose.Document<unknown, {}, mongoose.FlatRecord<WhitelistedWallet>, {}, mongoose.ResolveSchemaOptions<mongoose.DefaultSchemaOptions>> & mongoose.FlatRecord<WhitelistedWallet> & {
+    _id: mongoose.Types.ObjectId;
+} & {
+    __v: number;
+}>;
 export declare class Apps {
     merchantId: mongoose.Types.ObjectId;
     name: string;
@@ -34,6 +48,8 @@ export declare class Apps {
     dailyWithdrawalRequestLimit: number;
     dailyWithdrawalAmountLimit: number;
     withdrawalCooldownMinutes: number;
+    toleranceMargin: number;
+    whitelistedWallets: WhitelistedWallet[];
 }
 export declare const AppsSchema: mongoose.Schema<Apps, mongoose.Model<Apps, any, any, any, mongoose.Document<unknown, any, Apps, any, {}> & Apps & {
     _id: mongoose.Types.ObjectId;

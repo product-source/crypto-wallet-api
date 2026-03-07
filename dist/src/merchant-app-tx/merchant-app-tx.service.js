@@ -412,6 +412,13 @@ let MerchantAppTxService = class MerchantAppTxService {
             if (!app) {
                 throw new common_1.BadRequestException("Invalid appsId");
             }
+            if (!app.whitelistedWallets || app.whitelistedWallets.length === 0) {
+                throw new common_1.BadRequestException("Please whitelist a wallet address first in the App Settings.");
+            }
+            const isWhitelisted = app.whitelistedWallets.find(w => w.address.toLowerCase() === withdrawalAddress.toLowerCase());
+            if (!isWhitelisted) {
+                throw new common_1.BadRequestException("Destination address is not whitelisted for this App.");
+            }
             let token;
             try {
                 token = await this.tokenService.tokenById({ tokenId });

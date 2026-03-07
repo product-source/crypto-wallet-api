@@ -26,6 +26,19 @@ export class EvmDetails {
   mnemonic: Mnemonic;
 }
 
+@Schema()
+export class WhitelistedWallet {
+  @Prop({ required: true })
+  address: string;
+
+  @Prop({ required: true })
+  label: string;
+
+  @Prop()
+  network: string; // E.g., TRX, BSC, BTC
+}
+export const WhitelistedWalletSchema = SchemaFactory.createForClass(WhitelistedWallet);
+
 @Schema({
   timestamps: true,
   toJSON: {
@@ -143,6 +156,14 @@ export class Apps {
   // Cooldown settings (in minutes, 0 = no cooldown)
   @Prop({ default: 0 })
   withdrawalCooldownMinutes: number; // Cooldown between requests from same user
+
+  // Deposit settings
+  @Prop({ default: 0 })
+  toleranceMargin: number; // Allowed underpayment percentage (e.g. 1 = 1%)
+
+  // Wallet Whitelist Feature
+  @Prop({ type: [WhitelistedWalletSchema], default: [] })
+  whitelistedWallets: WhitelistedWallet[];
 }
 
 export const AppsSchema = SchemaFactory.createForClass(Apps);
