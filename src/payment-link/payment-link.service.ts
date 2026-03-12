@@ -61,6 +61,7 @@ import { TransactionTypes } from "src/merchant-app-tx/schema/enum";
 import axios from "axios";
 import { WebhookService } from "src/webhook/webhook.service";
 import { WebhookEvent } from "src/webhook/schema/webhook-log.schema";
+import { verifyIpWhitelist } from "src/helpers/ip-whitelist.helper";
 
 @Injectable()
 export class PaymentLinkService {
@@ -144,32 +145,18 @@ export class PaymentLinkService {
       // const app = await this.appsModel.findById(appId);
       const app = await this.appsModel.findOne({
         _id: appId,
-      });
+      }).populate('merchantId');
       if (!app) {
         throw new NotFoundException("Invalid app");
       }
 
       // ---------------------- IP WHITELIST VALIDATION ----------------------
-      const merchant = await this.appsModel.findById(appId).populate('merchantId');
-      const merchantData = merchant?.merchantId as any;
-      if (merchantData?.isIPWhitelistEnabled && merchantData?.whitelistedIPs && merchantData.whitelistedIPs.length > 0 && clientIp) {
-        let normalizedClientIp = clientIp.replace(/^::ffff:/, '');
-
-        // Map localhost/loopback addresses to a standard format
-        if (normalizedClientIp === '::1' || normalizedClientIp === '127.0.0.1') {
-          normalizedClientIp = '127.0.0.1';
-        }
-
-        const isWhitelisted = merchantData.whitelistedIPs.some(
-          (whitelistedIp) => {
-            // Also normalize whitelisted IPs for comparison
-            const normalizedWhitelistedIp = whitelistedIp === '::1' ? '127.0.0.1' : whitelistedIp;
-            return normalizedWhitelistedIp === normalizedClientIp || whitelistedIp === clientIp;
-          }
-        );
+      const merchantData = app?.merchantId as any;
+      if (merchantData?.isIPWhitelistEnabled && merchantData?.whitelistedIPs?.length > 0 && clientIp) {
+        const isWhitelisted = verifyIpWhitelist(merchantData.whitelistedIPs, clientIp);
         if (!isWhitelisted) {
           throw new ForbiddenException(
-            `Access denied. IP address ${normalizedClientIp} is not whitelisted.`
+            `Access denied. IP address ${clientIp} is not whitelisted.`
           );
         }
       }

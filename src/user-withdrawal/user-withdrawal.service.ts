@@ -23,6 +23,8 @@ import { merchantTronFundWithdraw, getTronBalance, getTRC20Balance } from "src/h
 import { merchantBtcFundWithdraw } from "src/helpers/bitcoin.helper";
 import { AdminService } from "src/admin/admin.service";
 import { getTatumPrice } from "src/helpers/helper";
+import { verifyIpWhitelist } from "src/helpers/ip-whitelist.helper";
+import { ForbiddenException } from "@nestjs/common";
 import {
     CreateWithdrawalRequestDto,
     ApproveWithdrawalDto,
@@ -54,12 +56,12 @@ export class UserWithdrawalService {
     /**
      * Validate App Credentials (replaced ApiKeyAuthGuard)
      */
-    async validateAppCredentials(appId: string, apiKey: string, secretKey: string) {
+    async validateAppCredentials(appId: string, apiKey: string, secretKey: string, clientIp?: string) {
         if (!appId || !apiKey || !secretKey) {
             throw new BadRequestException("Missing authentication credentials");
         }
 
-        const app = await this.appsModel.findById(appId);
+        const app = await this.appsModel.findById(appId).populate('merchantId');
         if (!app) {
             throw new NotFoundException("Invalid App ID");
         }
@@ -74,7 +76,18 @@ export class UserWithdrawalService {
             if (secretKey !== storedSecretKey) {
                 throw new BadRequestException("Invalid Secret Key");
             }
+
+            const merchantData = app.merchantId as any;
+            if (merchantData?.isIPWhitelistEnabled && merchantData?.whitelistedIPs?.length > 0 && clientIp) {
+                const isWhitelisted = verifyIpWhitelist(merchantData.whitelistedIPs, clientIp);
+                if (!isWhitelisted) {
+                    throw new ForbiddenException(`Access denied. IP address ${clientIp} is not whitelisted.`);
+                }
+            }
         } catch (e) {
+            if (e instanceof ForbiddenException) {
+                throw e;
+            }
             throw new BadRequestException("Error validating credentials");
         }
 

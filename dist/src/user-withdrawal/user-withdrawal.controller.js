@@ -21,28 +21,34 @@ let UserWithdrawalController = class UserWithdrawalController {
     constructor(userWithdrawalService) {
         this.userWithdrawalService = userWithdrawalService;
     }
-    async createWithdrawalRequest(dto) {
-        const app = await this.userWithdrawalService.validateAppCredentials(dto.appId, dto.apiKey, dto.secretKey);
+    async createWithdrawalRequest(dto, clientIp, req) {
+        const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || clientIp;
+        const app = await this.userWithdrawalService.validateAppCredentials(dto.appId, dto.apiKey, dto.secretKey, ip);
         return this.userWithdrawalService.createWithdrawalRequest(dto, app);
     }
-    async listWithdrawals(dto) {
-        await this.userWithdrawalService.validateAppCredentials(dto.appId, dto.apiKey, dto.secretKey);
+    async listWithdrawals(dto, clientIp, req) {
+        const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || clientIp;
+        await this.userWithdrawalService.validateAppCredentials(dto.appId, dto.apiKey, dto.secretKey, ip);
         return this.userWithdrawalService.listWithdrawals(dto);
     }
-    async getBalance(dto) {
-        await this.userWithdrawalService.validateAppCredentials(dto.appId, dto.apiKey, dto.secretKey);
+    async getBalance(dto, clientIp, req) {
+        const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || clientIp;
+        await this.userWithdrawalService.validateAppCredentials(dto.appId, dto.apiKey, dto.secretKey, ip);
         return this.userWithdrawalService.getWalletBalance(dto.appId);
     }
-    async approveWithdrawal(dto) {
-        const app = await this.userWithdrawalService.validateAppCredentials(dto.appId, dto.apiKey, dto.secretKey);
+    async approveWithdrawal(dto, clientIp, req) {
+        const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || clientIp;
+        const app = await this.userWithdrawalService.validateAppCredentials(dto.appId, dto.apiKey, dto.secretKey, ip);
         return this.userWithdrawalService.approveWithdrawal(dto, app.merchantId.toString());
     }
-    async declineWithdrawal(dto) {
-        const app = await this.userWithdrawalService.validateAppCredentials(dto.appId, dto.apiKey, dto.secretKey);
+    async declineWithdrawal(dto, clientIp, req) {
+        const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || clientIp;
+        const app = await this.userWithdrawalService.validateAppCredentials(dto.appId, dto.apiKey, dto.secretKey, ip);
         return this.userWithdrawalService.declineWithdrawal(dto, app.merchantId.toString());
     }
-    async getWithdrawalStatus(dto) {
-        const app = await this.userWithdrawalService.validateAppCredentials(dto.appId, dto.apiKey, dto.secretKey);
+    async getWithdrawalStatus(dto, clientIp, req) {
+        const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || clientIp;
+        const app = await this.userWithdrawalService.validateAppCredentials(dto.appId, dto.apiKey, dto.secretKey, ip);
         return this.userWithdrawalService.getWithdrawalStatus(dto.withdrawalId, app.merchantId.toString());
     }
     async merchantListWithdrawals(dto, req) {
@@ -87,43 +93,55 @@ exports.UserWithdrawalController = UserWithdrawalController;
 __decorate([
     (0, common_1.Post)("request"),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Ip)()),
+    __param(2, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [user_withdrawal_dto_1.CreateWithdrawalRequestDto]),
+    __metadata("design:paramtypes", [user_withdrawal_dto_1.CreateWithdrawalRequestDto, String, Object]),
     __metadata("design:returntype", Promise)
 ], UserWithdrawalController.prototype, "createWithdrawalRequest", null);
 __decorate([
     (0, common_1.Post)("list"),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Ip)()),
+    __param(2, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [user_withdrawal_dto_1.ExternalListWithdrawalsDto]),
+    __metadata("design:paramtypes", [user_withdrawal_dto_1.ExternalListWithdrawalsDto, String, Object]),
     __metadata("design:returntype", Promise)
 ], UserWithdrawalController.prototype, "listWithdrawals", null);
 __decorate([
     (0, common_1.Post)("balance"),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Ip)()),
+    __param(2, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [user_withdrawal_dto_1.GetBalanceDto]),
+    __metadata("design:paramtypes", [user_withdrawal_dto_1.GetBalanceDto, String, Object]),
     __metadata("design:returntype", Promise)
 ], UserWithdrawalController.prototype, "getBalance", null);
 __decorate([
     (0, common_1.Post)("approve"),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Ip)()),
+    __param(2, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [user_withdrawal_dto_1.ExternalApproveWithdrawalDto]),
+    __metadata("design:paramtypes", [user_withdrawal_dto_1.ExternalApproveWithdrawalDto, String, Object]),
     __metadata("design:returntype", Promise)
 ], UserWithdrawalController.prototype, "approveWithdrawal", null);
 __decorate([
     (0, common_1.Post)("decline"),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Ip)()),
+    __param(2, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [user_withdrawal_dto_1.ExternalDeclineWithdrawalDto]),
+    __metadata("design:paramtypes", [user_withdrawal_dto_1.ExternalDeclineWithdrawalDto, String, Object]),
     __metadata("design:returntype", Promise)
 ], UserWithdrawalController.prototype, "declineWithdrawal", null);
 __decorate([
     (0, common_1.Post)("status"),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Ip)()),
+    __param(2, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [user_withdrawal_dto_1.GetWithdrawalStatusDto]),
+    __metadata("design:paramtypes", [user_withdrawal_dto_1.GetWithdrawalStatusDto, String, Object]),
     __metadata("design:returntype", Promise)
 ], UserWithdrawalController.prototype, "getWithdrawalStatus", null);
 __decorate([

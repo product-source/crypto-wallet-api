@@ -17,7 +17,7 @@ export declare class UserWithdrawalService {
     private readonly webhookService;
     private readonly adminService;
     constructor(userWithdrawalModel: Model<UserWithdrawalDocument>, appsModel: Model<AppsDocument>, tokenModel: Model<TokenDocument>, merchantModel: Model<MerchantDocument>, encryptionService: EncryptionService, webhookService: WebhookService, adminService: AdminService);
-    validateAppCredentials(appId: string, apiKey: string, secretKey: string): Promise<import("mongoose").Document<unknown, {}, AppsDocument, {}, {}> & Apps & import("mongoose").Document<import("mongoose").Types.ObjectId, any, any, Record<string, any>, {}> & Required<{
+    validateAppCredentials(appId: string, apiKey: string, secretKey: string, clientIp?: string): Promise<import("mongoose").Document<unknown, {}, AppsDocument, {}, {}> & Apps & import("mongoose").Document<import("mongoose").Types.ObjectId, any, any, Record<string, any>, {}> & Required<{
         _id: import("mongoose").Types.ObjectId;
     }> & {
         __v: number;

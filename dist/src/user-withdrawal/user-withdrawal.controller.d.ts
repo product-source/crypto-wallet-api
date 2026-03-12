@@ -3,7 +3,7 @@ import { CreateWithdrawalRequestDto, ApproveWithdrawalDto, DeclineWithdrawalDto,
 export declare class UserWithdrawalController {
     private readonly userWithdrawalService;
     constructor(userWithdrawalService: UserWithdrawalService);
-    createWithdrawalRequest(dto: CreateWithdrawalRequestDto): Promise<{
+    createWithdrawalRequest(dto: CreateWithdrawalRequestDto, clientIp: string, req: any): Promise<{
         success: boolean;
         message: string;
         data: {
@@ -13,7 +13,7 @@ export declare class UserWithdrawalController {
             createdAt: Date;
         };
     }>;
-    listWithdrawals(dto: ExternalListWithdrawalsDto): Promise<{
+    listWithdrawals(dto: ExternalListWithdrawalsDto, clientIp: string, req: any): Promise<{
         success: boolean;
         message: string;
         total: number;
@@ -27,7 +27,7 @@ export declare class UserWithdrawalController {
             __v: number;
         })[];
     }>;
-    getBalance(dto: GetBalanceDto): Promise<{
+    getBalance(dto: GetBalanceDto, clientIp: string, req: any): Promise<{
         success: boolean;
         data: {
             appId: string;
@@ -42,7 +42,7 @@ export declare class UserWithdrawalController {
             }[];
         };
     }>;
-    approveWithdrawal(dto: ExternalApproveWithdrawalDto): Promise<{
+    approveWithdrawal(dto: ExternalApproveWithdrawalDto, clientIp: string, req: any): Promise<{
         success: boolean;
         message: string;
         data: {
@@ -50,7 +50,7 @@ export declare class UserWithdrawalController {
             status: import("./schema/user-withdrawal.enum").UserWithdrawalStatus.APPROVED;
         };
     }>;
-    declineWithdrawal(dto: ExternalDeclineWithdrawalDto): Promise<{
+    declineWithdrawal(dto: ExternalDeclineWithdrawalDto, clientIp: string, req: any): Promise<{
         success: boolean;
         message: string;
         data: {
@@ -59,7 +59,7 @@ export declare class UserWithdrawalController {
             declineReason: string;
         };
     }>;
-    getWithdrawalStatus(dto: GetWithdrawalStatusDto): Promise<{
+    getWithdrawalStatus(dto: GetWithdrawalStatusDto, clientIp: string, req: any): Promise<{
         success: boolean;
         data: {
             _id: import("mongoose").Types.ObjectId;

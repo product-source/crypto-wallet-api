@@ -7,6 +7,7 @@ import {
     Query,
     Param,
     Request,
+    Ip,
     UseGuards,
 } from "@nestjs/common";
 import { UserWithdrawalService } from "./user-withdrawal.service";
@@ -42,12 +43,15 @@ export class UserWithdrawalController {
     @Post("request")
     async createWithdrawalRequest(
         @Body() dto: CreateWithdrawalRequestDto,
-        // @Request() req
+        @Ip() clientIp: string,
+        @Request() req
     ) {
+        const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || clientIp;
         const app = await this.userWithdrawalService.validateAppCredentials(
             dto.appId,
             dto.apiKey,
-            dto.secretKey
+            dto.secretKey,
+            ip
         );
         return this.userWithdrawalService.createWithdrawalRequest(dto, app);
     }
@@ -59,11 +63,13 @@ export class UserWithdrawalController {
      */
     // @UseGuards(ApiKeyAuthGuard)
     @Post("list")
-    async listWithdrawals(@Body() dto: ExternalListWithdrawalsDto) {
+    async listWithdrawals(@Body() dto: ExternalListWithdrawalsDto, @Ip() clientIp: string, @Request() req) {
+        const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || clientIp;
         await this.userWithdrawalService.validateAppCredentials(
             dto.appId,
             dto.apiKey,
-            dto.secretKey
+            dto.secretKey,
+            ip
         );
         return this.userWithdrawalService.listWithdrawals(dto);
     }
@@ -75,11 +81,13 @@ export class UserWithdrawalController {
      */
     // @UseGuards(ApiKeyAuthGuard)
     @Post("balance")
-    async getBalance(@Body() dto: GetBalanceDto) {
+    async getBalance(@Body() dto: GetBalanceDto, @Ip() clientIp: string, @Request() req) {
+        const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || clientIp;
         await this.userWithdrawalService.validateAppCredentials(
             dto.appId,
             dto.apiKey,
-            dto.secretKey
+            dto.secretKey,
+            ip
         );
         return this.userWithdrawalService.getWalletBalance(dto.appId);
     }
@@ -91,11 +99,13 @@ export class UserWithdrawalController {
      */
     // @UseGuards(ApiKeyAuthGuard)
     @Post("approve")
-    async approveWithdrawal(@Body() dto: ExternalApproveWithdrawalDto) {
+    async approveWithdrawal(@Body() dto: ExternalApproveWithdrawalDto, @Ip() clientIp: string, @Request() req) {
+        const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || clientIp;
         const app = await this.userWithdrawalService.validateAppCredentials(
             dto.appId,
             dto.apiKey,
-            dto.secretKey
+            dto.secretKey,
+            ip
         );
         return this.userWithdrawalService.approveWithdrawal(
             dto,
@@ -110,11 +120,13 @@ export class UserWithdrawalController {
      */
     // @UseGuards(ApiKeyAuthGuard)
     @Post("decline")
-    async declineWithdrawal(@Body() dto: ExternalDeclineWithdrawalDto) {
+    async declineWithdrawal(@Body() dto: ExternalDeclineWithdrawalDto, @Ip() clientIp: string, @Request() req) {
+        const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || clientIp;
         const app = await this.userWithdrawalService.validateAppCredentials(
             dto.appId,
             dto.apiKey,
-            dto.secretKey
+            dto.secretKey,
+            ip
         );
         return this.userWithdrawalService.declineWithdrawal(
             dto,
@@ -129,11 +141,13 @@ export class UserWithdrawalController {
      */
     // @UseGuards(ApiKeyAuthGuard)
     @Post("status")
-    async getWithdrawalStatus(@Body() dto: GetWithdrawalStatusDto) {
+    async getWithdrawalStatus(@Body() dto: GetWithdrawalStatusDto, @Ip() clientIp: string, @Request() req) {
+        const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || clientIp;
         const app = await this.userWithdrawalService.validateAppCredentials(
             dto.appId,
             dto.apiKey,
-            dto.secretKey
+            dto.secretKey,
+            ip
         );
         return this.userWithdrawalService.getWithdrawalStatus(
             dto.withdrawalId,

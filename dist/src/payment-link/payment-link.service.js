@@ -41,6 +41,7 @@ const constants_1 = require("../constants");
 const enum_1 = require("../merchant-app-tx/schema/enum");
 const webhook_service_1 = require("../webhook/webhook.service");
 const webhook_log_schema_1 = require("../webhook/schema/webhook-log.schema");
+const ip_whitelist_helper_1 = require("../helpers/ip-whitelist.helper");
 let PaymentLinkService = class PaymentLinkService {
     constructor(paymentLinkModel, appsModel, monitorModel, tokenModel, encryptionService, merchantAppTxModel, adminService, webhookService) {
         this.paymentLinkModel = paymentLinkModel;
@@ -83,23 +84,15 @@ let PaymentLinkService = class PaymentLinkService {
             }
             const app = await this.appsModel.findOne({
                 _id: appId,
-            });
+            }).populate('merchantId');
             if (!app) {
                 throw new common_1.NotFoundException("Invalid app");
             }
-            const merchant = await this.appsModel.findById(appId).populate('merchantId');
-            const merchantData = merchant?.merchantId;
-            if (merchantData?.isIPWhitelistEnabled && merchantData?.whitelistedIPs && merchantData.whitelistedIPs.length > 0 && clientIp) {
-                let normalizedClientIp = clientIp.replace(/^::ffff:/, '');
-                if (normalizedClientIp === '::1' || normalizedClientIp === '127.0.0.1') {
-                    normalizedClientIp = '127.0.0.1';
-                }
-                const isWhitelisted = merchantData.whitelistedIPs.some((whitelistedIp) => {
-                    const normalizedWhitelistedIp = whitelistedIp === '::1' ? '127.0.0.1' : whitelistedIp;
-                    return normalizedWhitelistedIp === normalizedClientIp || whitelistedIp === clientIp;
-                });
+            const merchantData = app?.merchantId;
+            if (merchantData?.isIPWhitelistEnabled && merchantData?.whitelistedIPs?.length > 0 && clientIp) {
+                const isWhitelisted = (0, ip_whitelist_helper_1.verifyIpWhitelist)(merchantData.whitelistedIPs, clientIp);
                 if (!isWhitelisted) {
-                    throw new common_1.ForbiddenException(`Access denied. IP address ${normalizedClientIp} is not whitelisted.`);
+                    throw new common_1.ForbiddenException(`Access denied. IP address ${clientIp} is not whitelisted.`);
                 }
             }
             const token = await this.tokenModel.findOne({

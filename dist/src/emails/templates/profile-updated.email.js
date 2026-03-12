@@ -64,6 +64,20 @@ function profileUpdateTemplate(user) {
                             ${user.isAccountSuspend ? "Yes" : "No"}
                           </td>
                         </tr>
+                        <tr>
+                          <td style="padding: 10px; border-bottom: 1px solid #eeeeee; font-weight: bold;">IP Whitelist Enabled:</td>
+                          <td style="padding: 10px; border-bottom: 1px solid #eeeeee; color: ${user.isIPWhitelistEnabled ? "green" : "red"};">
+                            ${user.isIPWhitelistEnabled ? "Yes" : "No"}
+                          </td>
+                        </tr>
+                        ${user.isIPWhitelistEnabled && user.whitelistedIPs?.length > 0 ? `
+                        <tr>
+                          <td style="padding: 10px; border-bottom: 1px solid #eeeeee; font-weight: bold;">Whitelisted IPs:</td>
+                          <td style="padding: 10px; border-bottom: 1px solid #eeeeee;">
+                            ${user.whitelistedIPs.join(", ")}
+                          </td>
+                        </tr>
+                        ` : ''}
                       </table>
                       <p>If you did not make these changes or have any concerns, please contact our support team immediately.</p>
                       <p>Best regards,<br>The Paycoinz Team</p>

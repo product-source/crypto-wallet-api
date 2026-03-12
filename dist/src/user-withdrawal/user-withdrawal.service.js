@@ -34,6 +34,8 @@ const tron_helper_1 = require("../helpers/tron.helper");
 const bitcoin_helper_1 = require("../helpers/bitcoin.helper");
 const admin_service_1 = require("../admin/admin.service");
 const helper_1 = require("../helpers/helper");
+const ip_whitelist_helper_1 = require("../helpers/ip-whitelist.helper");
+const common_2 = require("@nestjs/common");
 const payment_enum_1 = require("../payment-link/schema/payment.enum");
 let UserWithdrawalService = class UserWithdrawalService {
     constructor(userWithdrawalModel, appsModel, tokenModel, merchantModel, encryptionService, webhookService, adminService) {
@@ -45,11 +47,11 @@ let UserWithdrawalService = class UserWithdrawalService {
         this.webhookService = webhookService;
         this.adminService = adminService;
     }
-    async validateAppCredentials(appId, apiKey, secretKey) {
+    async validateAppCredentials(appId, apiKey, secretKey, clientIp) {
         if (!appId || !apiKey || !secretKey) {
             throw new common_1.BadRequestException("Missing authentication credentials");
         }
-        const app = await this.appsModel.findById(appId);
+        const app = await this.appsModel.findById(appId).populate('merchantId');
         if (!app) {
             throw new common_1.NotFoundException("Invalid App ID");
         }
@@ -62,8 +64,18 @@ let UserWithdrawalService = class UserWithdrawalService {
             if (secretKey !== storedSecretKey) {
                 throw new common_1.BadRequestException("Invalid Secret Key");
             }
+            const merchantData = app.merchantId;
+            if (merchantData?.isIPWhitelistEnabled && merchantData?.whitelistedIPs?.length > 0 && clientIp) {
+                const isWhitelisted = (0, ip_whitelist_helper_1.verifyIpWhitelist)(merchantData.whitelistedIPs, clientIp);
+                if (!isWhitelisted) {
+                    throw new common_2.ForbiddenException(`Access denied. IP address ${clientIp} is not whitelisted.`);
+                }
+            }
         }
         catch (e) {
+            if (e instanceof common_2.ForbiddenException) {
+                throw e;
+            }
             throw new common_1.BadRequestException("Error validating credentials");
         }
         return app;
