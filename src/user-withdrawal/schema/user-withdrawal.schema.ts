@@ -3,6 +3,10 @@ import mongoose from "mongoose";
 import { Apps } from "src/apps/schema/apps.schema";
 import { Merchant } from "src/merchants/schema/merchant.schema";
 import { UserWithdrawalStatus } from "./user-withdrawal.enum";
+import {
+    FiatCurrency,
+    TransactionType,
+} from "src/payment-link/schema/payment.enum";
 
 export type UserWithdrawalDocument = UserWithdrawal & mongoose.Document;
 
@@ -88,6 +92,31 @@ export class UserWithdrawal {
     // For tracking limits
     @Prop()
     amountInUsd: number; // Amount converted to USD for limit checking
+
+    // FIAT Conversion Tracking
+    @Prop({ type: String, enum: TransactionType })
+    transactionType: TransactionType;
+
+    @Prop({ type: String, enum: FiatCurrency })
+    fiatCurrency: FiatCurrency;
+
+    @Prop()
+    coinId: string;
+
+    @Prop()
+    cryptoAmount: string;
+
+    @Prop()
+    pricePerCoin: string;
+
+    @Prop()
+    fiatAmount: string;
+
+    @Prop()
+    cryptoToUsd: string;
+
+    @Prop()
+    fiatToUsd: string;
 
     // Track if auto-approval was blocked due to insufficient funds
     @Prop({ default: false })

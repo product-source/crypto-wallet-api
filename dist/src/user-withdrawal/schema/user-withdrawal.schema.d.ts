@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { UserWithdrawalStatus } from "./user-withdrawal.enum";
+import { FiatCurrency, TransactionType } from "src/payment-link/schema/payment.enum";
 export type UserWithdrawalDocument = UserWithdrawal & mongoose.Document;
 export declare class UserWithdrawal {
     appsId: mongoose.Types.ObjectId;
@@ -24,6 +25,14 @@ export declare class UserWithdrawal {
     externalReference: string;
     declineReason: string;
     amountInUsd: number;
+    transactionType: TransactionType;
+    fiatCurrency: FiatCurrency;
+    coinId: string;
+    cryptoAmount: string;
+    pricePerCoin: string;
+    fiatAmount: string;
+    cryptoToUsd: string;
+    fiatToUsd: string;
     insufficientFundsAtCreation: boolean;
     createdAt: Date;
     updatedAt: Date;

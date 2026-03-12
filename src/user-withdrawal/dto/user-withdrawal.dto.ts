@@ -6,8 +6,13 @@ import {
     Min,
     IsEmail,
     IsBoolean,
+    IsEnum,
 } from "class-validator";
 import { Type } from "class-transformer";
+import {
+    FiatCurrency,
+    TransactionType,
+} from "src/payment-link/schema/payment.enum";
 
 // DTO for creating a withdrawal request via API
 export class BaseAuthDto {
@@ -61,6 +66,14 @@ export class CreateWithdrawalRequestDto extends BaseAuthDto {
     @IsOptional()
     @IsString()
     note?: string;
+
+    @IsOptional()
+    @IsEnum(TransactionType)
+    transactionType?: TransactionType;
+
+    @IsOptional()
+    @IsEnum(FiatCurrency)
+    fiatCurrency?: FiatCurrency;
 }
 
 // DTO for approving a withdrawal

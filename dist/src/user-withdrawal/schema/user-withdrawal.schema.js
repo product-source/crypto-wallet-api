@@ -18,6 +18,7 @@ const mongoose_2 = __importDefault(require("mongoose"));
 const apps_schema_1 = require("../../apps/schema/apps.schema");
 const merchant_schema_1 = require("../../merchants/schema/merchant.schema");
 const user_withdrawal_enum_1 = require("./user-withdrawal.enum");
+const payment_enum_1 = require("../../payment-link/schema/payment.enum");
 let UserWithdrawal = class UserWithdrawal {
 };
 exports.UserWithdrawal = UserWithdrawal;
@@ -120,6 +121,38 @@ __decorate([
     (0, mongoose_1.Prop)(),
     __metadata("design:type", Number)
 ], UserWithdrawal.prototype, "amountInUsd", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: String, enum: payment_enum_1.TransactionType }),
+    __metadata("design:type", String)
+], UserWithdrawal.prototype, "transactionType", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: String, enum: payment_enum_1.FiatCurrency }),
+    __metadata("design:type", String)
+], UserWithdrawal.prototype, "fiatCurrency", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], UserWithdrawal.prototype, "coinId", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], UserWithdrawal.prototype, "cryptoAmount", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], UserWithdrawal.prototype, "pricePerCoin", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], UserWithdrawal.prototype, "fiatAmount", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], UserWithdrawal.prototype, "cryptoToUsd", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], UserWithdrawal.prototype, "fiatToUsd", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ default: false }),
     __metadata("design:type", Boolean)

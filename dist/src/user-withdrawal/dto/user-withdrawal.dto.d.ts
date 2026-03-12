@@ -1,3 +1,4 @@
+import { FiatCurrency, TransactionType } from "src/payment-link/schema/payment.enum";
 export declare class BaseAuthDto {
     appId: string;
     apiKey: string;
@@ -13,6 +14,8 @@ export declare class CreateWithdrawalRequestDto extends BaseAuthDto {
     walletAddress: string;
     externalReference?: string;
     note?: string;
+    transactionType?: TransactionType;
+    fiatCurrency?: FiatCurrency;
 }
 export declare class ApproveWithdrawalDto {
     withdrawalId: string;

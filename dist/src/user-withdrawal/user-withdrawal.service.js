@@ -33,6 +33,8 @@ const evm_helper_1 = require("../helpers/evm.helper");
 const tron_helper_1 = require("../helpers/tron.helper");
 const bitcoin_helper_1 = require("../helpers/bitcoin.helper");
 const admin_service_1 = require("../admin/admin.service");
+const helper_1 = require("../helpers/helper");
+const payment_enum_1 = require("../payment-link/schema/payment.enum");
 let UserWithdrawalService = class UserWithdrawalService {
     constructor(userWithdrawalModel, appsModel, tokenModel, merchantModel, encryptionService, webhookService, adminService) {
         this.userWithdrawalModel = userWithdrawalModel;
@@ -234,7 +236,7 @@ let UserWithdrawalService = class UserWithdrawalService {
     }
     async createWithdrawalRequest(dto, app) {
         try {
-            const { userId, userEmail, userName, amount, code, walletAddress, externalReference, note, } = dto;
+            const { userId, userEmail, userName, amount, code, walletAddress, externalReference, note, transactionType, fiatCurrency, } = dto;
             const appId = app ? app._id : dto.appId;
             if (!appId) {
                 throw new common_1.BadRequestException("App ID is required");
@@ -253,8 +255,72 @@ let UserWithdrawalService = class UserWithdrawalService {
             if (!token) {
                 throw new common_1.NotFoundException(`Token with code ${code} not found`);
             }
-            const amountNum = parseFloat(amount);
-            const amountInUsd = amountNum;
+            let cryptoAmountVal = parseFloat(amount);
+            let pricePerCoinVal = null;
+            let fiatAmountVal = null;
+            let cryptoUsdVal = null;
+            let fiatUsdVal = null;
+            let coinIdVal = null;
+            if (transactionType === payment_enum_1.TransactionType.FIAT) {
+                if (!fiatCurrency) {
+                    throw new common_1.BadRequestException("fiatCurrency is required for FIAT transactions");
+                }
+                const symbol = code.split(".")[0]?.toUpperCase();
+                if (!symbol) {
+                    throw new common_1.BadRequestException("Invalid token code");
+                }
+                const mapping = {
+                    USDT: "tether", USDC: "usd-coin", WBNB: "wbnb",
+                    BTC: "bitcoin", BNB: "binancecoin", TRX: "tron",
+                    ETH: "ethereum", MATIC: "polygon-ecosystem-token",
+                };
+                coinIdVal = mapping[symbol] || null;
+                const price = await (0, helper_1.getTatumPrice)(symbol, fiatCurrency);
+                if (!price) {
+                    throw new common_1.BadRequestException(`Unable to fetch price for ${symbol}/${fiatCurrency}`);
+                }
+                pricePerCoinVal = price;
+                cryptoAmountVal = parseFloat(amount) / price;
+                const pricePerUsd = await (0, helper_1.getTatumPrice)(symbol, "USD");
+                if (!pricePerUsd) {
+                    throw new common_1.BadRequestException(`Unable to fetch USD price for ${symbol}`);
+                }
+                cryptoUsdVal = cryptoAmountVal * pricePerUsd;
+                if (fiatCurrency.toUpperCase() === "USD") {
+                    fiatUsdVal = parseFloat(amount);
+                }
+                else {
+                    try {
+                        const usdToFiatRate = await (0, helper_1.getTatumPrice)("USD", fiatCurrency.toUpperCase());
+                        if (usdToFiatRate && usdToFiatRate > 0) {
+                            fiatUsdVal = parseFloat(amount) / usdToFiatRate;
+                        }
+                        else {
+                            fiatUsdVal = cryptoUsdVal;
+                        }
+                    }
+                    catch (e) {
+                        fiatUsdVal = cryptoUsdVal;
+                    }
+                }
+            }
+            else {
+                const symbol = code.split(".")[0]?.toUpperCase();
+                try {
+                    const pricePerUsd = await (0, helper_1.getTatumPrice)(symbol, "USD");
+                    if (pricePerUsd) {
+                        cryptoUsdVal = cryptoAmountVal * pricePerUsd;
+                    }
+                    else {
+                        cryptoUsdVal = cryptoAmountVal;
+                    }
+                }
+                catch (e) {
+                    cryptoUsdVal = cryptoAmountVal;
+                }
+            }
+            const amountNum = cryptoAmountVal;
+            const amountInUsd = cryptoUsdVal || amountNum;
             if (foundApp.minWithdrawalAmount > 0 && amountInUsd < foundApp.minWithdrawalAmount) {
                 throw new common_1.BadRequestException(`Minimum withdrawal amount is ${foundApp.minWithdrawalAmount} USD`);
             }
@@ -271,7 +337,7 @@ let UserWithdrawalService = class UserWithdrawalService {
                 amountInUsd <= foundApp.maxAutoWithdrawalLimit;
             let insufficientFundsAtCreation = false;
             if (shouldAutoApprove) {
-                const balanceCheck = await this.checkChainBalance(foundApp, token, amount);
+                const balanceCheck = await this.checkChainBalance(foundApp, token, cryptoAmountVal.toString());
                 if (!balanceCheck.sufficient) {
                     console.log(`Auto-approval blocked: Insufficient funds. Balance: ${balanceCheck.balance}, Required: ${balanceCheck.required}`);
                     shouldAutoApprove = false;
@@ -284,7 +350,7 @@ let UserWithdrawalService = class UserWithdrawalService {
                 userId,
                 userEmail,
                 userName,
-                amount,
+                amount: cryptoAmountVal.toFixed(6),
                 tokenId: token._id,
                 tokenSymbol: token.symbol,
                 chainId: token.chainId,
@@ -292,6 +358,14 @@ let UserWithdrawalService = class UserWithdrawalService {
                 externalReference,
                 note,
                 amountInUsd,
+                transactionType: transactionType || payment_enum_1.TransactionType.CRYPTO,
+                fiatCurrency: transactionType === payment_enum_1.TransactionType.FIAT ? fiatCurrency : undefined,
+                coinId: coinIdVal,
+                cryptoAmount: transactionType === payment_enum_1.TransactionType.FIAT ? cryptoAmountVal.toFixed(6) : undefined,
+                pricePerCoin: pricePerCoinVal?.toString(),
+                fiatAmount: transactionType === payment_enum_1.TransactionType.FIAT ? amount : undefined,
+                cryptoToUsd: cryptoUsdVal?.toFixed(6),
+                fiatToUsd: fiatUsdVal?.toFixed(6),
                 insufficientFundsAtCreation,
                 status: shouldAutoApprove
                     ? user_withdrawal_enum_1.UserWithdrawalStatus.AUTO_APPROVED

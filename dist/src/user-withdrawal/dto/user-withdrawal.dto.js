@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateWithdrawalSettingsDto = exports.GetWithdrawalStatusDto = exports.GetBalanceDto = exports.ExternalListWithdrawalsDto = exports.ListWithdrawalsDto = exports.ExternalDeclineWithdrawalDto = exports.DeclineWithdrawalDto = exports.ExternalApproveWithdrawalDto = exports.ApproveWithdrawalDto = exports.CreateWithdrawalRequestDto = exports.BaseAuthDto = void 0;
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
+const payment_enum_1 = require("../../payment-link/schema/payment.enum");
 class BaseAuthDto {
 }
 exports.BaseAuthDto = BaseAuthDto;
@@ -78,6 +79,16 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateWithdrawalRequestDto.prototype, "note", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(payment_enum_1.TransactionType),
+    __metadata("design:type", String)
+], CreateWithdrawalRequestDto.prototype, "transactionType", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(payment_enum_1.FiatCurrency),
+    __metadata("design:type", String)
+], CreateWithdrawalRequestDto.prototype, "fiatCurrency", void 0);
 class ApproveWithdrawalDto {
 }
 exports.ApproveWithdrawalDto = ApproveWithdrawalDto;

@@ -22,6 +22,7 @@ import { merchantEvmFundWithdraw, evmCryptoBalanceCheck, getNetwork } from "src/
 import { merchantTronFundWithdraw, getTronBalance, getTRC20Balance } from "src/helpers/tron.helper";
 import { merchantBtcFundWithdraw } from "src/helpers/bitcoin.helper";
 import { AdminService } from "src/admin/admin.service";
+import { getTatumPrice } from "src/helpers/helper";
 import {
     CreateWithdrawalRequestDto,
     ApproveWithdrawalDto,
@@ -29,6 +30,10 @@ import {
     ListWithdrawalsDto,
     UpdateWithdrawalSettingsDto,
 } from "./dto/user-withdrawal.dto";
+import {
+    FiatCurrency,
+    TransactionType,
+} from "src/payment-link/schema/payment.enum";
 
 @Injectable()
 export class UserWithdrawalService {
@@ -330,6 +335,8 @@ export class UserWithdrawalService {
                 walletAddress,
                 externalReference,
                 note,
+                transactionType,
+                fiatCurrency,
             } = dto;
 
             // Use the authenticated app ID if available, otherwise check DTO (compatibility)
@@ -361,10 +368,83 @@ export class UserWithdrawalService {
                 throw new NotFoundException(`Token with code ${code} not found`);
             }
 
+            // --- FIAT Conversion Logic ---
+            let cryptoAmountVal = parseFloat(amount);
+            let pricePerCoinVal = null;
+            let fiatAmountVal = null;
+            let cryptoUsdVal = null;
+            let fiatUsdVal = null;
+            let coinIdVal = null;
+
+            if (transactionType === TransactionType.FIAT) {
+                if (!fiatCurrency) {
+                    throw new BadRequestException("fiatCurrency is required for FIAT transactions");
+                }
+                
+                // Get base symbol e.g USDT from USDT.TRX
+                const symbol = code.split(".")[0]?.toUpperCase();
+                if (!symbol) {
+                    throw new BadRequestException("Invalid token code");
+                }
+                
+                // Map symbol to coindId for reporting (mimic payment-link service)
+                const mapping: Record<string, string> = {
+                    USDT: "tether", USDC: "usd-coin", WBNB: "wbnb",
+                    BTC: "bitcoin", BNB: "binancecoin", TRX: "tron",
+                    ETH: "ethereum", MATIC: "polygon-ecosystem-token",
+                };
+                coinIdVal = mapping[symbol] || null;
+
+                // Get price in user's fiat currency
+                const price = await getTatumPrice(symbol, fiatCurrency);
+                if (!price) {
+                    throw new BadRequestException(`Unable to fetch price for ${symbol}/${fiatCurrency}`);
+                }
+                pricePerCoinVal = price;
+
+                // Calculate cryptoAmount: e.g. 100 EUR / 50000 = 0.002 BTC
+                cryptoAmountVal = parseFloat(amount) / price;
+
+                // Get USD equivalents 
+                const pricePerUsd = await getTatumPrice(symbol, "USD");
+                if (!pricePerUsd) {
+                    throw new BadRequestException(`Unable to fetch USD price for ${symbol}`);
+                }
+                cryptoUsdVal = cryptoAmountVal * pricePerUsd;
+
+                if (fiatCurrency.toUpperCase() === "USD") {
+                    fiatUsdVal = parseFloat(amount);
+                } else {
+                    try {
+                        const usdToFiatRate = await getTatumPrice("USD", fiatCurrency.toUpperCase());
+                        if (usdToFiatRate && usdToFiatRate > 0) {
+                            fiatUsdVal = parseFloat(amount) / usdToFiatRate;
+                        } else {
+                            fiatUsdVal = cryptoUsdVal;
+                        }
+                    } catch (e) {
+                        fiatUsdVal = cryptoUsdVal;
+                    }
+                }
+            } else {
+                // If CRYPTO or no transaction type provided, calculate USD value 
+                const symbol = code.split(".")[0]?.toUpperCase();
+                try {
+                   const pricePerUsd = await getTatumPrice(symbol, "USD");
+                   if (pricePerUsd) {
+                       cryptoUsdVal = cryptoAmountVal * pricePerUsd;
+                   } else {
+                       cryptoUsdVal = cryptoAmountVal; // fallback
+                   }
+                } catch (e) {
+                   cryptoUsdVal = cryptoAmountVal; // fallback
+                }
+            }
+
             // Convert amount to USD for limit checking (simplified - in production use real price feed)
             // For now, assume 1:1 for stablecoins, or you can integrate with CoinGecko
-            const amountNum = parseFloat(amount);
-            const amountInUsd = amountNum; // Simplified - should use actual price conversion
+            const amountNum = cryptoAmountVal;
+            const amountInUsd = cryptoUsdVal || amountNum; // Simplified - should use actual price conversion
 
             // Check minimum withdrawal amount
             if (foundApp.minWithdrawalAmount > 0 && amountInUsd < foundApp.minWithdrawalAmount) {
@@ -393,8 +473,9 @@ export class UserWithdrawalService {
 
             // If auto-approval criteria met, also check if wallet has sufficient balance
             let insufficientFundsAtCreation = false;
+            // Note: Use cryptoAmountVal to check real blockchain required amounts
             if (shouldAutoApprove) {
-                const balanceCheck = await this.checkChainBalance(foundApp, token, amount);
+                const balanceCheck = await this.checkChainBalance(foundApp, token, cryptoAmountVal.toString());
                 if (!balanceCheck.sufficient) {
                     console.log(`Auto-approval blocked: Insufficient funds. Balance: ${balanceCheck.balance}, Required: ${balanceCheck.required}`);
                     shouldAutoApprove = false;
@@ -409,7 +490,7 @@ export class UserWithdrawalService {
                 userId,
                 userEmail,
                 userName,
-                amount,
+                amount: cryptoAmountVal.toFixed(6), // CRITICAL: Execute with the actual crypto amount
                 tokenId: token._id,
                 tokenSymbol: token.symbol,
                 chainId: token.chainId,
@@ -417,6 +498,17 @@ export class UserWithdrawalService {
                 externalReference,
                 note,
                 amountInUsd,
+                
+                // FIAT Optional fields
+                transactionType: transactionType || TransactionType.CRYPTO,
+                fiatCurrency: transactionType === TransactionType.FIAT ? fiatCurrency : undefined,
+                coinId: coinIdVal,
+                cryptoAmount: transactionType === TransactionType.FIAT ? cryptoAmountVal.toFixed(6) : undefined,
+                pricePerCoin: pricePerCoinVal?.toString(),
+                fiatAmount: transactionType === TransactionType.FIAT ? amount : undefined,
+                cryptoToUsd: cryptoUsdVal?.toFixed(6),
+                fiatToUsd: fiatUsdVal?.toFixed(6),
+
                 insufficientFundsAtCreation,
                 status: shouldAutoApprove
                     ? UserWithdrawalStatus.AUTO_APPROVED
