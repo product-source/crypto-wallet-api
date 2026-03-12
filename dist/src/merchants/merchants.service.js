@@ -289,7 +289,7 @@ let MerchantsService = class MerchantsService {
                 user.location = location.trim();
             if (description)
                 user.description = description.trim();
-            if (reqUser.isAdmin) {
+            if (reqUser.isAdmin && isAccountSuspend !== undefined) {
                 user.isAccountSuspend = isAccountSuspend;
             }
             if (isIPWhitelistEnabled !== undefined) {
@@ -301,8 +301,12 @@ let MerchantsService = class MerchantsService {
             if (whitelistedIPs !== undefined) {
                 user.whitelistedIPs = whitelistedIPs;
             }
-            user.isNotification = isNotification;
-            user.isMFA = isMFA;
+            if (isNotification !== undefined) {
+                user.isNotification = isNotification;
+            }
+            if (isMFA !== undefined) {
+                user.isMFA = isMFA;
+            }
             try {
                 const emailRecipient = user.email;
                 const emailSubject = "Profile Updated Successfully";

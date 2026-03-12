@@ -294,7 +294,7 @@ export class MerchantsService {
       if (contactNumber) user.contactNumber = contactNumber;
       if (location) user.location = location.trim();
       if (description) user.description = description.trim();
-      if (reqUser.isAdmin) {
+      if (reqUser.isAdmin && isAccountSuspend !== undefined) {
         user.isAccountSuspend = isAccountSuspend;
       }
       // Validate IP whitelist settings
@@ -308,8 +308,12 @@ export class MerchantsService {
         user.whitelistedIPs = whitelistedIPs;
       }
 
-      user.isNotification = isNotification;
-      user.isMFA = isMFA;
+      if (isNotification !== undefined) {
+        user.isNotification = isNotification;
+      }
+      if (isMFA !== undefined) {
+        user.isMFA = isMFA;
+      }
 
       try {
         // Sending mail
