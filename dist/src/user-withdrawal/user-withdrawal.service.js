@@ -78,6 +78,7 @@ let UserWithdrawalService = class UserWithdrawalService {
             }
             throw new common_1.BadRequestException("Error validating credentials");
         }
+        app.merchantId = app.merchantId._id;
         return app;
     }
     async checkDailyLimits(appId, userId, amountInUsd) {
@@ -774,6 +775,11 @@ let UserWithdrawalService = class UserWithdrawalService {
             throw new common_1.NotFoundException("Withdrawal not found");
         }
         if (merchantId && withdrawal.merchantId.toString() !== merchantId.toString()) {
+            console.error(`Status API 404 Authorization Failed:`);
+            console.error(`- withdrawal.merchantId: ${withdrawal.merchantId} (Type: ${typeof withdrawal.merchantId})`);
+            console.error(`- passed merchantId: ${merchantId} (Type: ${typeof merchantId})`);
+            console.error(`- withdrawal.merchantId.toString(): ${withdrawal.merchantId.toString()}`);
+            console.error(`- merchantId.toString(): ${merchantId.toString()}`);
             throw new common_1.NotFoundException("Withdrawal not found or unauthorized");
         }
         return {

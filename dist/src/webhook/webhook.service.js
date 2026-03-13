@@ -130,6 +130,16 @@ let WebhookService = WebhookService_1 = class WebhookService {
                 ...payload,
                 signature: `sha256=${signature}`,
             };
+            await this.webhookLogModel.updateMany({
+                appId,
+                paymentId,
+                status: webhook_log_schema_1.WebhookStatus.PENDING,
+            }, {
+                $set: {
+                    status: webhook_log_schema_1.WebhookStatus.FAILED,
+                    errorMessage: `Superseded by newer webhook event: ${event}`,
+                },
+            });
             const webhookLog = await this.webhookLogModel.create({
                 appId,
                 paymentId,

@@ -91,6 +91,9 @@ export class UserWithdrawalService {
             throw new BadRequestException("Error validating credentials");
         }
 
+        // Depopulate merchantId back to ObjectId so we don't break subsequent logic dependent on a raw ObjectId
+        app.merchantId = (app.merchantId as any)._id;
+
         return app;
     }
 
@@ -1138,6 +1141,12 @@ export class UserWithdrawalService {
         }
 
         if (merchantId && withdrawal.merchantId.toString() !== merchantId.toString()) {
+            console.error(`Status API 404 Authorization Failed:`);
+            console.error(`- withdrawal.merchantId: ${withdrawal.merchantId} (Type: ${typeof withdrawal.merchantId})`);
+            console.error(`- passed merchantId: ${merchantId} (Type: ${typeof merchantId})`);
+            console.error(`- withdrawal.merchantId.toString(): ${withdrawal.merchantId.toString()}`);
+            console.error(`- merchantId.toString(): ${merchantId.toString()}`);
+            
             throw new NotFoundException("Withdrawal not found or unauthorized");
         }
 

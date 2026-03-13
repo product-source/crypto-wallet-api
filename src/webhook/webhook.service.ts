@@ -99,6 +99,21 @@ export class WebhookService {
         signature: `sha256=${signature}`,
       };
 
+      // Supersede any existing pending webhooks for this payment to prevent out-of-order retries
+      await this.webhookLogModel.updateMany(
+        {
+          appId,
+          paymentId,
+          status: WebhookStatus.PENDING,
+        },
+        {
+          $set: {
+            status: WebhookStatus.FAILED,
+            errorMessage: `Superseded by newer webhook event: ${event}`,
+          },
+        }
+      );
+
       const webhookLog = await this.webhookLogModel.create({
         appId,
         paymentId,
