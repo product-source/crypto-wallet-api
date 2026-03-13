@@ -96,6 +96,10 @@ let WebhookService = WebhookService_1 = class WebhookService {
                     amount: paymentData.amount || paymentData.recivedAmount,
                     currency: paymentData.code || paymentData.currency,
                     status: paymentData.status,
+                    transactionType: paymentData.transactionType,
+                    fiatCurrency: paymentData.fiatCurrency,
+                    fiatAmount: paymentData.fiatAmount,
+                    metadata: paymentData.metadata || {},
                     timestamp: Date.now(),
                     data: {
                         hash: paymentData.hash,
