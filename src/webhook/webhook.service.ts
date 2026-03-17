@@ -54,26 +54,30 @@ export class WebhookService {
           timestamp: Date.now(),
         };
       } else {
-        // For payment events, use the legacy flat structure
+        // For payment events, use the legacy flat structure.
+        // IMPORTANT: All field values must be cast to the exact types that MongoDB will
+        // return when this payload is stored and later retrieved for delivery.
+        // e.g. ObjectIds must be stringified, Number fields in String-typed schema fields
+        // must be cast to String — otherwise the signed JSON ≠ delivered JSON → HMAC mismatch.
         payload = {
           event,
           paymentId,
-          orderId: paymentData.orderId || paymentData._id,
-          amount: paymentData.amount || paymentData.recivedAmount,
-          currency: paymentData.code || paymentData.currency,
-          status: paymentData.status,
-          transactionType: paymentData.transactionType,
-          fiatCurrency: paymentData.fiatCurrency,
-          fiatAmount: paymentData.fiatAmount,
+          orderId: (paymentData.orderId || paymentData._id)?.toString(),
+          amount: paymentData.amount?.toString() || paymentData.recivedAmount?.toString() || null,
+          currency: paymentData.code || paymentData.currency || null,
+          status: paymentData.status || null,
+          transactionType: paymentData.transactionType || null,
+          fiatCurrency: paymentData.fiatCurrency || null,
+          fiatAmount: paymentData.fiatAmount?.toString() || null,
           metadata: paymentData.metadata || {},
           timestamp: Date.now(),
           data: {
-            hash: paymentData.hash,
-            fromAddress: paymentData.fromAddress,
-            toAddress: paymentData.toAddress,
-            blockNumber: paymentData.block?.number || paymentData.blockNumber,
-            chainId: paymentData.chainId,
-            recivedAmount: paymentData.recivedAmount,
+            hash: paymentData.hash || null,
+            fromAddress: paymentData.fromAddress || null,
+            toAddress: paymentData.toAddress || null,
+            blockNumber: paymentData.block?.number?.toString() || paymentData.blockNumber?.toString() || null,
+            chainId: paymentData.chainId || null,
+            recivedAmount: paymentData.recivedAmount?.toString() || null,
           },
         };
       }
@@ -184,7 +188,8 @@ export class WebhookService {
     } catch (error) {
       const webhookLog = await this.webhookLogModel.findById(webhookLogId);
       const nextAttempt = webhookLog.attempts + 1;
-      const nextRetryAt = new Date(Date.now() + this.RETRY_DELAYS[nextAttempt] || 3600000);
+      const retryDelay = this.RETRY_DELAYS[nextAttempt] ?? 3600000;
+      const nextRetryAt = new Date(Date.now() + retryDelay);
 
       await this.webhookLogModel.updateOne(
         { _id: webhookLogId },

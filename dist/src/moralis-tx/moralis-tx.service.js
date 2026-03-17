@@ -556,7 +556,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
                 chainId: { $in: ["TRON"] },
             });
             if (!paymentLinks || paymentLinks?.length === 0) {
-                throw new common_1.NotFoundException("Payment link not found or not pending from buyer side");
+                return;
             }
             const trc20FilteredPaymentLinks = paymentLinks.filter((value) => value.code !== "TRX");
             const tronFilteredPaymentLinks = paymentLinks.filter((value) => value.code === "TRX");
@@ -696,7 +696,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
             ]);
             const adminData = await this.adminModel.find();
             if (!partialPaymentLinks || partialPaymentLinks.length === 0) {
-                throw new common_1.NotFoundException("Partial Payment links not found or not paid");
+                return;
             }
             for (const link of partialPaymentLinks) {
                 const appForLink = await this.appModel.findById(link?.appId);
@@ -808,8 +808,8 @@ let TransactionService = TransactionService_1 = class TransactionService {
                                 status.withdrawStatus = payment_enum_1.WithdrawPaymentStatus.ADMIN_CHARGES;
                             }
                         }
-                        if (transferTronToMerchant.length === 64 &&
-                            transferTronToAdmin.length === 64) {
+                        if (transferTronToMerchant?.length === 64 &&
+                            transferTronToAdmin?.length === 64) {
                             status.amountAfterTax = merchantAmount.toFixed(6);
                             status.withdrawStatus = payment_enum_1.WithdrawPaymentStatus.SUCCESS;
                             status.status = payment_enum_1.PaymentStatus.SUCCESS;
@@ -1349,7 +1349,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
                                         note: "Deposit funds",
                                         blockNumber: transaction?.blockNumber || 0,
                                         chainId: constants_1.TRON_CHAIN_ID,
-                                        symbol: "TRX",
+                                        symbol: transaction?.token_info?.symbol || "USDT",
                                         txType: txTypeOfPayment,
                                     };
                                     await this.merchantTxModel.create(newTxData);
@@ -1418,7 +1418,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
                     "x-api-key": config_service_1.ConfigService.keys.TATUM_X_API_KEY,
                 };
                 const response = await axios_1.default.post(url, payload, {
-                    headers: constants_1.postHeaders,
+                    headers,
                 });
                 if (response?.data) {
                     walletTxList = response.data;

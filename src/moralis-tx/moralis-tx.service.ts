@@ -807,9 +807,7 @@ export class TransactionService {
       });
 
       if (!paymentLinks || paymentLinks?.length === 0) {
-        throw new NotFoundException(
-          "Payment link not found or not pending from buyer side"
-        );
+        return; // Nothing to process — not an error
       }
 
       const trc20FilteredPaymentLinks = paymentLinks.filter(
@@ -1019,9 +1017,7 @@ export class TransactionService {
       const adminData = await this.adminModel.find();
 
       if (!partialPaymentLinks || partialPaymentLinks.length === 0) {
-        throw new NotFoundException(
-          "Partial Payment links not found or not paid"
-        );
+        return; // Nothing to process — not an error
       }
 
       for (const link of partialPaymentLinks) {
@@ -1225,8 +1221,8 @@ export class TransactionService {
 
             //updating success status of payment links
             if (
-              transferTronToMerchant.length === 64 &&
-              transferTronToAdmin.length === 64
+              transferTronToMerchant?.length === 64 &&
+              transferTronToAdmin?.length === 64
             ) {
               status.amountAfterTax = merchantAmount.toFixed(6);
               status.withdrawStatus = WithdrawPaymentStatus.SUCCESS;
@@ -2014,7 +2010,7 @@ export class TransactionService {
                     note: "Deposit funds",
                     blockNumber: transaction?.blockNumber || 0, //
                     chainId: TRON_CHAIN_ID,
-                    symbol: "TRX",
+                    symbol: transaction?.token_info?.symbol || "USDT",
                     txType: txTypeOfPayment,
                   };
 
@@ -2103,7 +2099,7 @@ export class TransactionService {
         };
 
         const response = await axios.post(url, payload, {
-          headers: postHeaders,
+          headers,
         });
 
         // Ensure the response contains data
