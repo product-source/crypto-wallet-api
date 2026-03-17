@@ -14,7 +14,7 @@ export class UpdateWebhookDto {
   secretKey: string;
 
   @IsNotEmpty()
-  @IsUrl()
+  @IsUrl({ require_tld: false })
   webhookUrl: string;
 
   @IsOptional()

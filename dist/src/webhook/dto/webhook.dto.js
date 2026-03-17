@@ -31,7 +31,7 @@ __decorate([
 ], UpdateWebhookDto.prototype, "secretKey", void 0);
 __decorate([
     (0, class_validator_1.IsNotEmpty)(),
-    (0, class_validator_1.IsUrl)(),
+    (0, class_validator_1.IsUrl)({ require_tld: false }),
     __metadata("design:type", String)
 ], UpdateWebhookDto.prototype, "webhookUrl", void 0);
 __decorate([
