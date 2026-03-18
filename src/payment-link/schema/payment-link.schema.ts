@@ -3,7 +3,6 @@ import mongoose from "mongoose";
 import { Apps } from "src/apps/schema/apps.schema";
 import {
   CoinId,
-  FiatCurrency,
   PaymentStatus,
   TransactionType,
   WithdrawPaymentStatus,
@@ -156,7 +155,7 @@ export class PaymentLink {
   transactionType: TransactionType;
 
   @Prop()
-  fiatCurrency: FiatCurrency;
+  fiatCurrency: string;
 
   // @Prop()
   // coinId: CoinId;

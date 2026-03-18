@@ -96,7 +96,7 @@ __decorate([
 ], AddPaymnetLinkDto.prototype, "transactionType", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsEnum)(payment_enum_1.FiatCurrency),
+    (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], AddPaymnetLinkDto.prototype, "fiatCurrency", void 0);
 __decorate([

@@ -1,4 +1,4 @@
-import { DaysType, FiatCurrency, TransactionType, WithdrawType } from "../schema/payment.enum";
+import { DaysType, TransactionType, WithdrawType } from "../schema/payment.enum";
 export declare class AddPaymnetLinkDto {
     appId: any;
     apiKey: string;
@@ -16,7 +16,7 @@ export declare class AddPaymnetLinkDto {
     successUrl: string;
     cancelUrl: string;
     transactionType: TransactionType;
-    fiatCurrency: FiatCurrency;
+    fiatCurrency: string;
     metadata: Record<string, any>;
 }
 export declare class DepositFundDto {

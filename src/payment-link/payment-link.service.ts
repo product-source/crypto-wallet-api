@@ -62,6 +62,7 @@ import axios from "axios";
 import { WebhookService } from "src/webhook/webhook.service";
 import { WebhookEvent } from "src/webhook/schema/webhook-log.schema";
 import { verifyIpWhitelist } from "src/helpers/ip-whitelist.helper";
+import { FiatCurrencyService } from "src/fiat-currency/fiat-currency.service";
 
 @Injectable()
 export class PaymentLinkService {
@@ -82,7 +83,8 @@ export class PaymentLinkService {
     private readonly merchantAppTxModel: Model<MerchantAppTxDocument>,
 
     private readonly adminService: AdminService,
-    private readonly webhookService: WebhookService
+    private readonly webhookService: WebhookService,
+    private readonly fiatCurrencyService: FiatCurrencyService
   ) { }
 
   getCoinIdFromCode(code: string): string {
@@ -131,6 +133,13 @@ export class PaymentLinkService {
         if (!fiatCurrency) {
           throw new NotFoundException(
             "fiatCurrency is required for FIAT transactions"
+          );
+        }
+        // Validate fiatCurrency against database
+        const validCodes = await this.fiatCurrencyService.getAllCodes();
+        if (!validCodes.map(c => c.toLowerCase()).includes(fiatCurrency.toLowerCase())) {
+          throw new BadRequestException(
+            `Unsupported fiat currency '${fiatCurrency}'. Supported: ${validCodes.join(", ")}`
           );
         }
         if (!coinId) {

@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { FiatCurrency, PaymentStatus, TransactionType, WithdrawPaymentStatus } from "./payment.enum";
+import { PaymentStatus, TransactionType, WithdrawPaymentStatus } from "./payment.enum";
 import { WalletType } from "src/wallet-monitor/schema/wallet-monitor.enum";
 export type PaymentLinkDocument = PaymentLink & Document;
 declare class block {
@@ -43,7 +43,7 @@ export declare class PaymentLink {
     adminFeeWallet: string;
     amountAfterTax: string;
     transactionType: TransactionType;
-    fiatCurrency: FiatCurrency;
+    fiatCurrency: string;
     coinId: String;
     cryptoAmount: String;
     pricePerCoin: String;

@@ -8,6 +8,7 @@ import { EncryptionService } from "src/utils/encryption.service";
 import { WebhookService } from "src/webhook/webhook.service";
 import { AdminService } from "src/admin/admin.service";
 import { CreateWithdrawalRequestDto, ApproveWithdrawalDto, DeclineWithdrawalDto, ListWithdrawalsDto, UpdateWithdrawalSettingsDto } from "./dto/user-withdrawal.dto";
+import { FiatCurrencyService } from "src/fiat-currency/fiat-currency.service";
 export declare class UserWithdrawalService {
     private readonly userWithdrawalModel;
     private readonly appsModel;
@@ -16,7 +17,8 @@ export declare class UserWithdrawalService {
     private readonly encryptionService;
     private readonly webhookService;
     private readonly adminService;
-    constructor(userWithdrawalModel: Model<UserWithdrawalDocument>, appsModel: Model<AppsDocument>, tokenModel: Model<TokenDocument>, merchantModel: Model<MerchantDocument>, encryptionService: EncryptionService, webhookService: WebhookService, adminService: AdminService);
+    private readonly fiatCurrencyService;
+    constructor(userWithdrawalModel: Model<UserWithdrawalDocument>, appsModel: Model<AppsDocument>, tokenModel: Model<TokenDocument>, merchantModel: Model<MerchantDocument>, encryptionService: EncryptionService, webhookService: WebhookService, adminService: AdminService, fiatCurrencyService: FiatCurrencyService);
     validateAppCredentials(appId: string, apiKey: string, secretKey: string, clientIp?: string): Promise<import("mongoose").Document<unknown, {}, AppsDocument, {}, {}> & Apps & import("mongoose").Document<import("mongoose").Types.ObjectId, any, any, Record<string, any>, {}> & Required<{
         _id: import("mongoose").Types.ObjectId;
     }> & {

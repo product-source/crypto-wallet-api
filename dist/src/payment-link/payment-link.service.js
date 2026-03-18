@@ -42,8 +42,9 @@ const enum_1 = require("../merchant-app-tx/schema/enum");
 const webhook_service_1 = require("../webhook/webhook.service");
 const webhook_log_schema_1 = require("../webhook/schema/webhook-log.schema");
 const ip_whitelist_helper_1 = require("../helpers/ip-whitelist.helper");
+const fiat_currency_service_1 = require("../fiat-currency/fiat-currency.service");
 let PaymentLinkService = class PaymentLinkService {
-    constructor(paymentLinkModel, appsModel, monitorModel, tokenModel, encryptionService, merchantAppTxModel, adminService, webhookService) {
+    constructor(paymentLinkModel, appsModel, monitorModel, tokenModel, encryptionService, merchantAppTxModel, adminService, webhookService, fiatCurrencyService) {
         this.paymentLinkModel = paymentLinkModel;
         this.appsModel = appsModel;
         this.monitorModel = monitorModel;
@@ -52,6 +53,7 @@ let PaymentLinkService = class PaymentLinkService {
         this.merchantAppTxModel = merchantAppTxModel;
         this.adminService = adminService;
         this.webhookService = webhookService;
+        this.fiatCurrencyService = fiatCurrencyService;
     }
     getCoinIdFromCode(code) {
         const baseCode = code.split(".")[0]?.toUpperCase();
@@ -74,6 +76,10 @@ let PaymentLinkService = class PaymentLinkService {
             if (transactionType === payment_enum_1.TransactionType.FIAT) {
                 if (!fiatCurrency) {
                     throw new common_1.NotFoundException("fiatCurrency is required for FIAT transactions");
+                }
+                const validCodes = await this.fiatCurrencyService.getAllCodes();
+                if (!validCodes.map(c => c.toLowerCase()).includes(fiatCurrency.toLowerCase())) {
+                    throw new common_1.BadRequestException(`Unsupported fiat currency '${fiatCurrency}'. Supported: ${validCodes.join(", ")}`);
                 }
                 if (!coinId) {
                     throw new common_1.NotFoundException("Unable to detect coinId from provided code");
@@ -2070,6 +2076,7 @@ exports.PaymentLinkService = PaymentLinkService = __decorate([
         encryption_service_1.EncryptionService,
         mongoose_2.Model,
         admin_service_1.AdminService,
-        webhook_service_1.WebhookService])
+        webhook_service_1.WebhookService,
+        fiat_currency_service_1.FiatCurrencyService])
 ], PaymentLinkService);
 //# sourceMappingURL=payment-link.service.js.map

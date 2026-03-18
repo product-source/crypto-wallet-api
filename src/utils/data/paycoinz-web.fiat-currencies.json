@@ -22,5 +22,11 @@
         "name": "British Pound",
         "symbol": "£",
         "isActive": true
+    },
+    {
+        "code": "inr",
+        "name": "Indian Rupee",
+        "symbol": "₹",
+        "isActive": true
     }
 ]

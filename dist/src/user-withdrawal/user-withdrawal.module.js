@@ -19,6 +19,7 @@ const encryption_service_1 = require("../utils/encryption.service");
 const webhook_module_1 = require("../webhook/webhook.module");
 const api_key_auth_guard_1 = require("../auth/guards/api-key-auth.guard");
 const admin_module_1 = require("../admin/admin.module");
+const fiat_currency_module_1 = require("../fiat-currency/fiat-currency.module");
 let UserWithdrawalModule = class UserWithdrawalModule {
 };
 exports.UserWithdrawalModule = UserWithdrawalModule;
@@ -33,6 +34,7 @@ exports.UserWithdrawalModule = UserWithdrawalModule = __decorate([
             ]),
             webhook_module_1.WebhookModule,
             admin_module_1.AdminModule,
+            fiat_currency_module_1.FiatCurrencyModule,
         ],
         controllers: [user_withdrawal_controller_1.UserWithdrawalController],
         providers: [user_withdrawal_service_1.UserWithdrawalService, api_key_auth_guard_1.ApiKeyAuthGuard, encryption_service_1.EncryptionService],

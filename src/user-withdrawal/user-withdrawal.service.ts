@@ -33,9 +33,9 @@ import {
     UpdateWithdrawalSettingsDto,
 } from "./dto/user-withdrawal.dto";
 import {
-    FiatCurrency,
     TransactionType,
 } from "src/payment-link/schema/payment.enum";
+import { FiatCurrencyService } from "src/fiat-currency/fiat-currency.service";
 
 @Injectable()
 export class UserWithdrawalService {
@@ -50,7 +50,8 @@ export class UserWithdrawalService {
         private readonly merchantModel: Model<MerchantDocument>,
         private readonly encryptionService: EncryptionService,
         private readonly webhookService: WebhookService,
-        private readonly adminService: AdminService
+        private readonly adminService: AdminService,
+        private readonly fiatCurrencyService: FiatCurrencyService
     ) { }
 
     /**
@@ -395,6 +396,13 @@ export class UserWithdrawalService {
             if (transactionType === TransactionType.FIAT) {
                 if (!fiatCurrency) {
                     throw new BadRequestException("fiatCurrency is required for FIAT transactions");
+                }
+                // Validate fiatCurrency against database
+                const validCodes = await this.fiatCurrencyService.getAllCodes();
+                if (!validCodes.map(c => c.toLowerCase()).includes(fiatCurrency.toLowerCase())) {
+                    throw new BadRequestException(
+                        `Unsupported fiat currency '${fiatCurrency}'. Supported: ${validCodes.join(", ")}`
+                    );
                 }
                 
                 // Get base symbol e.g USDT from USDT.TRX

@@ -9,7 +9,6 @@ import {
 import {
   CoinId,
   DaysType,
-  FiatCurrency,
   TransactionType,
   WithdrawType,
 } from "../schema/payment.enum";
@@ -79,8 +78,8 @@ export class AddPaymnetLinkDto {
   transactionType: TransactionType;
 
   @IsOptional()
-  @IsEnum(FiatCurrency)
-  fiatCurrency: FiatCurrency;
+  @IsString()
+  fiatCurrency: string;
 
   @IsOptional()
   metadata: Record<string, any>;

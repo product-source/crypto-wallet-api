@@ -10,7 +10,6 @@ import {
 } from "class-validator";
 import { Type } from "class-transformer";
 import {
-    FiatCurrency,
     TransactionType,
 } from "src/payment-link/schema/payment.enum";
 
@@ -72,8 +71,8 @@ export class CreateWithdrawalRequestDto extends BaseAuthDto {
     transactionType?: TransactionType;
 
     @IsOptional()
-    @IsEnum(FiatCurrency)
-    fiatCurrency?: FiatCurrency;
+    @IsString()
+    fiatCurrency?: string;
 }
 
 // DTO for approving a withdrawal

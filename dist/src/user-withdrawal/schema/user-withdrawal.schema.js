@@ -126,7 +126,7 @@ __decorate([
     __metadata("design:type", String)
 ], UserWithdrawal.prototype, "transactionType", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ type: String, enum: payment_enum_1.FiatCurrency }),
+    (0, mongoose_1.Prop)({ type: String }),
     __metadata("design:type", String)
 ], UserWithdrawal.prototype, "fiatCurrency", void 0);
 __decorate([

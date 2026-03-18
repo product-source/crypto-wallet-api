@@ -4,7 +4,6 @@ import { Apps } from "src/apps/schema/apps.schema";
 import { Merchant } from "src/merchants/schema/merchant.schema";
 import { UserWithdrawalStatus } from "./user-withdrawal.enum";
 import {
-    FiatCurrency,
     TransactionType,
 } from "src/payment-link/schema/payment.enum";
 
@@ -97,8 +96,8 @@ export class UserWithdrawal {
     @Prop({ type: String, enum: TransactionType })
     transactionType: TransactionType;
 
-    @Prop({ type: String, enum: FiatCurrency })
-    fiatCurrency: FiatCurrency;
+    @Prop({ type: String })
+    fiatCurrency: string;
 
     @Prop()
     coinId: string;

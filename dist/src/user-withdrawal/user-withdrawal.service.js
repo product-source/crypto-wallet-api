@@ -37,8 +37,9 @@ const helper_1 = require("../helpers/helper");
 const ip_whitelist_helper_1 = require("../helpers/ip-whitelist.helper");
 const common_2 = require("@nestjs/common");
 const payment_enum_1 = require("../payment-link/schema/payment.enum");
+const fiat_currency_service_1 = require("../fiat-currency/fiat-currency.service");
 let UserWithdrawalService = class UserWithdrawalService {
-    constructor(userWithdrawalModel, appsModel, tokenModel, merchantModel, encryptionService, webhookService, adminService) {
+    constructor(userWithdrawalModel, appsModel, tokenModel, merchantModel, encryptionService, webhookService, adminService, fiatCurrencyService) {
         this.userWithdrawalModel = userWithdrawalModel;
         this.appsModel = appsModel;
         this.tokenModel = tokenModel;
@@ -46,6 +47,7 @@ let UserWithdrawalService = class UserWithdrawalService {
         this.encryptionService = encryptionService;
         this.webhookService = webhookService;
         this.adminService = adminService;
+        this.fiatCurrencyService = fiatCurrencyService;
     }
     async validateAppCredentials(appId, apiKey, secretKey, clientIp) {
         if (!appId || !apiKey || !secretKey) {
@@ -277,6 +279,10 @@ let UserWithdrawalService = class UserWithdrawalService {
             if (transactionType === payment_enum_1.TransactionType.FIAT) {
                 if (!fiatCurrency) {
                     throw new common_1.BadRequestException("fiatCurrency is required for FIAT transactions");
+                }
+                const validCodes = await this.fiatCurrencyService.getAllCodes();
+                if (!validCodes.map(c => c.toLowerCase()).includes(fiatCurrency.toLowerCase())) {
+                    throw new common_1.BadRequestException(`Unsupported fiat currency '${fiatCurrency}'. Supported: ${validCodes.join(", ")}`);
                 }
                 const symbol = code.split(".")[0]?.toUpperCase();
                 if (!symbol) {
@@ -992,6 +998,7 @@ exports.UserWithdrawalService = UserWithdrawalService = __decorate([
         mongoose_2.Model,
         encryption_service_1.EncryptionService,
         webhook_service_1.WebhookService,
-        admin_service_1.AdminService])
+        admin_service_1.AdminService,
+        fiat_currency_service_1.FiatCurrencyService])
 ], UserWithdrawalService);
 //# sourceMappingURL=user-withdrawal.service.js.map

@@ -16,11 +16,13 @@ import {
 } from "src/merchant-app-tx/schema/merchant-app-tx.schema";
 import { AdminModule } from "src/admin/admin.module";
 import { WebhookModule } from "src/webhook/webhook.module";
+import { FiatCurrencyModule } from "src/fiat-currency/fiat-currency.module";
 
 @Module({
   imports: [
     AdminModule,
     WebhookModule,
+    FiatCurrencyModule,
     MongooseModule.forFeature([
       { name: PaymentLink.name, schema: PaymentLinkSchema },
       { name: Apps.name, schema: AppsSchema },
