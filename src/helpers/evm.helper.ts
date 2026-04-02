@@ -347,7 +347,9 @@ export async function evmERC20TokenTransfer(
       adminAmountCharge =
         parseFloat(AMOUNT_IN_WEI) / (1 + adminPaymentLinksCharges / 100);
 
-      adminAmountInWei = BigInt(AMOUNT_IN_WEI) - BigInt(adminAmountCharge);
+      // Math.floor() is required because division produces a float,
+      // and BigInt() only accepts integer values
+      adminAmountInWei = BigInt(AMOUNT_IN_WEI) - BigInt(Math.floor(adminAmountCharge));
 
       merchantRemainingAmountInWei =
         BigInt(AMOUNT_IN_WEI) - BigInt(adminAmountInWei);

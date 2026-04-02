@@ -242,7 +242,7 @@ async function evmERC20TokenTransfer(chainId, paymentLinkPrivateKey, txCost, tok
         if (adminPaymentLinksCharges > 0) {
             adminAmountCharge =
                 parseFloat(AMOUNT_IN_WEI) / (1 + adminPaymentLinksCharges / 100);
-            adminAmountInWei = BigInt(AMOUNT_IN_WEI) - BigInt(adminAmountCharge);
+            adminAmountInWei = BigInt(AMOUNT_IN_WEI) - BigInt(Math.floor(adminAmountCharge));
             merchantRemainingAmountInWei =
                 BigInt(AMOUNT_IN_WEI) - BigInt(adminAmountInWei);
             const adminTx = {
