@@ -24,6 +24,8 @@ export class Keys {
   EVM_OWNER_ADDRESS: string = null;
   BTC_OWNER_ADDRESS: string = null;
   TRON_NODE: string = null;
+  API_BASE_URL: string = null;
+  TATUM_WEBHOOK_HMAC_SECRET: string = null;
 
   // Network Mode (mainnet or testnet)
   NETWORK_MODE: string = null;
@@ -81,6 +83,8 @@ export class Keys {
     this.EVM_OWNER_ADDRESS = process.env.EVM_OWNER_ADDRESS;
     this.BTC_OWNER_ADDRESS = process.env.BTC_OWNER_ADDRESS;
     this.TRON_NODE = process.env.TRON_NODE;
+    this.API_BASE_URL = process.env.API_BASE_URL || process.env.BASE_URL;
+    this.TATUM_WEBHOOK_HMAC_SECRET = process.env.TATUM_WEBHOOK_HMAC_SECRET || 'paycoinz-tatum-webhook-secret';
 
     // Network Mode
     this.NETWORK_MODE = process.env.NETWORK_MODE || 'mainnet';

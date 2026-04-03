@@ -183,6 +183,9 @@ export class PaymentLink {
 
   @Prop({ type: Object, default: {} })
   metadata: Record<string, any>;
+
+  @Prop()
+  tatumSubscriptionId: string;
 }
 
 export const PaymentLinkSchema = SchemaFactory.createForClass(PaymentLink);

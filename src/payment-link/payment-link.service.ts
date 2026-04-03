@@ -349,6 +349,24 @@ export class PaymentLinkService {
         await app.save();
       }
 
+      // For TRON networks: subscribe to Tatum webhook for instant payment detection
+      if (token?.network.toUpperCase() === "TRON") {
+        try {
+          const { subscribeTronAddressWebhook } = require("src/helpers/tatum-tron.helper");
+          const subscriptionId = await subscribeTronAddressWebhook(walletInfo?.address);
+          if (subscriptionId) {
+            await this.paymentLinkModel.updateOne(
+              { _id: model._id },
+              { $set: { tatumSubscriptionId: subscriptionId } }
+            );
+            console.log(`[Tatum] Tron wallet ${walletInfo?.address} subscribed. ID: ${subscriptionId}`);
+          }
+        } catch (subError) {
+          console.error("[Tatum] Failed to subscribe Tron address (non-blocking):", subError.message);
+          // Non-blocking — fallback cron will still detect payments
+        }
+      }
+
       // if network is belongs to evm then push the wallet address into the moralis server
       if (
         token?.network.toUpperCase() !== "TRON" &&

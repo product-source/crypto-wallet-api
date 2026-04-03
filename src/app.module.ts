@@ -31,6 +31,7 @@ import { NotificationModule } from "./notification/notification.module";
 import { UserWithdrawalModule } from "./user-withdrawal/user-withdrawal.module";
 import { CommonController } from "./common/common.controller";
 import { FiatCurrencyModule } from "./fiat-currency/fiat-currency.module";
+import { TatumWebhookModule } from "./tatum-webhook/tatum-webhook.module";
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import { FiatCurrencyModule } from "./fiat-currency/fiat-currency.module";
     NotificationModule,
     UserWithdrawalModule,
     FiatCurrencyModule,
+    TatumWebhookModule,
     // MerchantTransactionsModule,
   ],
   controllers: [AppController, CommonController],

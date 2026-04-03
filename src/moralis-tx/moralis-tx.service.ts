@@ -562,23 +562,46 @@ export class TransactionService {
               paymentLinkCharges = feeDetails.data.merchantFee;
               paymentLinkWalletAddress = feeDetails.data.merchantFeeWallet;
 
+              // Check current withdraw status to determine if admin fee was already transferred
+              const currentWithdrawStatus = wallet?.withdrawStatus;
+              const adminAlreadyCharged = currentWithdrawStatus === WithdrawPaymentStatus.ADMIN_CHARGES;
+
+              // If admin fee already sent, only estimate gas for merchant-only portion
+              const effectiveCharges = adminAlreadyCharged ? 0 : paymentLinkCharges;
+              let effectiveAmount = fullAmount;
+              if (adminAlreadyCharged) {
+                // Merchant-only portion (admin USDC already transferred out)
+                effectiveAmount = fullAmount / (1 + parseFloat(paymentLinkCharges) / 100);
+                console.log("Admin already charged. Merchant-only amount:", effectiveAmount);
+              }
+
               txCost = await getERC20TxFee(
                 chainId,
                 senderWalletAddress,
                 receiverAddress,
                 tokenContractAddress,
-                fullAmount,
+                effectiveAmount,
                 tokenDecimal,
-                paymentLinkCharges,
+                effectiveCharges,
                 paymentLinkWalletAddress
               );
             }
 
+            // Guard: if getERC20TxFee failed (e.g. insufficient token balance for estimation), skip this cycle
+            if (!txCost?.gasPrice) {
+              console.log("getERC20TxFee failed — gasPrice is null. Skipping this payment link for now.");
+              continue;
+            }
+
+            // Use 3x gas buffer to handle gas price fluctuations between estimation and execution
+            const gasBuffer = BigInt(3);
+            const nativeAmountForGas = BigInt(txCost.totalGas) * BigInt(txCost.gasPrice) * gasBuffer;
+
             if (wallet?.withdrawStatus === WithdrawPaymentStatus.PENDING) {
-              // Transfer evm native tokens to the payment links
+              // Transfer evm native tokens to the payment links for gas
               const nativeTxReceipt = await evmNativeTokenTransferToPaymentLinks(
                 chainId,
-                txCost?.totalGas * txCost?.gasPrice,
+                nativeAmountForGas,
                 senderWalletAddress
               );
               if (nativeTxReceipt) {
@@ -588,21 +611,45 @@ export class TransactionService {
               }
             }
 
+            // If admin charges were already taken but merchant TX failed previously,
+            // send additional native ETH for merchant transfer gas
+            if (wallet?.withdrawStatus === WithdrawPaymentStatus.ADMIN_CHARGES) {
+              console.log("Sending additional native ETH for merchant transfer gas...");
+              const nativeTxReceipt = await evmNativeTokenTransferToPaymentLinks(
+                chainId,
+                nativeAmountForGas,
+                senderWalletAddress
+              );
+              if (!nativeTxReceipt) {
+                console.log("Failed to send additional gas for merchant transfer. Will retry next cycle.");
+                continue;
+              }
+            }
+
             try {
+              // Use effective values based on whether admin was already charged
+              const currentWithdrawStatus = wallet?.withdrawStatus;
+              const adminAlreadyCharged = currentWithdrawStatus === WithdrawPaymentStatus.ADMIN_CHARGES;
+              const effectiveCharges = adminAlreadyCharged ? 0 : paymentLinkCharges;
+              let effectiveAmount = fullAmount;
+              if (adminAlreadyCharged) {
+                effectiveAmount = fullAmount / (1 + parseFloat(paymentLinkCharges) / 100);
+              }
+
               const erc20Receipt = await evmERC20TokenTransfer(
                 chainId,
                 privateKey,
                 txCost,
                 tokenContractAddress,
-                fullAmount,
+                effectiveAmount,
                 receiverAddress,
                 tokenDecimal,
-                paymentLinkCharges,
+                effectiveCharges,
                 paymentLinkWalletAddress
               );
 
               if (erc20Receipt.receipt1) {
-                // Update payment link model
+                // Admin fee transferred — update status
                 const adminFeeValue =
                   fullAmount / (1 + parseFloat(paymentLinkCharges) / 100);
                 const adminFeeAmount = fullAmount - adminFeeValue;
@@ -616,7 +663,7 @@ export class TransactionService {
               }
 
               if (erc20Receipt.receipt2) {
-                // Update payment link model
+                // Merchant transfer succeeded — mark as complete
                 await this.updatePaymentLinkModel(wallet?._id, {
                   withdrawStatus: WithdrawPaymentStatus.SUCCESS,
                   status: PaymentStatus.SUCCESS,
@@ -794,11 +841,13 @@ export class TransactionService {
     }
   }
 
-  @Cron(CronExpression.EVERY_30_SECONDS)
+  // FALLBACK SAFETY NET: Primary detection is via Tatum webhooks (instant).
+  // This cron only catches payments if the webhook was missed or delayed.
+  @Cron(CronExpression.EVERY_5_MINUTES)
   async tronPaymentLink() {
     try {
       this.logger.debug(
-        "-------------- Cron Job -> Payment Link Status Update In Every 10 Seconds ----------------"
+        "-------------- Cron Job -> TRON Payment Link Fallback Check (every 5 min) ----------------"
       );
 
       const paymentLinks = await this.paymentLinkModel.find({
@@ -982,11 +1031,13 @@ export class TransactionService {
     }
   }
 
-  @Cron("*/10 * * * * *")
+  // Withdrawal cron: reduced from 10s to 2min to stay within API rate limits.
+  // Each cycle processes all PARTIALLY_SUCCESS Tron payment links.
+  @Cron("*/2 * * * *")
   async withdrawTronPaymentFromLinks() {
     try {
       this.logger.debug(
-        "--------------------- Cron Job Started for every 10 seconds (To withdraw tron amount from payment links) -----------------------"
+        "--------------------- Cron Job Started for every 2 minutes (To withdraw tron amount from payment links) -----------------------"
       );
 
       const partialPaymentLinks = await this.paymentLinkModel.aggregate([
@@ -1132,6 +1183,16 @@ export class TransactionService {
                   WebhookEvent.PAYMENT_SUCCESS,
                   updatedLink.toObject()
                 );
+
+                // Cleanup: unsubscribe Tatum webhook for this address
+                if (link?.tatumSubscriptionId) {
+                  try {
+                    const { unsubscribeTronAddressWebhook } = require("src/helpers/tatum-tron.helper");
+                    await unsubscribeTronAddressWebhook(link.tatumSubscriptionId);
+                  } catch (e) {
+                    console.error("[Tatum] Failed to unsubscribe (non-blocking):", e.message);
+                  }
+                }
               }
             }
           } else {
@@ -1245,6 +1306,16 @@ export class TransactionService {
               WebhookEvent.PAYMENT_SUCCESS,
               updatedLink.toObject()
             );
+
+            // Cleanup: unsubscribe Tatum webhook for this address
+            if (link?.tatumSubscriptionId) {
+              try {
+                const { unsubscribeTronAddressWebhook } = require("src/helpers/tatum-tron.helper");
+                await unsubscribeTronAddressWebhook(link.tatumSubscriptionId);
+              } catch (e) {
+                console.error("[Tatum] Failed to unsubscribe (non-blocking):", e.message);
+              }
+            }
           }
         }
       }
