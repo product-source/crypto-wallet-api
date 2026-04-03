@@ -87,8 +87,15 @@ let TatumWebhookService = TatumWebhookService_1 = class TatumWebhookService {
     }
     async handleTronWebhook(body) {
         try {
-            const { address, txId, amount, counterAddress, asset, type, blockNumber, } = body;
-            this.logger.log(`[Tatum Webhook] Received event for address: ${address}, txId: ${txId}, amount: ${amount}, asset: ${asset}`);
+            this.logger.log(`[Tatum Webhook] RAW BODY: ${JSON.stringify(body)}`);
+            const payload = body?.data || body;
+            const address = payload?.address || payload?.Address || body?.address;
+            const txId = payload?.txId || payload?.transactionId || payload?.txID || body?.txId;
+            const amount = payload?.amount || payload?.Amount || body?.amount;
+            const counterAddress = payload?.counterAddress || payload?.from || body?.counterAddress;
+            const asset = payload?.asset || payload?.tokenAddress || body?.asset;
+            const blockNumber = payload?.blockNumber || payload?.block || body?.blockNumber;
+            this.logger.log(`[Tatum Webhook] Parsed -> address: ${address}, txId: ${txId}, amount: ${amount}, asset: ${asset}, block: ${blockNumber}`);
             if (!address || !txId) {
                 this.logger.warn("[Tatum Webhook] Missing address or txId. Ignoring.");
                 return { status: "ignored" };
@@ -99,7 +106,7 @@ let TatumWebhookService = TatumWebhookService_1 = class TatumWebhookService {
                 chainId: constants_1.TRON_CHAIN_ID,
             });
             if (!paymentLink) {
-                this.logger.log(`[Tatum Webhook] No PENDING payment link found for address: ${address}. May be already processed or not a payment wallet.`);
+                this.logger.log(`[Tatum Webhook] No PENDING payment link found for address: ${address}. May be already processed.`);
                 return { status: "no_matching_link" };
             }
             let actualBalance = 0;
@@ -124,7 +131,7 @@ let TatumWebhookService = TatumWebhookService_1 = class TatumWebhookService {
                 }
             }
             if (actualBalance <= 0) {
-                this.logger.log(`[Tatum Webhook] Balance is 0 for ${address}. Webhook may have arrived before on-chain confirmation. Will be caught by fallback cron.`);
+                this.logger.log(`[Tatum Webhook] Balance is 0 for ${address}. May arrive on next block. Fallback cron will catch it.`);
                 return { status: "balance_zero_will_retry" };
             }
             const app = await this.appsModel.findById(paymentLink.appId);
@@ -158,7 +165,7 @@ let TatumWebhookService = TatumWebhookService_1 = class TatumWebhookService {
             return { status: "ok" };
         }
         catch (error) {
-            this.logger.error(`[Tatum Webhook] Error processing webhook: ${error.message}`, error.stack);
+            this.logger.error(`[Tatum Webhook] Error processing: ${error.message}`, error.stack);
             return { status: "error" };
         }
     }

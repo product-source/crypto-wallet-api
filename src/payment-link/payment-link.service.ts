@@ -352,7 +352,7 @@ export class PaymentLinkService {
       // For TRON networks: subscribe to Tatum webhook for instant payment detection
       if (token?.network.toUpperCase() === "TRON") {
         try {
-          const { subscribeTronAddressWebhook } = require("src/helpers/tatum-tron.helper");
+          const { subscribeTronAddressWebhook } = require("../helpers/tatum-tron.helper");
           const subscriptionId = await subscribeTronAddressWebhook(walletInfo?.address);
           if (subscriptionId) {
             await this.paymentLinkModel.updateOne(

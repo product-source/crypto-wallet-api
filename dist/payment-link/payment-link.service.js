@@ -230,7 +230,7 @@ let PaymentLinkService = class PaymentLinkService {
             }
             if (token?.network.toUpperCase() === "TRON") {
                 try {
-                    const { subscribeTronAddressWebhook } = require("src/helpers/tatum-tron.helper");
+                    const { subscribeTronAddressWebhook } = require("../helpers/tatum-tron.helper");
                     const subscriptionId = await subscribeTronAddressWebhook(walletInfo?.address);
                     if (subscriptionId) {
                         await this.paymentLinkModel.updateOne({ _id: model._id }, { $set: { tatumSubscriptionId: subscriptionId } });

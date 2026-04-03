@@ -33,21 +33,17 @@ export class TatumWebhookService {
 
   /**
    * Verify the HMAC signature from Tatum webhook.
-   * Returns true if the signature is valid or if HMAC is not configured.
    */
   verifyHmacSignature(body: any, signature: string): boolean {
     try {
       const secret = ConfigService.keys.TATUM_WEBHOOK_HMAC_SECRET;
       if (!secret || !signature) {
-        // If no HMAC configured, accept all (for development)
-        return true;
+        return true; // Accept all if HMAC not configured (dev mode)
       }
-
       const expectedSignature = crypto
         .createHmac("sha512", secret)
         .update(JSON.stringify(body))
         .digest("hex");
-
       return signature === expectedSignature;
     } catch (error) {
       this.logger.error("HMAC verification error:", error.message);
@@ -57,22 +53,40 @@ export class TatumWebhookService {
 
   /**
    * Handle Tatum ADDRESS_EVENT webhook for Tron addresses.
-   * This is called when any transaction hits a subscribed Tron wallet address.
+   *
+   * Tatum V4 webhook payload structure:
+   * {
+   *   "subscriptionType": "ADDRESS_EVENT",
+   *   "address": "TXXXXXXX",
+   *   "counterAddress": "TYYYYYYY",
+   *   "amount": "42.769716",
+   *   "asset": "TRX",
+   *   "blockNumber": 12345,
+   *   "txId": "abc123...",
+   *   "type": "native" | "trc20",
+   *   "chain": "TRON"
+   * }
    */
   async handleTronWebhook(body: any): Promise<{ status: string }> {
     try {
-      const {
-        address,       // The monitored Tron address
-        txId,          // Transaction hash
-        amount,        // Amount in the native unit
-        counterAddress, // The sender address
-        asset,         // e.g., "TRX" or token contract address
-        type,          // "native" or "trc20"
-        blockNumber,
-      } = body;
+      // Log FULL raw body for debugging (remove after confirmed working)
+      this.logger.log(
+        `[Tatum Webhook] RAW BODY: ${JSON.stringify(body)}`
+      );
+
+      // Tatum may send data at root level OR nested in 'data' field
+      const payload = body?.data || body;
+
+      // Extract fields - handle various Tatum payload formats
+      const address = payload?.address || payload?.Address || body?.address;
+      const txId = payload?.txId || payload?.transactionId || payload?.txID || body?.txId;
+      const amount = payload?.amount || payload?.Amount || body?.amount;
+      const counterAddress = payload?.counterAddress || payload?.from || body?.counterAddress;
+      const asset = payload?.asset || payload?.tokenAddress || body?.asset;
+      const blockNumber = payload?.blockNumber || payload?.block || body?.blockNumber;
 
       this.logger.log(
-        `[Tatum Webhook] Received event for address: ${address}, txId: ${txId}, amount: ${amount}, asset: ${asset}`
+        `[Tatum Webhook] Parsed -> address: ${address}, txId: ${txId}, amount: ${amount}, asset: ${asset}, block: ${blockNumber}`
       );
 
       if (!address || !txId) {
@@ -89,13 +103,12 @@ export class TatumWebhookService {
 
       if (!paymentLink) {
         this.logger.log(
-          `[Tatum Webhook] No PENDING payment link found for address: ${address}. May be already processed or not a payment wallet.`
+          `[Tatum Webhook] No PENDING payment link found for address: ${address}. May be already processed.`
         );
         return { status: "no_matching_link" };
       }
 
-      // Get the actual current balance to determine received amount
-      // (more reliable than relying solely on webhook amount)
+      // Get actual on-chain balance (more reliable than webhook amount alone)
       let actualBalance = 0;
 
       if (paymentLink.tokenAddress === NATIVE) {
@@ -107,13 +120,11 @@ export class TatumWebhookService {
           const decryptedKey = this.encryptionService.decryptData(
             paymentLink.privateKey
           );
-
           const tokenInfo = {
             address: paymentLink.tokenAddress,
             _doc: { address: paymentLink.tokenAddress },
           };
           const balances = await getTRC20Balance([tokenInfo], decryptedKey);
-
           if (balances && balances.length > 0) {
             actualBalance = parseFloat(balances[0].balance || "0");
           }
@@ -121,14 +132,13 @@ export class TatumWebhookService {
           this.logger.error(
             `[Tatum Webhook] Error fetching TRC20 balance: ${balErr.message}`
           );
-          // Use the webhook amount as fallback
           actualBalance = parseFloat(amount || "0");
         }
       }
 
       if (actualBalance <= 0) {
         this.logger.log(
-          `[Tatum Webhook] Balance is 0 for ${address}. Webhook may have arrived before on-chain confirmation. Will be caught by fallback cron.`
+          `[Tatum Webhook] Balance is 0 for ${address}. May arrive on next block. Fallback cron will catch it.`
         );
         return { status: "balance_zero_will_retry" };
       }
@@ -151,7 +161,6 @@ export class TatumWebhookService {
           `[Tatum Webhook] ✅ Payment CONFIRMED for ${address}. Received: ${actualBalance}, Required: ${minRequired}`
         );
       } else {
-        // Partial payment — update the received amount but keep PENDING
         updateData.status = PaymentStatus.PENDING;
         this.logger.log(
           `[Tatum Webhook] ⏳ Partial payment for ${address}. Received: ${actualBalance}, Required: ${minRequired}`
@@ -164,7 +173,7 @@ export class TatumWebhookService {
         { new: true }
       );
 
-      // If payment is now confirmed, trigger webhook to merchant
+      // If confirmed, notify merchant
       if (
         updatedLink &&
         updateData.status === PaymentStatus.PARTIALLY_SUCCESS
@@ -186,7 +195,7 @@ export class TatumWebhookService {
       return { status: "ok" };
     } catch (error) {
       this.logger.error(
-        `[Tatum Webhook] Error processing webhook: ${error.message}`,
+        `[Tatum Webhook] Error processing: ${error.message}`,
         error.stack
       );
       return { status: "error" };
