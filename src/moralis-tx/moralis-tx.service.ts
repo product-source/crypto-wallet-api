@@ -1310,7 +1310,7 @@ export class TransactionService {
             // Cleanup: unsubscribe Tatum webhook for this address
             if (link?.tatumSubscriptionId) {
               try {
-                const { unsubscribeTronAddressWebhook } = require("src/helpers/tatum-tron.helper");
+                const { unsubscribeTronAddressWebhook } = require("../helpers/tatum-tron.helper");
                 await unsubscribeTronAddressWebhook(link.tatumSubscriptionId);
               } catch (e) {
                 console.error("[Tatum] Failed to unsubscribe (non-blocking):", e.message);

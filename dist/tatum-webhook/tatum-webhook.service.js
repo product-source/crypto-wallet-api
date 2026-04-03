@@ -109,6 +109,7 @@ let TatumWebhookService = TatumWebhookService_1 = class TatumWebhookService {
                 this.logger.log(`[Tatum Webhook] No PENDING payment link found for address: ${address}. May be already processed.`);
                 return { status: "no_matching_link" };
             }
+            await new Promise((resolve) => setTimeout(resolve, 5000));
             let actualBalance = 0;
             if (paymentLink.tokenAddress === constants_1.NATIVE) {
                 actualBalance = await (0, tron_helper_1.getTronBalance)(address);
@@ -130,8 +131,12 @@ let TatumWebhookService = TatumWebhookService_1 = class TatumWebhookService {
                     actualBalance = parseFloat(amount || "0");
                 }
             }
+            if (actualBalance <= 0 && parseFloat(amount || "0") > 0) {
+                this.logger.log(`[Tatum Webhook] On-chain balance still 0 for ${address}, using webhook amount: ${amount}`);
+                actualBalance = parseFloat(amount);
+            }
             if (actualBalance <= 0) {
-                this.logger.log(`[Tatum Webhook] Balance is 0 for ${address}. May arrive on next block. Fallback cron will catch it.`);
+                this.logger.log(`[Tatum Webhook] Balance is 0 for ${address}. Fallback cron will catch it.`);
                 return { status: "balance_zero_will_retry" };
             }
             const app = await this.appsModel.findById(paymentLink.appId);

@@ -860,7 +860,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
                         await this.webhookService.sendWebhook(updatedLink.appId.toString(), updatedLink._id.toString(), webhook_log_schema_1.WebhookEvent.PAYMENT_SUCCESS, updatedLink.toObject());
                         if (link?.tatumSubscriptionId) {
                             try {
-                                const { unsubscribeTronAddressWebhook } = require("src/helpers/tatum-tron.helper");
+                                const { unsubscribeTronAddressWebhook } = require("../helpers/tatum-tron.helper");
                                 await unsubscribeTronAddressWebhook(link.tatumSubscriptionId);
                             }
                             catch (e) {

@@ -109,6 +109,9 @@ export class TatumWebhookService {
       }
 
       // Get actual on-chain balance (more reliable than webhook amount alone)
+      // Wait 5 seconds for TronGrid to sync — Tatum notifies faster than TronGrid updates
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+
       let actualBalance = 0;
 
       if (paymentLink.tokenAddress === NATIVE) {
@@ -136,9 +139,17 @@ export class TatumWebhookService {
         }
       }
 
+      // If on-chain balance is still 0, trust the webhook amount from Tatum
+      if (actualBalance <= 0 && parseFloat(amount || "0") > 0) {
+        this.logger.log(
+          `[Tatum Webhook] On-chain balance still 0 for ${address}, using webhook amount: ${amount}`
+        );
+        actualBalance = parseFloat(amount);
+      }
+
       if (actualBalance <= 0) {
         this.logger.log(
-          `[Tatum Webhook] Balance is 0 for ${address}. May arrive on next block. Fallback cron will catch it.`
+          `[Tatum Webhook] Balance is 0 for ${address}. Fallback cron will catch it.`
         );
         return { status: "balance_zero_will_retry" };
       }
