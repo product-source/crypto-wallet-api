@@ -55,22 +55,26 @@ export const generateBitcoinWallet = (mnemonic: any, index: number) => {
   // return wallet;
 };
 
+// Bitcoin dust limit — outputs below this are rejected by the network
+const BTC_DUST_LIMIT_SATS = 546;
+const BTC_DUST_LIMIT = BTC_DUST_LIMIT_SATS / 1e8; // 0.00000546 BTC
+
 export async function btcTransferFromPaymentLinks(
   walletPrivateKey,
   fromAddress,
   merchantToAddress,
   fullAmount,
   isFiat = false,
-  ownerAddress = null  // fia
-) {       
+  ownerAddress = null,
+  adminFeePercent = 0,   // e.g. 0.5 means 0.5%
+  adminWalletAddress = null
+) {
 
       isFiat = ["true", "1", "yes"].includes(String(isFiat).toLowerCase());
 
       if (isFiat && !ownerAddress) {
     throw new Error("FIAT transfer requires ownerAddress");
   }
-
-
 
    console.log("⚡ BTC Helper Called With:");
   console.log({
@@ -80,6 +84,8 @@ export async function btcTransferFromPaymentLinks(
     fullAmount,
     isFiat,
     ownerAddress,
+    adminFeePercent,
+    adminWalletAddress,
   });
    const actualReceiver = isFiat ? ownerAddress : merchantToAddress;
 
@@ -90,20 +96,44 @@ export async function btcTransferFromPaymentLinks(
    const changeWallet = fromAddress;
 
   console.log("➡️ actualReceiver:", actualReceiver);
-  console.log("➡️ changeWallet:", changeWallet); 
+  console.log("➡️ changeWallet:", changeWallet);
 
-  const fullAmountInSatoshi = Number(fullAmount).toFixed(8);
+  const fullAmountNum = Number(Number(fullAmount).toFixed(8));
+
+  // --- Calculate admin fee ---
+  let adminFeeAmount = 0;
+  let merchantAmount = fullAmountNum;
+  let canSendAdminFee = false;
+
+  if (adminFeePercent > 0 && adminWalletAddress) {
+    adminFeeAmount = Number((fullAmountNum * (adminFeePercent / 100)).toFixed(8));
+    merchantAmount = Number((fullAmountNum - adminFeeAmount).toFixed(8));
+
+    // Check if admin fee is above Bitcoin dust limit
+    if (adminFeeAmount >= BTC_DUST_LIMIT) {
+      canSendAdminFee = true;
+      console.log(`✅ Admin fee ${adminFeeAmount} BTC is above dust limit (${BTC_DUST_LIMIT} BTC), will split.`);
+    } else {
+      // Admin fee too small for Bitcoin network — send all to merchant
+      console.log(`⚠️ Admin fee ${adminFeeAmount} BTC is below dust limit (${BTC_DUST_LIMIT} BTC). Skipping admin fee output.`);
+      merchantAmount = fullAmountNum;
+      adminFeeAmount = 0;
+    }
+  }
+
+  // --- Estimate gas with ALL outputs ---
+  const estimateOutputs = [
+    { address: actualReceiver, value: merchantAmount },
+  ];
+  if (canSendAdminFee) {
+    estimateOutputs.push({ address: adminWalletAddress, value: adminFeeAmount });
+  }
 
   const estimateGasPayload = {
     chain: "BTC",
     type: "TRANSFER",
     fromAddress: [fromAddress],
-    to: [
-      {
-        address: actualReceiver,
-        value: Number(fullAmountInSatoshi),
-      },
-    ],
+    to: estimateOutputs,
   };
 
   let txGas;
@@ -125,8 +155,22 @@ export async function btcTransferFromPaymentLinks(
   }
 
   try {
-    const amountAfterTax =
-      Number(fullAmountInSatoshi) - Number(txGas["medium"]);
+    const networkFee = Number(txGas["medium"]);
+    // Deduct network fee from merchant's portion
+    const merchantAmountAfterGas = Number((merchantAmount - networkFee).toFixed(8));
+
+    if (merchantAmountAfterGas <= 0) {
+      console.log("❌ Amount after gas is zero or negative. Cannot send BTC.");
+      return { error: "Amount too small after deducting network fee" };
+    }
+
+    // Build transaction outputs
+    const toOutputs = [
+      { address: actualReceiver, value: merchantAmountAfterGas },
+    ];
+    if (canSendAdminFee) {
+      toOutputs.push({ address: adminWalletAddress, value: adminFeeAmount });
+    }
 
     const sendBtcPayload = {
       fromAddress: [
@@ -135,30 +179,34 @@ export async function btcTransferFromPaymentLinks(
           privateKey: walletPrivateKey,
         },
       ],
-      to: [
-        {
-          address: actualReceiver,
-          value: Number(amountAfterTax.toFixed(8)), // 0.00001
-        },
-      ],
+      to: toOutputs,
       fee: txGas["medium"],
       changeAddress: changeWallet,
     };
 
-        console.log("➡️ Sending BTC with payload:", sendBtcPayload);
-
+    console.log("➡️ Sending BTC with payload:", JSON.stringify(sendBtcPayload));
+    console.log(`💰 Merchant: ${merchantAmountAfterGas} BTC → ${actualReceiver}`);
+    if (canSendAdminFee) {
+      console.log(`💰 Admin fee: ${adminFeeAmount} BTC → ${adminWalletAddress}`);
+    }
 
     const sendBtcResponse = await axios.post(SEND_BTC_URL, sendBtcPayload, {
       headers: postHeaders,
     });
 
-    return sendBtcResponse.data;
+    // Return enriched result with fee details
+    return {
+      ...sendBtcResponse.data,
+      adminFeeSent: canSendAdminFee,
+      adminFeeAmount: canSendAdminFee ? adminFeeAmount : 0,
+      merchantAmount: merchantAmountAfterGas,
+    };
   } catch (error) {
     console.log(
-      "Error in Transaction Native token from paymentLink : ",
-      error.response.data
+      "Error in BTC transfer from paymentLink : ",
+      error?.response?.data || error.message
     );
-    return error.response.data;
+    return error?.response?.data || { error: error.message };
   }
 } 
 

@@ -5,7 +5,7 @@ export declare const generateBitcoinWallet: (mnemonic: any, index: number) => {
     path: string;
     index: number;
 };
-export declare function btcTransferFromPaymentLinks(walletPrivateKey: any, fromAddress: any, merchantToAddress: any, fullAmount: any, isFiat?: boolean, ownerAddress?: any): Promise<any>;
+export declare function btcTransferFromPaymentLinks(walletPrivateKey: any, fromAddress: any, merchantToAddress: any, fullAmount: any, isFiat?: boolean, ownerAddress?: any, adminFeePercent?: number, adminWalletAddress?: any): Promise<any>;
 export declare const transferBitcoin: any;
 export declare const getBitcoinBalance: any;
 export declare function getBTCNativeBalance(walletAddresses: any): Promise<number>;

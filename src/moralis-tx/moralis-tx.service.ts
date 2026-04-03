@@ -1835,6 +1835,24 @@ export class TransactionService {
         },
       ]);
 
+      if (!selectedBTCPaymentLinks || selectedBTCPaymentLinks.length === 0) {
+        return [];
+      }
+
+      // Fetch admin platform fee details (BTC-specific)
+      let btcAdminFeePercent = 0;
+      let btcAdminWallet = null;
+      try {
+        const feeDetails = await this.adminService.getPlatformFee();
+        if (feeDetails && !(feeDetails instanceof NotFoundException)) {
+          btcAdminFeePercent = parseFloat(String(feeDetails.data.btcMerchantFee)) || 0;
+          btcAdminWallet = feeDetails.data.btcAdminWallet || null;
+          console.log(`[BTC Withdraw] Admin fee: ${btcAdminFeePercent}%, Admin wallet: ${btcAdminWallet}`);
+        }
+      } catch (feeError) {
+        console.log("[BTC Withdraw] Warning: Could not fetch platform fee, proceeding without admin fee split:", feeError.message);
+      }
+
       let partialSuccessWalletId = [];
 
       // Process each payment link synchronously
@@ -1842,7 +1860,6 @@ export class TransactionService {
         partialSuccessWalletId.push(wallet?._id);
         const senderWalletAddress = wallet?.toAddress;
         const fullAmount = wallet?.recivedAmount;
-        // const receiverAddress = wallet?.appDetail?.BtcWalletMnemonic?.address;
 
         const isFiat = wallet?.transactionType?.toUpperCase?.() === "FIAT";
         const receiverAddress = isFiat
@@ -1854,9 +1871,6 @@ export class TransactionService {
           "receiverAddress": receiverAddress
         });
 
-        console.log("VISHAL just abhi maine change kiya hai address dekh len bhia ---------------> ", receiverAddress);
-
-
         const privateKey = this.encryptionService.decryptData(
           wallet?.privateKey
         );
@@ -1866,10 +1880,9 @@ export class TransactionService {
           console.log("Sender Wallet: ", senderWalletAddress);
           console.log("Receiver Wallet: ", receiverAddress);
           console.log("Full Amount: ", fullAmount);
-          console.log("PrivateKey (decrypted): ", privateKey);
-          console.log("is Fiat", isFiat);
-          console.log("BTC_OWNER_ADDRES", ConfigService.keys.BTC_OWNER_ADDRESS);
-
+          console.log("is Fiat:", isFiat);
+          console.log("Admin Fee %:", btcAdminFeePercent);
+          console.log("Admin Wallet:", btcAdminWallet);
 
           const tx = await btcTransferFromPaymentLinks(
             privateKey,
@@ -1877,14 +1890,33 @@ export class TransactionService {
             receiverAddress,
             fullAmount,
             isFiat,
-            ConfigService.keys.BTC_OWNER_ADDRESS
+            ConfigService.keys.BTC_OWNER_ADDRESS,
+            btcAdminFeePercent,
+            btcAdminWallet
           );
-          if (tx.txId) {
-            // Update payment link model
-            await this.updatePaymentLinkModel(wallet?._id, {
+
+          if (tx?.txId) {
+            // Build update object with fee details
+            const updateFields: any = {
               withdrawStatus: WithdrawPaymentStatus.SUCCESS,
               status: PaymentStatus.SUCCESS,
-            });
+            };
+
+            // Record admin fee details if fee was sent
+            if (tx.adminFeeSent && tx.adminFeeAmount > 0) {
+              updateFields.adminFee = tx.adminFeeAmount;
+              updateFields.adminFeeWallet = btcAdminWallet;
+              updateFields.amountAfterTax = tx.merchantAmount;
+              console.log(`✅ BTC Admin fee recorded: ${tx.adminFeeAmount} BTC → ${btcAdminWallet}`);
+            } else {
+              updateFields.amountAfterTax = tx.merchantAmount || fullAmount;
+              if (btcAdminFeePercent > 0) {
+                console.log(`⚠️ BTC Admin fee was below dust limit. Full amount sent to merchant/owner.`);
+              }
+            }
+
+            // Update payment link model
+            await this.updatePaymentLinkModel(wallet?._id, updateFields);
 
             // Trigger webhook for BTC payment success
             const paymentLink = await this.paymentLinkModel.findById(wallet?._id);
@@ -1899,18 +1931,16 @@ export class TransactionService {
           }
         } catch (error) {
           console.log(
-            "Error in evm native transafer from payment link 999: ",
+            "Error in BTC transfer from payment link: ",
             error.message
           );
         }
       }
 
       return partialSuccessWalletId;
-
-      // Withdraw funds from the payment links
     } catch (error) {
       console.log(
-        "An error occurred in withdrawPaymentFromLinksAndUpdateStatus : ",
+        "An error occurred in withdrawBTCPaymentFromLinksAndUpdateStatus: ",
         error
       );
     }
