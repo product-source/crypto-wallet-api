@@ -182,6 +182,7 @@ let WebhookService = WebhookService_1 = class WebhookService {
                     "Content-Type": "application/json",
                     "X-Webhook-Signature": webhookLog.payload.signature,
                     "X-Webhook-Event": webhookLog.event,
+                    "X-Webhook-Env": process.env.NETWORK_MODE === 'testnet' ? 'testnet' : 'mainnet',
                 },
                 timeout: 10000,
             });

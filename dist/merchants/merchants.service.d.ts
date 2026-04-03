@@ -71,8 +71,8 @@ export declare class MerchantsService {
         };
     }>;
     generateKeys(): Promise<{
-        publicKey: any;
-        privateKey: any;
+        publicKey: string;
+        privateKey: string;
         encryptedPublicKey: string;
         encryptedPrivateKey: string;
         decryptedPublicKey: string;

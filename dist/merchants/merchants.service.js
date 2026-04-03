@@ -461,8 +461,10 @@ let MerchantsService = class MerchantsService {
     }
     async generateKeys() {
         try {
-            const publicKey = crypto.randomBytes(48).toString("base64url");
-            const privateKey = crypto.randomBytes(48).toString("base64url");
+            const pkPrefix = process.env.NETWORK_MODE === 'testnet' ? 'test_pk_' : 'live_pk_';
+            const skPrefix = process.env.NETWORK_MODE === 'testnet' ? 'test_sk_' : 'live_sk_';
+            const publicKey = pkPrefix + crypto.randomBytes(48).toString("base64url");
+            const privateKey = skPrefix + crypto.randomBytes(48).toString("base64url");
             if (publicKey === privateKey) {
                 throw new common_1.NotAcceptableException("Both keys are same");
             }
