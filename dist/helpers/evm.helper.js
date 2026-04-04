@@ -162,11 +162,25 @@ async function getERC20TxFee(chainId, senderAddress, receiverAddress, contractAd
             adminAmount = merchantAmount - adminChargeAmount;
             merchantAmount = merchantAmount - adminAmount;
             adminAmount = web3.utils.toWei(adminAmount.toString(), getDecimalUnit(decimal));
-            adminGas = await contract.methods
-                .transfer(adminPaymentLinksChargesWallet, adminAmount.toString())
-                .estimateGas({
-                from: senderAddress,
-            });
+            const MIN_FEE_WEI = {
+                [constants_1.ETH_CHAIN_ID]: BigInt("1000000000000000"),
+                [constants_1.BNB_CHAIN_ID]: BigInt("2000000000000000"),
+                [constants_1.POLYGON_CHAIN_ID]: BigInt("10000000000000000"),
+            };
+            const minFeeWei = MIN_FEE_WEI[chainId.toString()] || BigInt("1000000000000000");
+            if (BigInt(adminAmount.toString()) < minFeeWei) {
+                console.log(`[getERC20TxFee] ⏭️ SKIPPING dust admin fee gas estimation: ${adminAmount.toString()} wei (threshold: ${minFeeWei.toString()})`);
+                adminAmount = 0;
+                adminGas = 0;
+                merchantAmount = amount;
+            }
+            else {
+                adminGas = await contract.methods
+                    .transfer(adminPaymentLinksChargesWallet, adminAmount.toString())
+                    .estimateGas({
+                    from: senderAddress,
+                });
+            }
         }
         merchantAmount = web3.utils.toWei(merchantAmount.toString(), getDecimalUnit(decimal));
         merchantGas = await contract.methods
@@ -243,19 +257,33 @@ async function evmERC20TokenTransfer(chainId, paymentLinkPrivateKey, txCost, tok
             adminAmountCharge =
                 parseFloat(AMOUNT_IN_WEI) / (1 + adminPaymentLinksCharges / 100);
             adminAmountInWei = BigInt(AMOUNT_IN_WEI) - BigInt(Math.floor(adminAmountCharge));
-            merchantRemainingAmountInWei =
-                BigInt(AMOUNT_IN_WEI) - BigInt(adminAmountInWei);
-            const adminTx = {
-                from: senderAddress,
-                to: tokenContractAddress,
-                gasPrice: txCost.gasPrice,
-                gas: txCost.adminGas,
-                data: contract.methods
-                    .transfer(adminPaymentLinksChargesWallet, adminAmountInWei.toString())
-                    .encodeABI(),
+            const MIN_ADMIN_WEI = {
+                [constants_1.ETH_CHAIN_ID]: BigInt("1000000000000000"),
+                [constants_1.BNB_CHAIN_ID]: BigInt("2000000000000000"),
+                [constants_1.POLYGON_CHAIN_ID]: BigInt("10000000000000000"),
             };
-            const signedTx1 = await web3.eth.accounts.signTransaction(adminTx, paymentLinkPrivateKey);
-            receipt1 = await web3.eth.sendSignedTransaction(signedTx1.rawTransaction);
+            const minWei = MIN_ADMIN_WEI[chainId.toString()] || BigInt("1000000000000000");
+            if (adminAmountInWei < minWei) {
+                console.log(`[Deposit Fee] ⏭️ SKIPPING dust admin fee: ${adminAmountInWei.toString()} wei ` +
+                    `(threshold: ${minWei.toString()} wei). Giving full amount to merchant.`);
+                adminAmountInWei = BigInt(0);
+                merchantRemainingAmountInWei = BigInt(AMOUNT_IN_WEI);
+            }
+            else {
+                merchantRemainingAmountInWei =
+                    BigInt(AMOUNT_IN_WEI) - BigInt(adminAmountInWei);
+                const adminTx = {
+                    from: senderAddress,
+                    to: tokenContractAddress,
+                    gasPrice: txCost.gasPrice,
+                    gas: txCost.adminGas,
+                    data: contract.methods
+                        .transfer(adminPaymentLinksChargesWallet, adminAmountInWei.toString())
+                        .encodeABI(),
+                };
+                const signedTx1 = await web3.eth.accounts.signTransaction(adminTx, paymentLinkPrivateKey);
+                receipt1 = await web3.eth.sendSignedTransaction(signedTx1.rawTransaction);
+            }
         }
         const currentNonce = await web3.eth.getTransactionCount(senderAddress, "pending");
         const merchantTx = {
@@ -347,6 +375,20 @@ async function evmNativeTokenTransferFromPaymentLinks(chainId, paymentLinkPrivat
         (txCost?.adminGas + txCost?.merchantGas) * txCost?.gasPrice;
     console.log("ADMIn and merchant : ", txCost?.adminGas, txCost?.merchantGas, txCost?.gasPrice, merchantValueAfterGas);
     try {
+        const MIN_NATIVE_ADMIN_WEI = {
+            [constants_1.ETH_CHAIN_ID]: 1e15,
+            [constants_1.BNB_CHAIN_ID]: 2e15,
+            [constants_1.POLYGON_CHAIN_ID]: 1e16,
+        };
+        const minNativeWei = MIN_NATIVE_ADMIN_WEI[chainId.toString()] || 1e15;
+        if (adminAmount > 0 &&
+            adminAmount < minNativeWei &&
+            currentWithdrawStatus !== payment_enum_1.WithdrawPaymentStatus.ADMIN_CHARGES) {
+            console.log(`[Deposit Fee] ⏭️ SKIPPING dust native admin fee: ${adminAmount} wei ` +
+                `(threshold: ${minNativeWei} wei). Giving full amount to merchant.`);
+            merchantAmount = merchantAmount + adminAmount;
+            adminAmount = 0;
+        }
         if (adminAmount > 0 &&
             currentWithdrawStatus !== payment_enum_1.WithdrawPaymentStatus.ADMIN_CHARGES) {
             console.log("also transfer admin fee --------------------------------------------------------");
@@ -577,6 +619,42 @@ async function merchantEvmFundWithdraw(chainId, privateKey, tokenContractAddress
             let path = [tokenContractAddress, swapTokenAddress];
             const isNativeSwap = path[0].toLowerCase() === constants_1.NATIVE.toLowerCase() ||
                 path[1].toLowerCase() === constants_1.NATIVE.toLowerCase();
+            const MIN_GAS_FOR_SWAP = BigInt(gasPrice) * BigInt(500000) * BigInt(3);
+            if (BigInt(NATIVE_BALANCE) < MIN_GAS_FOR_SWAP) {
+                console.log(`[Withdrawal Gas] Merchant wallet ${ACCOUNT.address} has insufficient native gas for swap on chain ${chainId}. ` +
+                    `Has: ${NATIVE_BALANCE}, Needs: ~${MIN_GAS_FOR_SWAP.toString()}. Auto-funding from admin wallet...`);
+                try {
+                    const adminWalletPrivateKey = config_service_1.ConfigService.keys.ADMIN_WALLET_PRIVATE_KEY;
+                    if (adminWalletPrivateKey) {
+                        const adminAccount = web3.eth.accounts.privateKeyToAccount(adminWalletPrivateKey);
+                        web3.eth.accounts.wallet.add(adminAccount);
+                        const deficit = MIN_GAS_FOR_SWAP - BigInt(NATIVE_BALANCE);
+                        const adminGasPrice = await web3.eth.getGasPrice();
+                        const adminGasLimit = await web3.eth.estimateGas({
+                            from: adminAccount.address,
+                            to: ACCOUNT.address,
+                            value: deficit.toString(),
+                        });
+                        const adminTx = {
+                            from: adminAccount.address,
+                            to: ACCOUNT.address,
+                            value: deficit.toString(),
+                            gas: adminGasLimit,
+                            gasPrice: adminGasPrice,
+                        };
+                        const adminSignedTx = await web3.eth.accounts.signTransaction(adminTx, adminWalletPrivateKey);
+                        const adminReceipt = await web3.eth.sendSignedTransaction(adminSignedTx.rawTransaction);
+                        console.log(`[Withdrawal Gas] ✅ Auto-funded ${web3.utils.fromWei(deficit.toString(), "ether")} native gas for swap to ${ACCOUNT.address} | TX: ${adminReceipt.transactionHash}`);
+                    }
+                    else {
+                        console.error("[Withdrawal Gas] ADMIN_WALLET_PRIVATE_KEY not configured.");
+                    }
+                }
+                catch (gasError) {
+                    console.error("[Withdrawal Gas] ❌ Failed to auto-fund gas for swap:", gasError?.message || gasError);
+                    return { error: `Insufficient native gas for swap and auto-funding failed: ${gasError?.message}`, status: false, data: null };
+                }
+            }
             const Tokens = getSwapContractAddresses(chainId);
             const tokenContract = new web3.eth.Contract(tokenAbi_service_1.tokenABI, path[0]);
             const approvedAmount = await tokenContract.methods
@@ -696,6 +774,47 @@ async function merchantEvmFundWithdraw(chainId, privateKey, tokenContractAddress
                     .estimateGas({
                     from: ACCOUNT.address,
                 });
+                const gasCost = BigInt(gas) * BigInt(gasPrice);
+                const gasBuffer = gasCost * BigInt(3);
+                if (BigInt(NATIVE_BALANCE) < gasBuffer) {
+                    console.log(`[Withdrawal Gas] Merchant wallet ${ACCOUNT.address} has insufficient native gas on chain ${chainId}. ` +
+                        `Has: ${NATIVE_BALANCE}, Needs: ${gasBuffer.toString()}. Auto-funding from admin wallet...`);
+                    try {
+                        const adminWalletPrivateKey = config_service_1.ConfigService.keys.ADMIN_WALLET_PRIVATE_KEY;
+                        if (!adminWalletPrivateKey) {
+                            console.error("[Withdrawal Gas] ADMIN_WALLET_PRIVATE_KEY not configured. Cannot auto-fund gas.");
+                        }
+                        else {
+                            const adminAccount = web3.eth.accounts.privateKeyToAccount(adminWalletPrivateKey);
+                            web3.eth.accounts.wallet.add(adminAccount);
+                            const deficit = gasBuffer - BigInt(NATIVE_BALANCE);
+                            const adminGasPrice = await web3.eth.getGasPrice();
+                            const adminGasLimit = await web3.eth.estimateGas({
+                                from: adminAccount.address,
+                                to: ACCOUNT.address,
+                                value: deficit.toString(),
+                            });
+                            const adminTx = {
+                                from: adminAccount.address,
+                                to: ACCOUNT.address,
+                                value: deficit.toString(),
+                                gas: adminGasLimit,
+                                gasPrice: adminGasPrice,
+                            };
+                            const adminSignedTx = await web3.eth.accounts.signTransaction(adminTx, adminWalletPrivateKey);
+                            const adminReceipt = await web3.eth.sendSignedTransaction(adminSignedTx.rawTransaction);
+                            console.log(`[Withdrawal Gas] ✅ Auto-funded ${web3.utils.fromWei(deficit.toString(), "ether")} native gas to ${ACCOUNT.address} | TX: ${adminReceipt.transactionHash}`);
+                        }
+                    }
+                    catch (gasError) {
+                        console.error("[Withdrawal Gas] ❌ Failed to auto-fund gas:", gasError?.message || gasError);
+                        return {
+                            error: `Insufficient native gas for withdrawal and auto-funding failed: ${gasError?.message}`,
+                            status: false,
+                            data: null,
+                        };
+                    }
+                }
                 const nonce = await web3.eth.getTransactionCount(ACCOUNT.address);
                 const tx = {
                     from: ACCOUNT.address,

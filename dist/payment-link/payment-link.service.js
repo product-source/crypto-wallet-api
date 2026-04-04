@@ -107,8 +107,8 @@ let PaymentLinkService = class PaymentLinkService {
             if (!token) {
                 throw new common_1.NotFoundException("Invalid token code");
             }
-            if (token.minDeposit > parseFloat(amount)) {
-                throw new common_1.NotFoundException(`For ${token?.network} network ${token?.code} min deposit value is ${token?.minDeposit}`);
+            if (transactionType === payment_enum_1.TransactionType.CRYPTO && token.minDeposit > parseFloat(amount)) {
+                throw new common_1.NotFoundException(`For ${token?.network} network ${token?.code} min deposit value is ${token?.minDeposit} ${token?.symbol}`);
             }
             const publicKey = this.encryptionService.decryptData(app?.API_KEY);
             const privateKey = this.encryptionService.decryptData(app?.SECRET_KEY);
@@ -157,6 +157,12 @@ let PaymentLinkService = class PaymentLinkService {
                         fiatUsd = cryptoUsd;
                     }
                     console.log("fiatUsd", fiatUsd);
+                }
+            }
+            if (transactionType === payment_enum_1.TransactionType.FIAT && cryptoAmount !== null) {
+                if (token.minDeposit > cryptoAmount) {
+                    throw new common_1.NotFoundException(`For ${token?.network} network ${token?.code} min deposit value is ${token?.minDeposit} ${token?.symbol}. ` +
+                        `Your ${fiatCurrency} ${amount} converts to ${cryptoAmount.toFixed(token?.decimal || 8)} ${token?.symbol} which is below the minimum.`);
                 }
             }
             const model = await new this.paymentLinkModel();

@@ -178,10 +178,10 @@ export class PaymentLinkService {
         throw new NotFoundException("Invalid token code");
       }
 
-      if (token.minDeposit > parseFloat(amount)) {
+      // ── minDeposit check for CRYPTO transactions (amount is already in crypto units) ──
+      if (transactionType === TransactionType.CRYPTO && token.minDeposit > parseFloat(amount)) {
         throw new NotFoundException(
-          `For ${token?.network} network ${token?.code
-          } min deposit value is ${token?.minDeposit}`
+          `For ${token?.network} network ${token?.code} min deposit value is ${token?.minDeposit} ${token?.symbol}`
         );
       }
 
@@ -260,6 +260,17 @@ export class PaymentLinkService {
           console.log("fiatUsd", fiatUsd);
         }
       }
+
+      // ── minDeposit check for FIAT transactions (compare converted crypto amount) ──
+      if (transactionType === TransactionType.FIAT && cryptoAmount !== null) {
+        if (token.minDeposit > cryptoAmount) {
+          throw new NotFoundException(
+            `For ${token?.network} network ${token?.code} min deposit value is ${token?.minDeposit} ${token?.symbol}. ` +
+            `Your ${fiatCurrency} ${amount} converts to ${cryptoAmount.toFixed(token?.decimal || 8)} ${token?.symbol} which is below the minimum.`
+          );
+        }
+      }
+
       const model = await new this.paymentLinkModel();
       model.appId = appId;
       model.code = code;

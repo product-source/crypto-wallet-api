@@ -280,44 +280,49 @@ export class UserWithdrawalService {
                     return { sufficient: false, balance: "0", required: amount };
                 }
             } else if (chainId === "BTC") {
-                // BTC balance check using Tatum API
-                try {
-                    const axios = require("axios");
-                    const { ConfigService } = require("src/config/config.service");
+                // BTC balance check using Tatum API (with retry)
+                const axios = require("axios");
+                const { ConfigService } = require("src/config/config.service");
 
-                    const tatumApiKey = ConfigService.keys.TATUM_X_API_KEY;
-                    const tatumNetwork = ConfigService.keys.TATUM_NETWORK || "bitcoin-testnet";
+                const tatumApiKey = ConfigService.keys.TATUM_X_API_KEY;
+                const tatumNetwork = ConfigService.keys.TATUM_NETWORK || "bitcoin-testnet";
+                const baseUrl = "https://api.tatum.io/v3/bitcoin";
 
-                    // Tatum API base URL depends on network
-                    const baseUrl = tatumNetwork === "bitcoin-mainnet"
-                        ? "https://api.tatum.io/v3/bitcoin"
-                        : "https://api.tatum.io/v3/bitcoin";
+                console.log(`BTC Balance Check via Tatum - Address: ${walletAddress}, Network: ${tatumNetwork}`);
 
-                    console.log(`BTC Balance Check via Tatum - Address: ${walletAddress}, Network: ${tatumNetwork}`);
+                let btcCheckSuccess = false;
+                for (let attempt = 1; attempt <= 3; attempt++) {
+                    try {
+                        const response = await axios.get(
+                            `${baseUrl}/address/balance/${walletAddress}`,
+                            {
+                                headers: { "x-api-key": tatumApiKey },
+                                timeout: 10000,
+                            }
+                        );
 
-                    // Get balance using Tatum API
-                    const response = await axios.get(
-                        `${baseUrl}/address/balance/${walletAddress}`,
-                        {
-                            headers: {
-                                "x-api-key": tatumApiKey,
-                            },
-                            timeout: 10000,
+                        if (response.data) {
+                            const incoming = parseFloat(response.data.incoming || "0");
+                            const outgoing = parseFloat(response.data.outgoing || "0");
+                            balanceNum = incoming - outgoing;
+                            console.log(`BTC Balance: ${balanceNum} BTC (incoming: ${incoming}, outgoing: ${outgoing})`);
+                            btcCheckSuccess = true;
+                            break;
+                        } else {
+                            balanceNum = 0;
+                            btcCheckSuccess = true;
+                            break;
                         }
-                    );
-
-                    // Tatum returns balance in BTC directly
-                    // Response: { incoming: "0.001", outgoing: "0" }
-                    if (response.data) {
-                        const incoming = parseFloat(response.data.incoming || "0");
-                        const outgoing = parseFloat(response.data.outgoing || "0");
-                        balanceNum = incoming - outgoing;
-                        console.log(`BTC Balance: ${balanceNum} BTC (incoming: ${incoming}, outgoing: ${outgoing})`);
-                    } else {
-                        balanceNum = 0;
+                    } catch (e) {
+                        console.error(`BTC balance check attempt ${attempt}/3 failed:`, e?.response?.data || e?.message || e);
+                        if (attempt < 3) {
+                            await new Promise(r => setTimeout(r, 2000)); // Wait 2s before retry
+                        }
                     }
-                } catch (e) {
-                    console.error("Error checking BTC balance via Tatum:", e?.response?.data || e?.message || e);
+                }
+
+                if (!btcCheckSuccess) {
+                    console.error("BTC balance check failed after 3 attempts. Defaulting to insufficient.");
                     return { sufficient: false, balance: "0", required: amount };
                 }
             } else {
@@ -921,7 +926,30 @@ export class UserWithdrawalService {
 
                     const adminFeeAmount = (parseFloat(withdrawal.amount) * feePercent) / 100;
 
-                    if (adminFeeAmount > 0 && adminWalletAddress) {
+                    // ── Dust-Skip: Skip admin fee if amount is too small (gas > fee value) ──
+                    // Minimum admin fee thresholds per chain (in token units)
+                    const MIN_ADMIN_FEE: Record<string, number> = {
+                        "1": 0.001,       // ETH: ~$2.50 (gas for ERC20 transfer ~$1-3)
+                        "56": 0.002,      // BNB: ~$1.20 (gas ~$0.05-0.15)
+                        "137": 0.01,      // POL: ~$0.003 (gas very cheap, but keep sensible min)
+                        "TRON": 1,        // TRX: 1 TRX (~$0.10, but energy cost ~3-7 TRX)
+                        "BTC": 0.00001,   // BTC: ~$0.66 (miner fee ~$0.10-0.50)
+                    };
+                    // For tokens (USDT/USDC), use USD-equivalent thresholds
+                    const isStablecoin = ["USDT", "USDC", "DAI", "BUSD", "TUSD"].includes(token.symbol?.toUpperCase());
+                    const minFee = isStablecoin
+                        ? (chainId === "1" ? 3 : chainId === "TRON" ? 5 : 0.5) // USD thresholds
+                        : (MIN_ADMIN_FEE[chainId] || 0.001);
+
+                    if (adminFeeAmount > 0 && adminFeeAmount < minFee) {
+                        console.log(
+                            `[Withdrawal Fee] ⏭️ SKIPPING dust admin fee: ${adminFeeAmount.toFixed(token.decimal)} ${token.symbol} ` +
+                            `(threshold: ${minFee} ${isStablecoin ? 'USD' : token.symbol}). Gas would exceed fee value.`
+                        );
+                        withdrawal.adminFee = adminFeeAmount.toFixed(token.decimal);
+                        withdrawal.adminFeePercent = feePercent;
+                        withdrawal.adminFeeTxHash = "SKIPPED_DUST";
+                    } else if (adminFeeAmount > 0 && adminWalletAddress) {
                         console.log(`[Withdrawal Fee] Transferring ${adminFeeAmount.toFixed(token.decimal)} ${token.symbol} (${feePercent}%) to admin wallet ${adminWalletAddress}`);
 
                         let adminReceipt: any;

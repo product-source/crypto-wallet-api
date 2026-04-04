@@ -1106,8 +1106,21 @@ export class TransactionService {
           const adminAddress = adminData[0]?.tronAdminWallet;
           const adminCharges = adminData[0]?.tronPlatformFee;
           const adminPvtKey = ConfigService.keys.TRON_ADMIN_PRIVATE_KEY;
-          const merchantAmount = Number(totalAmount / (1 + adminCharges / 100));
-          const adminAmount = Number(totalAmount - merchantAmount);
+          let merchantAmount = Number(totalAmount / (1 + adminCharges / 100));
+          let adminAmount = Number(totalAmount - merchantAmount);
+
+          // ── Dust-Skip for TRON deposit admin fee ──
+          // For native TRX: min 1 TRX; for TRC-20 stablecoins: min 5 USDT/USDC; for other TRC-20: min 1 token unit
+          const isStablecoinTron = ["USDT", "USDC"].includes(link?.tokenSymbol?.toUpperCase());
+          const minTronAdminFee = isStablecoinTron ? 5 : 1; // 5 USDT/USDC or 1 TRX/token
+          if (adminAmount > 0 && adminAmount < minTronAdminFee) {
+            console.log(
+              `[TRON Deposit Fee] ⏭️ SKIPPING dust admin fee: ${adminAmount.toFixed(6)} ${link?.tokenSymbol || 'TRX'} ` +
+              `(threshold: ${minTronAdminFee}). Giving full amount to merchant.`
+            );
+            merchantAmount = totalAmount;
+            adminAmount = 0;
+          }
 
           if (link?.tokenAddress === NATIVE) {
             let transferTronToMerchant;
@@ -1147,27 +1160,37 @@ export class TransactionService {
             }
 
             if (status.withdrawStatus !== WithdrawPaymentStatus.ADMIN_CHARGES) {
-              console.log("324", status.withdrawStatus);
-              transferTronToAdmin = await transferTron(
-                decryptedPrivateKey,
-                NATIVE,
-                adminAddress,
-                adminAmount,
-                decimals
-              );
-              console.log(
-                "transferTronToAdmin.result",
-                transferTronToAdmin.result
-              );
-              if (transferTronToAdmin.result) {
-                status.adminFee = adminAmount.toFixed(6);
-                status.adminFeeWallet = adminAddress;
-                status.withdrawStatus = WithdrawPaymentStatus.ADMIN_CHARGES;
-              }
-              if (transferTronToAdmin.result && transferTronToMerchant.result) {
-                status.amountAfterTax = merchantAmount.toFixed(6);
-                status.withdrawStatus = WithdrawPaymentStatus.SUCCESS;
-                status.status = PaymentStatus.SUCCESS;
+              // If admin fee is 0, skip admin transfer and go straight to SUCCESS
+              if (adminAmount <= 0) {
+                console.log("[TRON Deposit] Admin fee is 0, skipping admin transfer.");
+                if (transferTronToMerchant?.result) {
+                  status.amountAfterTax = merchantAmount.toFixed(6);
+                  status.withdrawStatus = WithdrawPaymentStatus.SUCCESS;
+                  status.status = PaymentStatus.SUCCESS;
+                }
+              } else {
+                console.log("324", status.withdrawStatus);
+                transferTronToAdmin = await transferTron(
+                  decryptedPrivateKey,
+                  NATIVE,
+                  adminAddress,
+                  adminAmount,
+                  decimals
+                );
+                console.log(
+                  "transferTronToAdmin.result",
+                  transferTronToAdmin.result
+                );
+                if (transferTronToAdmin.result) {
+                  status.adminFee = adminAmount.toFixed(6);
+                  status.adminFeeWallet = adminAddress;
+                  status.withdrawStatus = WithdrawPaymentStatus.ADMIN_CHARGES;
+                }
+                if (transferTronToAdmin.result && transferTronToMerchant.result) {
+                  status.amountAfterTax = merchantAmount.toFixed(6);
+                  status.withdrawStatus = WithdrawPaymentStatus.SUCCESS;
+                  status.status = PaymentStatus.SUCCESS;
+                }
               }
 
               const updatedLink = await this.paymentLinkModel.findOneAndUpdate(
@@ -1259,37 +1282,47 @@ export class TransactionService {
               }
             }
             //transferring TRC-20 P.L. balance to admin
-            if (
-              paymentLinkNativeBalance >= halfNativeTransactionAmount &&
-              status.withdrawStatus !== WithdrawPaymentStatus.ADMIN_CHARGES
-            ) {
-              transferTronToAdmin = await transferTron(
-                decryptedPrivateKey,
-                tokenContractAddress,
-                adminAddress,
-                Number(adminAmount.toFixed(6)),
-                decimals
-              );
+            if (adminAmount <= 0) {
+              // No admin fee — skip admin transfer, go to SUCCESS after merchant transfer
+              if (transferTronToMerchant?.length === 64) {
+                console.log("[TRON TRC-20 Deposit] Admin fee is 0, skipping admin transfer.");
+                status.amountAfterTax = merchantAmount.toFixed(6);
+                status.withdrawStatus = WithdrawPaymentStatus.SUCCESS;
+                status.status = PaymentStatus.SUCCESS;
+              }
+            } else {
+              if (
+                paymentLinkNativeBalance >= halfNativeTransactionAmount &&
+                status.withdrawStatus !== WithdrawPaymentStatus.ADMIN_CHARGES
+              ) {
+                transferTronToAdmin = await transferTron(
+                  decryptedPrivateKey,
+                  tokenContractAddress,
+                  adminAddress,
+                  Number(adminAmount.toFixed(6)),
+                  decimals
+                );
 
-              if (transferTronToAdmin.length === 64) {
+                if (transferTronToAdmin.length === 64) {
+                  paymentLinkNativeBalance =
+                    await getBalanceWithRetry(paymentLinkAddress);
+                  status.adminFee = adminAmount.toFixed(6);
+                  status.adminFeeWallet = adminAddress;
+                  status.withdrawStatus = WithdrawPaymentStatus.ADMIN_CHARGES;
+                }
+              }
+
+              //updating success status of payment links
+              if (
+                transferTronToMerchant?.length === 64 &&
+                transferTronToAdmin?.length === 64
+              ) {
+                status.amountAfterTax = merchantAmount.toFixed(6);
+                status.withdrawStatus = WithdrawPaymentStatus.SUCCESS;
+                status.status = PaymentStatus.SUCCESS;
                 paymentLinkNativeBalance =
                   await getBalanceWithRetry(paymentLinkAddress);
-                status.adminFee = adminAmount.toFixed(6);
-                status.adminFeeWallet = adminAddress;
-                status.withdrawStatus = WithdrawPaymentStatus.ADMIN_CHARGES;
               }
-            }
-
-            //updating success status of payment links
-            if (
-              transferTronToMerchant?.length === 64 &&
-              transferTronToAdmin?.length === 64
-            ) {
-              status.amountAfterTax = merchantAmount.toFixed(6);
-              status.withdrawStatus = WithdrawPaymentStatus.SUCCESS;
-              status.status = PaymentStatus.SUCCESS;
-              paymentLinkNativeBalance =
-                await getBalanceWithRetry(paymentLinkAddress);
             }
           }
 

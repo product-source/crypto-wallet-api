@@ -339,6 +339,56 @@ export const merchantTronFundWithdraw = async (
         };
       }
 
+      // ── Auto-Gas-Funding: Send TRX if merchant wallet has insufficient TRX for gas ──
+      const TRX_FEE_LIMIT = 15; // 15 TRX (matches feeLimit: 15000000 sun below)
+      const trxBalanceInTrx = TRON_BALANCE / 1e6; // Convert sun to TRX
+      if (trxBalanceInTrx < TRX_FEE_LIMIT) {
+        console.log(
+          `[Withdrawal Gas] TRON merchant wallet ${userAddress} has insufficient TRX. ` +
+          `Has: ${trxBalanceInTrx} TRX, Needs: ${TRX_FEE_LIMIT} TRX. Auto-funding from admin wallet...`
+        );
+        try {
+          const adminPvtKey = ConfigService.keys.TRON_ADMIN_PRIVATE_KEY;
+          if (!adminPvtKey) {
+            console.error("[Withdrawal Gas] TRON_ADMIN_PRIVATE_KEY not configured. Cannot auto-fund TRX gas.");
+          } else {
+            const adminAddress = TronWeb.address.fromPrivateKey(adminPvtKey) as string;
+            const fundAmount = TRX_FEE_LIMIT - trxBalanceInTrx + 1; // deficit + 1 TRX buffer
+            const fundAmountInSun = Math.ceil(fundAmount * 1e6);
+
+            const adminTronWeb = new TronWeb({
+              fullHost: fullHost,
+              privateKey: adminPvtKey,
+            });
+
+            const transaction = await adminTronWeb.transactionBuilder.sendTrx(
+              userAddress,
+              fundAmountInSun,
+              adminAddress
+            );
+            const signedTx = await adminTronWeb.trx.sign(transaction, adminPvtKey);
+            const receipt = await adminTronWeb.trx.sendRawTransaction(signedTx);
+
+            if (receipt?.result) {
+              console.log(
+                `[Withdrawal Gas] ✅ Auto-funded ${fundAmount.toFixed(2)} TRX to ${userAddress} | TX: ${receipt?.transaction?.txID}`
+              );
+              // Wait for the funding TX to be confirmed
+              await new Promise((resolve) => setTimeout(resolve, 3000));
+            } else {
+              console.error("[Withdrawal Gas] ❌ TRX funding transaction failed:", receipt);
+            }
+          }
+        } catch (gasError) {
+          console.error("[Withdrawal Gas] ❌ Failed to auto-fund TRX:", gasError?.message || gasError);
+          return {
+            error: `Insufficient TRX gas for withdrawal and auto-funding failed: ${gasError?.message}`,
+            status: false,
+            data: null,
+          };
+        }
+      }
+
       // Execute the transfer method (this is an async call)
       const receipt = await contract.methods
         .transfer(receiverAddress, AMOUNT_IN_WEI)
