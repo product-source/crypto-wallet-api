@@ -55,16 +55,16 @@ let UserWithdrawalService = class UserWithdrawalService {
         }
         const app = await this.appsModel.findById(appId).populate('merchantId');
         if (!app) {
-            throw new common_1.NotFoundException("Invalid App ID");
+            throw new common_1.UnauthorizedException("Invalid App ID");
         }
         try {
             const storedApiKey = this.encryptionService.decryptData(app.API_KEY);
             const storedSecretKey = this.encryptionService.decryptData(app.SECRET_KEY);
             if (apiKey !== storedApiKey) {
-                throw new common_1.BadRequestException("Invalid API Key");
+                throw new common_1.UnauthorizedException("Invalid API Key");
             }
             if (secretKey !== storedSecretKey) {
-                throw new common_1.BadRequestException("Invalid Secret Key");
+                throw new common_1.UnauthorizedException("Invalid Secret Key");
             }
             const merchantData = app.merchantId;
             if (merchantData?.isIPWhitelistEnabled && merchantData?.whitelistedIPs?.length > 0 && clientIp) {
@@ -269,7 +269,7 @@ let UserWithdrawalService = class UserWithdrawalService {
             if (!foundApp) {
                 foundApp = await this.appsModel.findById(appId);
                 if (!foundApp) {
-                    throw new common_1.NotFoundException("App not found");
+                    throw new common_1.UnauthorizedException("App not found or invalid App ID");
                 }
             }
             if (!foundApp.isUserWithdrawalEnabled) {
@@ -277,7 +277,7 @@ let UserWithdrawalService = class UserWithdrawalService {
             }
             const token = await this.tokenModel.findOne({ code });
             if (!token) {
-                throw new common_1.NotFoundException(`Token with code ${code} not found`);
+                throw new common_1.BadRequestException(`Token with code ${code} not found`);
             }
             let cryptoAmountVal = parseFloat(amount);
             let pricePerCoinVal = null;
@@ -346,6 +346,9 @@ let UserWithdrawalService = class UserWithdrawalService {
                 catch (e) {
                     cryptoUsdVal = cryptoAmountVal;
                 }
+            }
+            if (token.minWithdraw && cryptoAmountVal < token.minWithdraw) {
+                throw new common_1.BadRequestException(`Minimum withdrawal amount for ${token.symbol} is ${token.minWithdraw} ${token.symbol}`);
             }
             const amountNum = cryptoAmountVal;
             const amountInUsd = cryptoUsdVal || amountNum;

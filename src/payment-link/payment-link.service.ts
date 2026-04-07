@@ -5,6 +5,7 @@ import {
   Injectable,
   NotAcceptableException,
   NotFoundException,
+  UnauthorizedException,
 } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { PaymentLink, PaymentLinkDocument } from "./schema/payment-link.schema";
@@ -131,7 +132,7 @@ export class PaymentLinkService {
       // ---------------------- transactionType VALIDATION ----------------------
       if (transactionType === TransactionType.FIAT) {
         if (!fiatCurrency) {
-          throw new NotFoundException(
+          throw new BadRequestException(
             "fiatCurrency is required for FIAT transactions"
           );
         }
@@ -143,12 +144,12 @@ export class PaymentLinkService {
           );
         }
         if (!coinId) {
-          throw new NotFoundException(
+          throw new BadRequestException(
             "Unable to detect coinId from provided code"
           );
         }
       } else if (transactionType !== TransactionType.CRYPTO) {
-        throw new NotFoundException("Invalid transaction type");
+        throw new BadRequestException("Invalid transaction type");
       }
 
       // const app = await this.appsModel.findById(appId);
@@ -156,7 +157,7 @@ export class PaymentLinkService {
         _id: appId,
       }).populate('merchantId');
       if (!app) {
-        throw new NotFoundException("Invalid app");
+        throw new UnauthorizedException("Invalid app");
       }
 
       // ---------------------- IP WHITELIST VALIDATION ----------------------
@@ -175,12 +176,12 @@ export class PaymentLinkService {
       });
 
       if (!token) {
-        throw new NotFoundException("Invalid token code");
+        throw new BadRequestException("Invalid token code");
       }
 
       // ── minDeposit check for CRYPTO transactions (amount is already in crypto units) ──
       if (transactionType === TransactionType.CRYPTO && token.minDeposit > parseFloat(amount)) {
-        throw new NotFoundException(
+        throw new BadRequestException(
           `For ${token?.network} network ${token?.code} min deposit value is ${token?.minDeposit} ${token?.symbol}`
         );
       }
@@ -189,10 +190,10 @@ export class PaymentLinkService {
       const privateKey = this.encryptionService.decryptData(app?.SECRET_KEY);
 
       if (apiKey !== publicKey) {
-        throw new NotFoundException(" Api Key not found");
+        throw new UnauthorizedException("Api Key not found or invalid");
       }
       if (secretKey !== privateKey) {
-        throw new NotFoundException("Secret Key not found");
+        throw new UnauthorizedException("Secret Key not found or invalid");
       }
 
       let cryptoAmount = null;
@@ -264,7 +265,7 @@ export class PaymentLinkService {
       // ── minDeposit check for FIAT transactions (compare converted crypto amount) ──
       if (transactionType === TransactionType.FIAT && cryptoAmount !== null) {
         if (token.minDeposit > cryptoAmount) {
-          throw new NotFoundException(
+          throw new BadRequestException(
             `For ${token?.network} network ${token?.code} min deposit value is ${token?.minDeposit} ${token?.symbol}. ` +
             `Your ${fiatCurrency} ${amount} converts to ${cryptoAmount.toFixed(token?.decimal || 8)} ${token?.symbol} which is below the minimum.`
           );

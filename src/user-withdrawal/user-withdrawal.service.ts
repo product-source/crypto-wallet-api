@@ -2,6 +2,7 @@ import {
     Injectable,
     BadRequestException,
     NotFoundException,
+    UnauthorizedException,
 } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
@@ -64,7 +65,7 @@ export class UserWithdrawalService {
 
         const app = await this.appsModel.findById(appId).populate('merchantId');
         if (!app) {
-            throw new NotFoundException("Invalid App ID");
+            throw new UnauthorizedException("Invalid App ID");
         }
 
         try {
@@ -72,10 +73,10 @@ export class UserWithdrawalService {
             const storedSecretKey = this.encryptionService.decryptData(app.SECRET_KEY);
 
             if (apiKey !== storedApiKey) {
-                throw new BadRequestException("Invalid API Key");
+                throw new UnauthorizedException("Invalid API Key");
             }
             if (secretKey !== storedSecretKey) {
-                throw new BadRequestException("Invalid Secret Key");
+                throw new UnauthorizedException("Invalid Secret Key");
             }
 
             const merchantData = app.merchantId as any;
@@ -374,7 +375,7 @@ export class UserWithdrawalService {
             if (!foundApp) {
                 foundApp = await this.appsModel.findById(appId);
                 if (!foundApp) {
-                    throw new NotFoundException("App not found");
+                    throw new UnauthorizedException("App not found or invalid App ID");
                 }
             }
 
@@ -387,7 +388,7 @@ export class UserWithdrawalService {
             // Verify token exists by code
             const token = await this.tokenModel.findOne({ code });
             if (!token) {
-                throw new NotFoundException(`Token with code ${code} not found`);
+                throw new BadRequestException(`Token with code ${code} not found`);
             }
 
             // --- FIAT Conversion Logic ---
@@ -470,12 +471,18 @@ export class UserWithdrawalService {
                 }
             }
 
-            // Convert amount to USD for limit checking (simplified - in production use real price feed)
-            // For now, assume 1:1 for stablecoins, or you can integrate with CoinGecko
-            const amountNum = cryptoAmountVal;
-            const amountInUsd = cryptoUsdVal || amountNum; // Simplified - should use actual price conversion
+            // 1. Check Global Admin token-specific minimum withdrawal amount (in crypto units)
+            if (token.minWithdraw && cryptoAmountVal < token.minWithdraw) {
+                throw new BadRequestException(
+                    `Minimum withdrawal amount for ${token.symbol} is ${token.minWithdraw} ${token.symbol}`
+                );
+            }
 
-            // Check minimum withdrawal amount
+            // Convert amount to USD for merchant limit checking
+            const amountNum = cryptoAmountVal;
+            const amountInUsd = cryptoUsdVal || amountNum;
+
+            // 2. Check Merchant minimum withdrawal amount (in USD)
             if (foundApp.minWithdrawalAmount > 0 && amountInUsd < foundApp.minWithdrawalAmount) {
                 throw new BadRequestException(
                     `Minimum withdrawal amount is ${foundApp.minWithdrawalAmount} USD`

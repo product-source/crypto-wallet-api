@@ -75,24 +75,24 @@ let PaymentLinkService = class PaymentLinkService {
             const coinId = this.getCoinIdFromCode(code);
             if (transactionType === payment_enum_1.TransactionType.FIAT) {
                 if (!fiatCurrency) {
-                    throw new common_1.NotFoundException("fiatCurrency is required for FIAT transactions");
+                    throw new common_1.BadRequestException("fiatCurrency is required for FIAT transactions");
                 }
                 const validCodes = await this.fiatCurrencyService.getAllCodes();
                 if (!validCodes.map(c => c.toLowerCase()).includes(fiatCurrency.toLowerCase())) {
                     throw new common_1.BadRequestException(`Unsupported fiat currency '${fiatCurrency}'. Supported: ${validCodes.join(", ")}`);
                 }
                 if (!coinId) {
-                    throw new common_1.NotFoundException("Unable to detect coinId from provided code");
+                    throw new common_1.BadRequestException("Unable to detect coinId from provided code");
                 }
             }
             else if (transactionType !== payment_enum_1.TransactionType.CRYPTO) {
-                throw new common_1.NotFoundException("Invalid transaction type");
+                throw new common_1.BadRequestException("Invalid transaction type");
             }
             const app = await this.appsModel.findOne({
                 _id: appId,
             }).populate('merchantId');
             if (!app) {
-                throw new common_1.NotFoundException("Invalid app");
+                throw new common_1.UnauthorizedException("Invalid app");
             }
             const merchantData = app?.merchantId;
             if (merchantData?.isIPWhitelistEnabled && merchantData?.whitelistedIPs?.length > 0 && clientIp) {
@@ -105,18 +105,18 @@ let PaymentLinkService = class PaymentLinkService {
                 code: code,
             });
             if (!token) {
-                throw new common_1.NotFoundException("Invalid token code");
+                throw new common_1.BadRequestException("Invalid token code");
             }
             if (transactionType === payment_enum_1.TransactionType.CRYPTO && token.minDeposit > parseFloat(amount)) {
-                throw new common_1.NotFoundException(`For ${token?.network} network ${token?.code} min deposit value is ${token?.minDeposit} ${token?.symbol}`);
+                throw new common_1.BadRequestException(`For ${token?.network} network ${token?.code} min deposit value is ${token?.minDeposit} ${token?.symbol}`);
             }
             const publicKey = this.encryptionService.decryptData(app?.API_KEY);
             const privateKey = this.encryptionService.decryptData(app?.SECRET_KEY);
             if (apiKey !== publicKey) {
-                throw new common_1.NotFoundException(" Api Key not found");
+                throw new common_1.UnauthorizedException("Api Key not found or invalid");
             }
             if (secretKey !== privateKey) {
-                throw new common_1.NotFoundException("Secret Key not found");
+                throw new common_1.UnauthorizedException("Secret Key not found or invalid");
             }
             let cryptoAmount = null;
             let price = null;
@@ -161,7 +161,7 @@ let PaymentLinkService = class PaymentLinkService {
             }
             if (transactionType === payment_enum_1.TransactionType.FIAT && cryptoAmount !== null) {
                 if (token.minDeposit > cryptoAmount) {
-                    throw new common_1.NotFoundException(`For ${token?.network} network ${token?.code} min deposit value is ${token?.minDeposit} ${token?.symbol}. ` +
+                    throw new common_1.BadRequestException(`For ${token?.network} network ${token?.code} min deposit value is ${token?.minDeposit} ${token?.symbol}. ` +
                         `Your ${fiatCurrency} ${amount} converts to ${cryptoAmount.toFixed(token?.decimal || 8)} ${token?.symbol} which is below the minimum.`);
                 }
             }
