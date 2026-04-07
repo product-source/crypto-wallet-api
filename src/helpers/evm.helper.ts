@@ -166,12 +166,18 @@ export function calculateERC20SplitAmounts(
   amount: any,
   decimal: any,
   adminPaymentLinksCharges: any,
-  chainId: any
+  chainId: any,
+  actualBalanceInWei: string | null = null
 ) {
-  const AMOUNT_IN_WEI = web3.utils.toWei(
+  let AMOUNT_IN_WEI = web3.utils.toWei(
     amount.toString(),
     getDecimalUnit(decimal)
   );
+
+  if (actualBalanceInWei !== null && BigInt(actualBalanceInWei) < BigInt(AMOUNT_IN_WEI)) {
+    console.log(`[Calculate Split] Capping withdrawal from DB amount (${AMOUNT_IN_WEI}) to actual on-chain balance (${actualBalanceInWei}) to prevent EVM revert`);
+    AMOUNT_IN_WEI = actualBalanceInWei.toString();
+  }
 
   let merchantRemainingAmountInWei = BigInt(AMOUNT_IN_WEI);
   let adminAmountInWei = BigInt(0);
@@ -224,12 +230,15 @@ export async function getERC20TxFee(
     web3 = web3Token.web3;
     contract = web3Token.contract;
 
+    const currentBal = await contract.methods.balanceOf(senderAddress).call();
+
     const amounts = calculateERC20SplitAmounts(
       web3,
       amount,
       decimal,
       adminPaymentLinksCharges,
-      chainId
+      chainId,
+      currentBal
     );
 
     let adminAmount = amounts.adminAmountInWei;
@@ -247,7 +256,6 @@ export async function getERC20TxFee(
         });
     }
 
-    const currentBal = await contract.methods.balanceOf(senderAddress).call();
     console.log(`[getERC20TxFee] sender: ${senderAddress}, token: ${contractAddress}, actual balance: ${currentBal}, merchant amount to send: ${merchantAmount}, admin amount: ${adminAmount}`);
 
     merchantGas = await contract.methods
@@ -377,12 +385,15 @@ export async function evmERC20TokenTransfer(
     web3.eth.accounts.wallet.add(account);
     const senderAddress = account.address;
 
+    const currentBal = await contract.methods.balanceOf(senderAddress).call();
+
     const amounts = calculateERC20SplitAmounts(
       web3,
       amount,
       decimal,
       adminPaymentLinksCharges,
-      chainId
+      chainId,
+      currentBal
     );
 
     adminAmountInWei = amounts.adminAmountInWei;

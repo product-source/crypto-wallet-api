@@ -84,7 +84,7 @@ export declare function getNetwork(chainId: any): {
     explorerURL: string;
     tokenType?: undefined;
 };
-export declare function calculateERC20SplitAmounts(web3: any, amount: any, decimal: any, adminPaymentLinksCharges: any, chainId: any): {
+export declare function calculateERC20SplitAmounts(web3: any, amount: any, decimal: any, adminPaymentLinksCharges: any, chainId: any, actualBalanceInWei?: string | null): {
     merchantRemainingAmountInWei: bigint;
     adminAmountInWei: bigint;
     AMOUNT_IN_WEI: any;

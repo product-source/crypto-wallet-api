@@ -145,8 +145,12 @@ function getDecimalUnit(decimal) {
     };
     return units[decimal.toString()] || "Unit not found";
 }
-function calculateERC20SplitAmounts(web3, amount, decimal, adminPaymentLinksCharges, chainId) {
-    const AMOUNT_IN_WEI = web3.utils.toWei(amount.toString(), getDecimalUnit(decimal));
+function calculateERC20SplitAmounts(web3, amount, decimal, adminPaymentLinksCharges, chainId, actualBalanceInWei = null) {
+    let AMOUNT_IN_WEI = web3.utils.toWei(amount.toString(), getDecimalUnit(decimal));
+    if (actualBalanceInWei !== null && BigInt(actualBalanceInWei) < BigInt(AMOUNT_IN_WEI)) {
+        console.log(`[Calculate Split] Capping withdrawal from DB amount (${AMOUNT_IN_WEI}) to actual on-chain balance (${actualBalanceInWei}) to prevent EVM revert`);
+        AMOUNT_IN_WEI = actualBalanceInWei.toString();
+    }
     let merchantRemainingAmountInWei = BigInt(AMOUNT_IN_WEI);
     let adminAmountInWei = BigInt(0);
     if (adminPaymentLinksCharges > 0) {
@@ -177,7 +181,8 @@ async function getERC20TxFee(chainId, senderAddress, receiverAddress, contractAd
         const web3Token = await (0, exports.getWeb3TokenContract)(chainId, contractAddress);
         web3 = web3Token.web3;
         contract = web3Token.contract;
-        const amounts = calculateERC20SplitAmounts(web3, amount, decimal, adminPaymentLinksCharges, chainId);
+        const currentBal = await contract.methods.balanceOf(senderAddress).call();
+        const amounts = calculateERC20SplitAmounts(web3, amount, decimal, adminPaymentLinksCharges, chainId, currentBal);
         let adminAmount = amounts.adminAmountInWei;
         let merchantAmount = amounts.merchantRemainingAmountInWei;
         let adminGas = 0;
@@ -190,7 +195,6 @@ async function getERC20TxFee(chainId, senderAddress, receiverAddress, contractAd
                 from: senderAddress,
             });
         }
-        const currentBal = await contract.methods.balanceOf(senderAddress).call();
         console.log(`[getERC20TxFee] sender: ${senderAddress}, token: ${contractAddress}, actual balance: ${currentBal}, merchant amount to send: ${merchantAmount}, admin amount: ${adminAmount}`);
         merchantGas = await contract.methods
             .transfer(receiverAddress, merchantAmount.toString())
@@ -260,7 +264,8 @@ async function evmERC20TokenTransfer(chainId, paymentLinkPrivateKey, txCost, tok
         const account = web3.eth.accounts.privateKeyToAccount(paymentLinkPrivateKey);
         web3.eth.accounts.wallet.add(account);
         const senderAddress = account.address;
-        const amounts = calculateERC20SplitAmounts(web3, amount, decimal, adminPaymentLinksCharges, chainId);
+        const currentBal = await contract.methods.balanceOf(senderAddress).call();
+        const amounts = calculateERC20SplitAmounts(web3, amount, decimal, adminPaymentLinksCharges, chainId, currentBal);
         adminAmountInWei = amounts.adminAmountInWei;
         merchantRemainingAmountInWei = amounts.merchantRemainingAmountInWei;
         if (adminAmountInWei > 0 && !adminAlreadyCharged) {
