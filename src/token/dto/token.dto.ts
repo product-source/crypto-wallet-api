@@ -13,12 +13,12 @@ export class AddTokenDto {
   address: string;
 
   @IsNotEmpty()
-  @IsEnum(ChainIdEnum)
-  chainId: ChainIdEnum;
+  @IsString()
+  chainId: string;
 
   @IsNotEmpty()
-  @IsEnum(NetworkEnum)
-  network: NetworkEnum;
+  @IsString()
+  network: string;
 
   @IsNotEmpty()
   @IsString()
@@ -44,12 +44,12 @@ export class UpdateMinWithdrawDto {
   tokenId: string;
 
   @IsNotEmpty()
-  @IsEnum(NetworkEnum)
-  network: NetworkEnum;
+  @IsString()
+  network: string;
 
   @IsOptional()
-  @IsEnum(ChainIdEnum)
-  chainId: ChainIdEnum;
+  @IsString()
+  chainId: string;
 
   @IsNotEmpty()
   @IsString()

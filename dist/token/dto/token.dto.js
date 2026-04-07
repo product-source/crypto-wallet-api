@@ -11,7 +11,6 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UpdateMinWithdrawDto = exports.AddTokenDto = void 0;
 const class_validator_1 = require("class-validator");
-const token_enum_1 = require("../schema/token.enum");
 class AddTokenDto {
 }
 exports.AddTokenDto = AddTokenDto;
@@ -22,12 +21,12 @@ __decorate([
 ], AddTokenDto.prototype, "address", void 0);
 __decorate([
     (0, class_validator_1.IsNotEmpty)(),
-    (0, class_validator_1.IsEnum)(token_enum_1.ChainIdEnum),
+    (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], AddTokenDto.prototype, "chainId", void 0);
 __decorate([
     (0, class_validator_1.IsNotEmpty)(),
-    (0, class_validator_1.IsEnum)(token_enum_1.NetworkEnum),
+    (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], AddTokenDto.prototype, "network", void 0);
 __decorate([
@@ -62,12 +61,12 @@ __decorate([
 ], UpdateMinWithdrawDto.prototype, "tokenId", void 0);
 __decorate([
     (0, class_validator_1.IsNotEmpty)(),
-    (0, class_validator_1.IsEnum)(token_enum_1.NetworkEnum),
+    (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpdateMinWithdrawDto.prototype, "network", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsEnum)(token_enum_1.ChainIdEnum),
+    (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], UpdateMinWithdrawDto.prototype, "chainId", void 0);
 __decorate([

@@ -1,8 +1,7 @@
-import { ChainIdEnum, NetworkEnum } from "../schema/token.enum";
 export declare class AddTokenDto {
     address: string;
-    chainId: ChainIdEnum;
-    network: NetworkEnum;
+    chainId: string;
+    network: string;
     symbol: string;
     code: string;
     minWithdraw: number;
@@ -11,8 +10,8 @@ export declare class AddTokenDto {
 }
 export declare class UpdateMinWithdrawDto {
     tokenId: string;
-    network: NetworkEnum;
-    chainId: ChainIdEnum;
+    network: string;
+    chainId: string;
     symbol: string;
     address: string;
     code: string;
