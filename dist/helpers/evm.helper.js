@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateMnemonic = exports.getEvmWalletFromPrivateKey = exports.generateEvmWallet = exports.getWeb3TokenContract = exports.getWeb3 = exports.isValidEVMAddress = void 0;
+exports.getOptimalGasParams = getOptimalGasParams;
 exports.evmCryptoBalanceCheck = evmCryptoBalanceCheck;
 exports.getNetwork = getNetwork;
 exports.calculateERC20SplitAmounts = calculateERC20SplitAmounts;
@@ -25,6 +26,33 @@ const helper_1 = require("./helper");
 const moralis_1 = __importDefault(require("moralis"));
 const routerV2Abi_service_1 = require("../utils/routerV2Abi.service");
 const payment_enum_1 = require("../payment-link/schema/payment.enum");
+async function getOptimalGasParams(web3, chainId) {
+    const chainStr = chainId.toString();
+    const isBSC = chainStr === (config_service_1.ConfigService.keys.BNB_CHAIN_ID || '56') || chainStr === '97';
+    if (isBSC) {
+        const gasPrice = await web3.eth.getGasPrice();
+        const buffered = (BigInt(gasPrice) * BigInt(120)) / BigInt(100);
+        return { gasPrice: buffered.toString(), _gasPriceForCalc: buffered };
+    }
+    try {
+        const latestBlock = await web3.eth.getBlock('latest');
+        const baseFee = BigInt(latestBlock.baseFeePerGas || 0);
+        const priorityFee = BigInt(web3.utils.toWei('2', 'gwei'));
+        const maxFee = baseFee * BigInt(2) + priorityFee;
+        console.log(`[GasParams] EIP-1559 → baseFee: ${baseFee}, priorityFee: ${priorityFee}, maxFeePerGas: ${maxFee}`);
+        return {
+            maxFeePerGas: maxFee.toString(),
+            maxPriorityFeePerGas: priorityFee.toString(),
+            _gasPriceForCalc: maxFee,
+        };
+    }
+    catch (e) {
+        console.log('[GasParams] EIP-1559 failed, falling back to legacy gasPrice');
+        const gasPrice = await web3.eth.getGasPrice();
+        const buffered = (BigInt(gasPrice) * BigInt(150)) / BigInt(100);
+        return { gasPrice: buffered.toString(), _gasPriceForCalc: buffered };
+    }
+}
 const isValidEVMAddress = async (address) => {
     try {
         const web3 = new web3_1.Web3();
@@ -187,7 +215,8 @@ async function getERC20TxFee(chainId, senderAddress, receiverAddress, contractAd
         let merchantAmount = amounts.merchantRemainingAmountInWei;
         let adminGas = BigInt(0);
         let merchantGas = BigInt(0);
-        let gasPrice = await web3.eth.getGasPrice();
+        const gasParams = await getOptimalGasParams(web3, chainId);
+        const gasPrice = gasParams._gasPriceForCalc;
         if (adminAmount > 0 && !adminAlreadyCharged) {
             adminGas = await contract.methods
                 .transfer(adminPaymentLinksChargesWallet, adminAmount.toString())
@@ -207,6 +236,7 @@ async function getERC20TxFee(chainId, senderAddress, receiverAddress, contractAd
             merchantGas,
             totalGas: adminGas + merchantGas,
             gasPrice,
+            gasParams,
         };
     }
     catch (error) {
@@ -227,26 +257,31 @@ async function evmNativeTokenTransferToPaymentLinks(chainId, nativeAmount, recip
         const account = web3.eth.accounts.privateKeyToAccount(adminWalletPrivateKey);
         web3.eth.accounts.wallet.add(account);
         const senderAddress = account.address;
-        const gasPrice = await web3.eth.getGasPrice();
+        const gasParams = await getOptimalGasParams(web3, chainId);
+        const { _gasPriceForCalc, ...txGasFields } = gasParams;
         const checksumAddress = web3.utils.toChecksumAddress(recipientAddress);
+        console.log("[evmNativeTokenTransfer] Estimating gas...");
         const gasLimit = await web3.eth.estimateGas({
             from: senderAddress,
             to: checksumAddress,
             value: nativeAmount,
         });
+        console.log(`[evmNativeTokenTransfer] Gas estimated: ${gasLimit}`);
         const tx = {
             from: senderAddress,
             to: recipientAddress,
             value: nativeAmount,
             gas: gasLimit,
-            gasPrice,
+            ...txGasFields,
         };
         const signedTx = await web3.eth.accounts.signTransaction(tx, adminWalletPrivateKey);
+        console.log("[evmNativeTokenTransfer] Sending signed transaction to blockchain...");
         receipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+        console.log("[evmNativeTokenTransfer] Receipt received!");
         return receipt;
     }
     catch (e) {
-        console.error("----- ********************* ---- Error in evmCryptoTransfer:", e);
+        console.log("----- ********************* ---- Error in evmCryptoTransfer:", e.message);
         return receipt;
     }
 }
@@ -268,11 +303,12 @@ async function evmERC20TokenTransfer(chainId, paymentLinkPrivateKey, txCost, tok
         const amounts = calculateERC20SplitAmounts(web3, amount, decimal, adminPaymentLinksCharges, chainId, currentBal);
         adminAmountInWei = amounts.adminAmountInWei;
         merchantRemainingAmountInWei = amounts.merchantRemainingAmountInWei;
+        const { _gasPriceForCalc, adminGas: _ag, merchantGas: _mg, totalGas: _tg, gasPrice: _gp, ...txGasFields } = txCost.gasParams || {};
         if (adminAmountInWei > 0 && !adminAlreadyCharged) {
             const adminTx = {
                 from: senderAddress,
                 to: tokenContractAddress,
-                gasPrice: txCost.gasPrice,
+                ...txGasFields,
                 gas: txCost.adminGas,
                 data: contract.methods
                     .transfer(adminPaymentLinksChargesWallet, adminAmountInWei.toString())
@@ -285,7 +321,7 @@ async function evmERC20TokenTransfer(chainId, paymentLinkPrivateKey, txCost, tok
         const merchantTx = {
             from: senderAddress,
             to: tokenContractAddress,
-            gasPrice: txCost.gasPrice,
+            ...txGasFields,
             gas: txCost.merchantGas,
             nonce: currentNonce,
             data: contract.methods

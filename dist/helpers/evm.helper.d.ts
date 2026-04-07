@@ -1,5 +1,16 @@
 import { ethers } from "ethers";
 import { Web3 } from "web3";
+export declare function getOptimalGasParams(web3: any, chainId: any): Promise<{
+    gasPrice: string;
+    _gasPriceForCalc: bigint;
+    maxFeePerGas?: undefined;
+    maxPriorityFeePerGas?: undefined;
+} | {
+    maxFeePerGas: string;
+    maxPriorityFeePerGas: string;
+    _gasPriceForCalc: bigint;
+    gasPrice?: undefined;
+}>;
 export declare const isValidEVMAddress: (address: any) => Promise<boolean>;
 export declare const getWeb3: (chainId: any) => Promise<Web3<import("web3-eth").RegisteredSubscription>>;
 export declare const getWeb3TokenContract: (chainId: any, tokenContractAddress: any) => {
@@ -93,7 +104,24 @@ export declare function getERC20TxFee(chainId: any, senderAddress: any, receiver
     adminGas: bigint;
     merchantGas: bigint;
     totalGas: bigint;
+    gasPrice: bigint;
+    gasParams: {
+        gasPrice: string;
+        _gasPriceForCalc: bigint;
+        maxFeePerGas?: undefined;
+        maxPriorityFeePerGas?: undefined;
+    } | {
+        maxFeePerGas: string;
+        maxPriorityFeePerGas: string;
+        _gasPriceForCalc: bigint;
+        gasPrice?: undefined;
+    };
+} | {
+    adminGas: any;
+    merchantGas: any;
+    totalGas: any;
     gasPrice: any;
+    gasParams?: undefined;
 }>;
 export declare function evmNativeTokenTransferToPaymentLinks(chainId: any, nativeAmount: any, recipientAddress: any): Promise<any>;
 export declare function evmERC20TokenTransfer(chainId: any, paymentLinkPrivateKey: any, txCost: any, tokenContractAddress: any, amount: any, merchantAddress: any, decimal: any, adminPaymentLinksCharges: any, adminPaymentLinksChargesWallet: any, adminAlreadyCharged?: boolean): Promise<{

@@ -15,6 +15,45 @@ import Moralis from "moralis";
 import { routerV2Abi } from "src/utils/routerV2Abi.service";
 import { WithdrawPaymentStatus } from "src/payment-link/schema/payment.enum";
 
+/**
+ * Returns optimal gas parameters for a transaction.
+ * - ETH & Polygon: EIP-1559 (maxFeePerGas + maxPriorityFeePerGas)
+ * - BSC: Legacy gasPrice with 1.2x buffer
+ * The returned object can be spread directly into a transaction.
+ */
+export async function getOptimalGasParams(web3: any, chainId: any) {
+  const chainStr = chainId.toString();
+  const isBSC = chainStr === (ConfigService.keys.BNB_CHAIN_ID || '56') || chainStr === '97';
+
+  if (isBSC) {
+    // BSC does not support EIP-1559; use legacy gasPrice with a 20% buffer
+    const gasPrice = await web3.eth.getGasPrice();
+    const buffered = (BigInt(gasPrice) * BigInt(120)) / BigInt(100);
+    return { gasPrice: buffered.toString(), _gasPriceForCalc: buffered };
+  }
+
+  // EIP-1559 chains (ETH mainnet, Sepolia, Polygon, Amoy)
+  try {
+    const latestBlock = await web3.eth.getBlock('latest');
+    const baseFee = BigInt(latestBlock.baseFeePerGas || 0);
+    const priorityFee = BigInt(web3.utils.toWei('2', 'gwei')); // 2 gwei tip
+    const maxFee = baseFee * BigInt(2) + priorityFee; // 2x base + tip — generous
+
+    console.log(`[GasParams] EIP-1559 → baseFee: ${baseFee}, priorityFee: ${priorityFee}, maxFeePerGas: ${maxFee}`);
+    return {
+      maxFeePerGas: maxFee.toString(),
+      maxPriorityFeePerGas: priorityFee.toString(),
+      _gasPriceForCalc: maxFee, // used for gas cost estimation in cron
+    };
+  } catch (e) {
+    // Fallback to legacy if EIP-1559 fields are unavailable
+    console.log('[GasParams] EIP-1559 failed, falling back to legacy gasPrice');
+    const gasPrice = await web3.eth.getGasPrice();
+    const buffered = (BigInt(gasPrice) * BigInt(150)) / BigInt(100);
+    return { gasPrice: buffered.toString(), _gasPriceForCalc: buffered };
+  }
+}
+
 export const isValidEVMAddress = async (address) => {
   try {
     const web3 = new Web3(); // Initialize Web3 instance.
@@ -246,7 +285,8 @@ export async function getERC20TxFee(
 
     let adminGas = BigInt(0);
     let merchantGas = BigInt(0);
-    let gasPrice = await web3.eth.getGasPrice();
+    const gasParams = await getOptimalGasParams(web3, chainId);
+    const gasPrice = gasParams._gasPriceForCalc; // BigInt, used for cost calculation
 
     if (adminAmount > 0 && !adminAlreadyCharged) {
       adminGas = await contract.methods
@@ -271,6 +311,7 @@ export async function getERC20TxFee(
       merchantGas,
       totalGas: adminGas + merchantGas,
       gasPrice,
+      gasParams, // spread into tx objects for proper EIP-1559 or legacy pricing
     };
   } catch (error) {
     console.log(
@@ -307,27 +348,29 @@ export async function evmNativeTokenTransferToPaymentLinks(
 
     // const AMOUNT_IN_WEI = web3.utils.toWei(amount.toString(), "ether"); // Adjust for token decimals
 
-    // Get the current gas price
-    const gasPrice = await web3.eth.getGasPrice();
+    // Get optimal gas parameters (EIP-1559 on ETH/Polygon, legacy on BSC)
+    const gasParams = await getOptimalGasParams(web3, chainId);
+    const { _gasPriceForCalc, ...txGasFields } = gasParams;
 
     // Convert to checksum address
     const checksumAddress = web3.utils.toChecksumAddress(recipientAddress);
-    // console.log("checksumAddress : ", checksumAddress);
 
     // Estimate gas for the transaction
+    console.log("[evmNativeTokenTransfer] Estimating gas...");
     const gasLimit = await web3.eth.estimateGas({
       from: senderAddress,
       to: checksumAddress,
       value: nativeAmount,
     });
+    console.log(`[evmNativeTokenTransfer] Gas estimated: ${gasLimit}`);
 
     // Create the transaction object for ETH transfer
     const tx = {
       from: senderAddress,
       to: recipientAddress,
-      value: nativeAmount, // ETH in Wei
+      value: nativeAmount,
       gas: gasLimit,
-      gasPrice,
+      ...txGasFields, // EIP-1559 or legacy gas fields
     };
 
     // Sign the transaction with the private key
@@ -337,7 +380,9 @@ export async function evmNativeTokenTransferToPaymentLinks(
     );
 
     // Send the signed transaction
+    console.log("[evmNativeTokenTransfer] Sending signed transaction to blockchain...");
     receipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+    console.log("[evmNativeTokenTransfer] Receipt received!");
 
     // console.log(
     //   "Native Transaction successful with hash:",
@@ -345,9 +390,9 @@ export async function evmNativeTokenTransferToPaymentLinks(
     // );
     return receipt;
   } catch (e) {
-    console.error(
+    console.log(
       "----- ********************* ---- Error in evmCryptoTransfer:",
-      e
+      e.message
     );
     return receipt;
   }
@@ -400,11 +445,14 @@ export async function evmERC20TokenTransfer(
     merchantRemainingAmountInWei = amounts.merchantRemainingAmountInWei;
 
     // Calculate admin fee if applicable
+    // Extract gas params from txCost (EIP-1559 or legacy)
+    const { _gasPriceForCalc, adminGas: _ag, merchantGas: _mg, totalGas: _tg, gasPrice: _gp, ...txGasFields } = txCost.gasParams || {};
+
     if (adminAmountInWei > 0 && !adminAlreadyCharged) {
       const adminTx = {
         from: senderAddress,
         to: tokenContractAddress,
-        gasPrice: txCost.gasPrice,
+        ...txGasFields, // EIP-1559 or legacy gas fields
         gas: txCost.adminGas,
         data: contract.methods
           .transfer(adminPaymentLinksChargesWallet, adminAmountInWei.toString())
@@ -437,11 +485,11 @@ export async function evmERC20TokenTransfer(
     const merchantTx = {
       from: senderAddress,
       to: tokenContractAddress,
-      gasPrice: txCost.gasPrice,
-      gas: txCost.merchantGas, // Make sure this value is sufficient for the transaction
-      nonce: currentNonce, // Use the correct nonce
+      ...txGasFields, // EIP-1559 or legacy gas fields
+      gas: txCost.merchantGas,
+      nonce: currentNonce,
       data: contract.methods
-        .transfer(merchantAddress, merchantRemainingAmountInWei.toString()) // Ensure BigInt is converted to string for Web3
+        .transfer(merchantAddress, merchantRemainingAmountInWei.toString())
         .encodeABI(),
     };
 
