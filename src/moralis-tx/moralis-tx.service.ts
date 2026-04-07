@@ -2201,7 +2201,7 @@ export class TransactionService {
         .map((entry) => entry?.BtcWalletMnemonic?.address) // Extract the address if it exists
         .filter((address) => {
           if (!address) return false; // Exclude null or undefined addresses
-          if (ConfigService.keys.TATUM_NETWORK === "bitcoin") {
+          if (ConfigService.keys.TATUM_NETWORK?.includes("mainnet") || ConfigService.keys.TATUM_NETWORK === "bitcoin") {
             return address.startsWith("bc"); // Include addresses starting with "bc"
           } else {
             return !address.startsWith("bc"); // Include addresses not starting with "bc"

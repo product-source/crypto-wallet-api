@@ -1493,7 +1493,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
                 .filter((address) => {
                 if (!address)
                     return false;
-                if (config_service_1.ConfigService.keys.TATUM_NETWORK === "bitcoin") {
+                if (config_service_1.ConfigService.keys.TATUM_NETWORK?.includes("mainnet") || config_service_1.ConfigService.keys.TATUM_NETWORK === "bitcoin") {
                     return address.startsWith("bc");
                 }
                 else {
