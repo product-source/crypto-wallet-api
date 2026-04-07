@@ -388,13 +388,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
                             paymentLinkWalletAddress = feeDetails.data.merchantFeeWallet;
                             const currentWithdrawStatus = wallet?.withdrawStatus;
                             const adminAlreadyCharged = currentWithdrawStatus === payment_enum_1.WithdrawPaymentStatus.ADMIN_CHARGES;
-                            const effectiveCharges = adminAlreadyCharged ? 0 : paymentLinkCharges;
-                            let effectiveAmount = fullAmount;
-                            if (adminAlreadyCharged) {
-                                effectiveAmount = fullAmount / (1 + parseFloat(paymentLinkCharges) / 100);
-                                console.log("Admin already charged. Merchant-only amount:", effectiveAmount);
-                            }
-                            txCost = await (0, evm_helper_1.getERC20TxFee)(chainId, senderWalletAddress, receiverAddress, tokenContractAddress, effectiveAmount, tokenDecimal, effectiveCharges, paymentLinkWalletAddress);
+                            txCost = await (0, evm_helper_1.getERC20TxFee)(chainId, senderWalletAddress, receiverAddress, tokenContractAddress, fullAmount, tokenDecimal, paymentLinkCharges, paymentLinkWalletAddress, adminAlreadyCharged);
                         }
                         if (!txCost?.gasPrice) {
                             console.log("getERC20TxFee failed — gasPrice is null. Skipping this payment link for now.");
@@ -421,12 +415,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
                         try {
                             const currentWithdrawStatus = wallet?.withdrawStatus;
                             const adminAlreadyCharged = currentWithdrawStatus === payment_enum_1.WithdrawPaymentStatus.ADMIN_CHARGES;
-                            const effectiveCharges = adminAlreadyCharged ? 0 : paymentLinkCharges;
-                            let effectiveAmount = fullAmount;
-                            if (adminAlreadyCharged) {
-                                effectiveAmount = fullAmount / (1 + parseFloat(paymentLinkCharges) / 100);
-                            }
-                            const erc20Receipt = await (0, evm_helper_1.evmERC20TokenTransfer)(chainId, privateKey, txCost, tokenContractAddress, effectiveAmount, receiverAddress, tokenDecimal, effectiveCharges, paymentLinkWalletAddress);
+                            const erc20Receipt = await (0, evm_helper_1.evmERC20TokenTransfer)(chainId, privateKey, txCost, tokenContractAddress, fullAmount, receiverAddress, tokenDecimal, paymentLinkCharges, paymentLinkWalletAddress, adminAlreadyCharged);
                             if (erc20Receipt.receipt1) {
                                 const adminFeeValue = fullAmount / (1 + parseFloat(paymentLinkCharges) / 100);
                                 const adminFeeAmount = fullAmount - adminFeeValue;
@@ -590,6 +579,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
             const trc20FilteredPaymentLinks = paymentLinks.filter((value) => value.code !== "TRX");
             const tronFilteredPaymentLinks = paymentLinks.filter((value) => value.code === "TRX");
             let updatedPaymentLinks = [];
+            const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
             for (const link of tronFilteredPaymentLinks) {
                 let status = {
                     recivedAmount: undefined,
@@ -637,6 +627,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
                         }
                     }
                 }
+                await delay(1000);
             }
             for (const link of trc20FilteredPaymentLinks) {
                 let status = {
@@ -651,7 +642,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
                     const tronValueInDecimal = Number(link?.amount) * tron_helper_1.tronDecimal;
                     const minRequiredAmount = tronValueInDecimal * (1 - (toleranceMargin / 100));
                     const decryptPrivateKey = await this.encryptionService.decryptData(link?.privateKey);
-                    const tronBalance = await (0, tron_helper_1.getTRC20Balance)(trc20FilteredPaymentLinks, decryptPrivateKey);
+                    const tronBalance = await (0, tron_helper_1.getTRC20Balance)([link], decryptPrivateKey);
                     for (const e of tronBalance) {
                         const trc20balanceAmount = await e.balance;
                         const minRequiredBalance = Number(link?.amount) * (1 - (toleranceMargin / 100));
@@ -690,6 +681,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
                         }
                     }
                 }
+                await delay(1000);
             }
         }
         catch (error) {
@@ -1465,7 +1457,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
                         console.error(`Error fetching Tron Wallet Data for Merchant ${merchantId}:`, error.message);
                         tronWalletDataList.push(null);
                     }
-                    await delay(500);
+                    await delay(1000);
                 }
                 const validTronWalletData = tronWalletDataList.filter((data) => data !== null);
                 return validTronWalletData;

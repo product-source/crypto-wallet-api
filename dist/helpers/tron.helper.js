@@ -50,9 +50,10 @@ const config_service_1 = require("../config/config.service");
 const helper_1 = require("./helper");
 exports.tronDecimal = 10 ** 6;
 const fullHost = config_service_1.ConfigService.keys.TRON_NODE || "https://api.shasta.trongrid.io";
+const tronHeaders = { "TRON-PRO-API-KEY": config_service_1.ConfigService.keys.TRON_GRID_API_KEY || "8d831a3d-aba9-40b7-9e4b-c5ba2a6b77da" };
 const tronWeb = new tronweb_1.TronWeb({
     fullHost: fullHost,
-    headers: { "TRON-PRO-API-KEY": config_service_1.ConfigService.keys.TRON_GRID_API_KEY || "8d831a3d-aba9-40b7-9e4b-c5ba2a6b77da" },
+    headers: tronHeaders,
 });
 const getTronNativeBalance = async (addresses) => {
     try {
@@ -96,21 +97,24 @@ const getTRC20Balance = async (tokens, privateKey) => {
     try {
         const tronWeb = new tronweb_1.TronWeb({
             fullHost: fullHost,
+            headers: tronHeaders,
             privateKey: privateKey,
         });
         const userAddress = tronweb_1.TronWeb.address.fromPrivateKey(privateKey);
-        let updatedTokens = await Promise.all(tokens.map(async (token) => {
+        let updatedTokens = [];
+        for (const token of tokens) {
             const tokenAddress = token.address || token.tokenAddress;
             const contract = await tronWeb.contract().at(tokenAddress);
             const balance = Number(await contract.balanceOf(userAddress).call());
             const decimal = Number(await contract.decimals().call());
-            return {
+            updatedTokens.push({
                 ...token?._doc,
                 token_address: tokenAddress,
                 balance: (0, helper_1.fromWeiCustom)(balance, decimal),
                 decimal: decimal,
-            };
-        }));
+            });
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
         return updatedTokens;
     }
     catch (error) {
@@ -135,7 +139,7 @@ function hexToTronAddress(hexString) {
 const getTronTransactions = async (address) => {
     try {
         if (address) {
-            const response = await axios_1.default.get(`${fullHost}/v1/accounts/${address}/transactions`);
+            const response = await axios_1.default.get(`${fullHost}/v1/accounts/${address}/transactions`, { headers: tronHeaders });
             return response;
         }
     }
@@ -171,7 +175,7 @@ exports.estimateTrxForTrc20Transfer = estimateTrxForTrc20Transfer;
 const getTRC20Transactions = async (address) => {
     try {
         if (address) {
-            const response = await axios_1.default.get(`${fullHost}/v1/accounts/${address}/transactions/trc20`);
+            const response = await axios_1.default.get(`${fullHost}/v1/accounts/${address}/transactions/trc20`, { headers: tronHeaders });
             return response;
         }
     }
@@ -194,6 +198,7 @@ const transferTron = async (privateKey, tokenContractAddress, receiverAddress, a
         else {
             const tronWeb = new tronweb_1.TronWeb({
                 fullHost: fullHost,
+                headers: tronHeaders,
                 privateKey: privateKey,
             });
             const contract = await tronWeb.contract().at(tokenContractAddress);
@@ -223,6 +228,7 @@ const merchantTronFundWithdraw = async (privateKey, tokenContractAddress, amount
         const userAddress = await tronweb_1.TronWeb.address.fromPrivateKey(privateKey);
         const tronWeb = new tronweb_1.TronWeb({
             fullHost: fullHost,
+            headers: tronHeaders,
             privateKey: privateKey,
         });
         if (!userAddress) {
@@ -288,6 +294,7 @@ const merchantTronFundWithdraw = async (privateKey, tokenContractAddress, amount
                         const fundAmountInSun = Math.ceil(fundAmount * 1e6);
                         const adminTronWeb = new tronweb_1.TronWeb({
                             fullHost: fullHost,
+                            headers: tronHeaders,
                             privateKey: adminPvtKey,
                         });
                         const transaction = await adminTronWeb.transactionBuilder.sendTrx(userAddress, fundAmountInSun, adminAddress);
@@ -349,6 +356,7 @@ const getTronToAddressAllTransactions = async (address) => {
     const last100Transactions = 100;
     const url = `${fullHost}/v1/accounts/${address}/transactions?only_to=true&limit=${last100Transactions}&search_internal=true`;
     const headers = {
+        ...tronHeaders,
         accept: "application/json",
     };
     try {
@@ -374,6 +382,7 @@ const getTronTokenBalance = async (address, tokenAddress, privateKey) => {
         }
         const tronWeb = new tronweb_1.TronWeb({
             fullHost: fullHost,
+            headers: tronHeaders,
             privateKey: privateKey,
         });
         const balanceInSun = await tronWeb.trx.getBalance(address);

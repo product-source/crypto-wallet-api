@@ -566,24 +566,16 @@ export class TransactionService {
               const currentWithdrawStatus = wallet?.withdrawStatus;
               const adminAlreadyCharged = currentWithdrawStatus === WithdrawPaymentStatus.ADMIN_CHARGES;
 
-              // If admin fee already sent, only estimate gas for merchant-only portion
-              const effectiveCharges = adminAlreadyCharged ? 0 : paymentLinkCharges;
-              let effectiveAmount = fullAmount;
-              if (adminAlreadyCharged) {
-                // Merchant-only portion (admin USDC already transferred out)
-                effectiveAmount = fullAmount / (1 + parseFloat(paymentLinkCharges) / 100);
-                console.log("Admin already charged. Merchant-only amount:", effectiveAmount);
-              }
-
               txCost = await getERC20TxFee(
                 chainId,
                 senderWalletAddress,
                 receiverAddress,
                 tokenContractAddress,
-                effectiveAmount,
+                fullAmount,
                 tokenDecimal,
-                effectiveCharges,
-                paymentLinkWalletAddress
+                paymentLinkCharges,
+                paymentLinkWalletAddress,
+                adminAlreadyCharged
               );
             }
 
@@ -627,25 +619,20 @@ export class TransactionService {
             }
 
             try {
-              // Use effective values based on whether admin was already charged
               const currentWithdrawStatus = wallet?.withdrawStatus;
               const adminAlreadyCharged = currentWithdrawStatus === WithdrawPaymentStatus.ADMIN_CHARGES;
-              const effectiveCharges = adminAlreadyCharged ? 0 : paymentLinkCharges;
-              let effectiveAmount = fullAmount;
-              if (adminAlreadyCharged) {
-                effectiveAmount = fullAmount / (1 + parseFloat(paymentLinkCharges) / 100);
-              }
 
               const erc20Receipt = await evmERC20TokenTransfer(
                 chainId,
                 privateKey,
                 txCost,
                 tokenContractAddress,
-                effectiveAmount,
+                fullAmount,
                 receiverAddress,
                 tokenDecimal,
-                effectiveCharges,
-                paymentLinkWalletAddress
+                paymentLinkCharges,
+                paymentLinkWalletAddress,
+                adminAlreadyCharged
               );
 
               if (erc20Receipt.receipt1) {
@@ -867,6 +854,8 @@ export class TransactionService {
       );
 
       let updatedPaymentLinks = [];
+      const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
       for (const link of tronFilteredPaymentLinks) {
         let status = {
           recivedAmount: undefined,
@@ -941,6 +930,7 @@ export class TransactionService {
             }
           }
         }
+        await delay(1000);
       }
 
       for (const link of trc20FilteredPaymentLinks) {
@@ -963,8 +953,9 @@ export class TransactionService {
             link?.privateKey
           );
 
+          // FIX N-SQUARED BUG: Passing [link] instead of trc20FilteredPaymentLinks to check only the current wallet
           const tronBalance = await getTRC20Balance(
-            trc20FilteredPaymentLinks,
+            [link],
             decryptPrivateKey
           );
 
@@ -1024,6 +1015,7 @@ export class TransactionService {
             }
           }
         }
+        await delay(1000);
       }
     } catch (error) {
       console.error("An error occurred:", error.message);
@@ -2162,7 +2154,7 @@ export class TransactionService {
             );
             tronWalletDataList.push(null);
           }
-          await delay(500); // Fix: 500ms delay between wallets to avoid 429 rate limiting
+          await delay(1000); // Fix: 1000ms delay between wallets to avoid 429 rate limiting
         }
 
         // Remove null entries caused by errors or invalid wallets

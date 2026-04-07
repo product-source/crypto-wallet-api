@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateMnemonic = exports.getEvmWalletFromPrivateKey = exports.generateEvmWallet = exports.getWeb3TokenContract = exports.getWeb3 = exports.isValidEVMAddress = void 0;
 exports.evmCryptoBalanceCheck = evmCryptoBalanceCheck;
 exports.getNetwork = getNetwork;
+exports.calculateERC20SplitAmounts = calculateERC20SplitAmounts;
 exports.getERC20TxFee = getERC20TxFee;
 exports.evmNativeTokenTransferToPaymentLinks = evmNativeTokenTransferToPaymentLinks;
 exports.evmERC20TokenTransfer = evmERC20TokenTransfer;
@@ -144,47 +145,53 @@ function getDecimalUnit(decimal) {
     };
     return units[decimal.toString()] || "Unit not found";
 }
-async function getERC20TxFee(chainId, senderAddress, receiverAddress, contractAddress, amount, decimal, adminPaymentLinksCharges, adminPaymentLinksChargesWallet) {
+function calculateERC20SplitAmounts(web3, amount, decimal, adminPaymentLinksCharges, chainId) {
+    const AMOUNT_IN_WEI = web3.utils.toWei(amount.toString(), getDecimalUnit(decimal));
+    let merchantRemainingAmountInWei = BigInt(AMOUNT_IN_WEI);
+    let adminAmountInWei = BigInt(0);
+    if (adminPaymentLinksCharges > 0) {
+        const adminAmountCharge = parseFloat(AMOUNT_IN_WEI) / (1 + adminPaymentLinksCharges / 100);
+        adminAmountInWei = BigInt(AMOUNT_IN_WEI) - BigInt(Math.floor(adminAmountCharge));
+        const MIN_ADMIN_WEI = {
+            [constants_1.ETH_CHAIN_ID]: BigInt("1000000000000000"),
+            [constants_1.BNB_CHAIN_ID]: BigInt("2000000000000000"),
+            [constants_1.POLYGON_CHAIN_ID]: BigInt("10000000000000000"),
+        };
+        const minWei = MIN_ADMIN_WEI[chainId.toString()] || BigInt("1000000000000000");
+        if (adminAmountInWei < minWei) {
+            console.log(`[Calculate Split] ⏭️ SKIPPING dust admin fee: ${adminAmountInWei.toString()} wei ` +
+                `(threshold: ${minWei.toString()} wei). Giving full amount to merchant.`);
+            adminAmountInWei = BigInt(0);
+            merchantRemainingAmountInWei = BigInt(AMOUNT_IN_WEI);
+        }
+        else {
+            merchantRemainingAmountInWei = BigInt(AMOUNT_IN_WEI) - BigInt(adminAmountInWei);
+        }
+    }
+    return { merchantRemainingAmountInWei, adminAmountInWei, AMOUNT_IN_WEI };
+}
+async function getERC20TxFee(chainId, senderAddress, receiverAddress, contractAddress, amount, decimal, adminPaymentLinksCharges, adminPaymentLinksChargesWallet, adminAlreadyCharged = false) {
     try {
         let web3;
         let contract;
         const web3Token = await (0, exports.getWeb3TokenContract)(chainId, contractAddress);
         web3 = web3Token.web3;
         contract = web3Token.contract;
-        let merchantAmount = amount;
-        let adminAmount = 0;
-        let adminChargeAmount = 0;
+        const amounts = calculateERC20SplitAmounts(web3, amount, decimal, adminPaymentLinksCharges, chainId);
+        let adminAmount = amounts.adminAmountInWei;
+        let merchantAmount = amounts.merchantRemainingAmountInWei;
         let adminGas = 0;
         let merchantGas = 0;
         let gasPrice = await web3.eth.getGasPrice();
-        if (adminPaymentLinksCharges > 0) {
-            adminChargeAmount = merchantAmount / (1 + adminPaymentLinksCharges / 100);
-            adminAmount = merchantAmount - adminChargeAmount;
-            merchantAmount = merchantAmount - adminAmount;
-            adminAmount = web3.utils.toWei(adminAmount.toString(), getDecimalUnit(decimal));
-            const MIN_FEE_WEI = {
-                [constants_1.ETH_CHAIN_ID]: BigInt("1000000000000000"),
-                [constants_1.BNB_CHAIN_ID]: BigInt("2000000000000000"),
-                [constants_1.POLYGON_CHAIN_ID]: BigInt("10000000000000000"),
-            };
-            const minFeeWei = MIN_FEE_WEI[chainId.toString()] || BigInt("1000000000000000");
-            if (BigInt(adminAmount.toString()) < minFeeWei) {
-                console.log(`[getERC20TxFee] ⏭️ SKIPPING dust admin fee gas estimation: ${adminAmount.toString()} wei (threshold: ${minFeeWei.toString()})`);
-                adminAmount = 0;
-                adminGas = 0;
-                merchantAmount = amount;
-            }
-            else {
-                adminGas = await contract.methods
-                    .transfer(adminPaymentLinksChargesWallet, adminAmount.toString())
-                    .estimateGas({
-                    from: senderAddress,
-                });
-            }
+        if (adminAmount > 0 && !adminAlreadyCharged) {
+            adminGas = await contract.methods
+                .transfer(adminPaymentLinksChargesWallet, adminAmount.toString())
+                .estimateGas({
+                from: senderAddress,
+            });
         }
-        merchantAmount = web3.utils.toWei(merchantAmount.toString(), getDecimalUnit(decimal));
         merchantGas = await contract.methods
-            .transfer(receiverAddress, merchantAmount)
+            .transfer(receiverAddress, merchantAmount.toString())
             .estimateGas({
             from: senderAddress,
         });
@@ -237,12 +244,12 @@ async function evmNativeTokenTransferToPaymentLinks(chainId, nativeAmount, recip
         return receipt;
     }
 }
-async function evmERC20TokenTransfer(chainId, paymentLinkPrivateKey, txCost, tokenContractAddress, amount, merchantAddress, decimal, adminPaymentLinksCharges, adminPaymentLinksChargesWallet) {
+async function evmERC20TokenTransfer(chainId, paymentLinkPrivateKey, txCost, tokenContractAddress, amount, merchantAddress, decimal, adminPaymentLinksCharges, adminPaymentLinksChargesWallet, adminAlreadyCharged = false) {
     try {
         let web3 = null;
         let contract = null;
         let adminAmountInWei = null;
-        let adminAmountCharge = null;
+        let merchantRemainingAmountInWei = null;
         let receipt1 = null;
         let receipt2 = null;
         const web3Token = await (0, exports.getWeb3TokenContract)(chainId, tokenContractAddress);
@@ -251,39 +258,21 @@ async function evmERC20TokenTransfer(chainId, paymentLinkPrivateKey, txCost, tok
         const account = web3.eth.accounts.privateKeyToAccount(paymentLinkPrivateKey);
         web3.eth.accounts.wallet.add(account);
         const senderAddress = account.address;
-        const AMOUNT_IN_WEI = web3.utils.toWei(amount.toString(), getDecimalUnit(decimal));
-        let merchantRemainingAmountInWei = BigInt(AMOUNT_IN_WEI);
-        if (adminPaymentLinksCharges > 0) {
-            adminAmountCharge =
-                parseFloat(AMOUNT_IN_WEI) / (1 + adminPaymentLinksCharges / 100);
-            adminAmountInWei = BigInt(AMOUNT_IN_WEI) - BigInt(Math.floor(adminAmountCharge));
-            const MIN_ADMIN_WEI = {
-                [constants_1.ETH_CHAIN_ID]: BigInt("1000000000000000"),
-                [constants_1.BNB_CHAIN_ID]: BigInt("2000000000000000"),
-                [constants_1.POLYGON_CHAIN_ID]: BigInt("10000000000000000"),
+        const amounts = calculateERC20SplitAmounts(web3, amount, decimal, adminPaymentLinksCharges, chainId);
+        adminAmountInWei = amounts.adminAmountInWei;
+        merchantRemainingAmountInWei = amounts.merchantRemainingAmountInWei;
+        if (adminAmountInWei > 0 && !adminAlreadyCharged) {
+            const adminTx = {
+                from: senderAddress,
+                to: tokenContractAddress,
+                gasPrice: txCost.gasPrice,
+                gas: txCost.adminGas,
+                data: contract.methods
+                    .transfer(adminPaymentLinksChargesWallet, adminAmountInWei.toString())
+                    .encodeABI(),
             };
-            const minWei = MIN_ADMIN_WEI[chainId.toString()] || BigInt("1000000000000000");
-            if (adminAmountInWei < minWei) {
-                console.log(`[Deposit Fee] ⏭️ SKIPPING dust admin fee: ${adminAmountInWei.toString()} wei ` +
-                    `(threshold: ${minWei.toString()} wei). Giving full amount to merchant.`);
-                adminAmountInWei = BigInt(0);
-                merchantRemainingAmountInWei = BigInt(AMOUNT_IN_WEI);
-            }
-            else {
-                merchantRemainingAmountInWei =
-                    BigInt(AMOUNT_IN_WEI) - BigInt(adminAmountInWei);
-                const adminTx = {
-                    from: senderAddress,
-                    to: tokenContractAddress,
-                    gasPrice: txCost.gasPrice,
-                    gas: txCost.adminGas,
-                    data: contract.methods
-                        .transfer(adminPaymentLinksChargesWallet, adminAmountInWei.toString())
-                        .encodeABI(),
-                };
-                const signedTx1 = await web3.eth.accounts.signTransaction(adminTx, paymentLinkPrivateKey);
-                receipt1 = await web3.eth.sendSignedTransaction(signedTx1.rawTransaction);
-            }
+            const signedTx1 = await web3.eth.accounts.signTransaction(adminTx, paymentLinkPrivateKey);
+            receipt1 = await web3.eth.sendSignedTransaction(signedTx1.rawTransaction);
         }
         const currentNonce = await web3.eth.getTransactionCount(senderAddress, "pending");
         const merchantTx = {
