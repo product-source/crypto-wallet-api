@@ -247,6 +247,9 @@ export async function getERC20TxFee(
         });
     }
 
+    const currentBal = await contract.methods.balanceOf(senderAddress).call();
+    console.log(`[getERC20TxFee] sender: ${senderAddress}, token: ${contractAddress}, actual balance: ${currentBal}, merchant amount to send: ${merchantAmount}, admin amount: ${adminAmount}`);
+
     merchantGas = await contract.methods
       .transfer(receiverAddress, merchantAmount.toString())
       .estimateGas({
