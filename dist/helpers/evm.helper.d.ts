@@ -90,9 +90,9 @@ export declare function calculateERC20SplitAmounts(web3: any, amount: any, decim
     AMOUNT_IN_WEI: any;
 };
 export declare function getERC20TxFee(chainId: any, senderAddress: any, receiverAddress: any, contractAddress: any, amount: any, decimal: any, adminPaymentLinksCharges: any, adminPaymentLinksChargesWallet: any, adminAlreadyCharged?: boolean): Promise<{
-    adminGas: number;
-    merchantGas: number;
-    totalGas: number;
+    adminGas: bigint;
+    merchantGas: bigint;
+    totalGas: bigint;
     gasPrice: any;
 }>;
 export declare function evmNativeTokenTransferToPaymentLinks(chainId: any, nativeAmount: any, recipientAddress: any): Promise<any>;

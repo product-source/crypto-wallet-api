@@ -244,8 +244,8 @@ export async function getERC20TxFee(
     let adminAmount = amounts.adminAmountInWei;
     let merchantAmount = amounts.merchantRemainingAmountInWei;
 
-    let adminGas = 0;
-    let merchantGas = 0;
+    let adminGas = BigInt(0);
+    let merchantGas = BigInt(0);
     let gasPrice = await web3.eth.getGasPrice();
 
     if (adminAmount > 0 && !adminAlreadyCharged) {

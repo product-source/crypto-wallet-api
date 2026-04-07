@@ -185,8 +185,8 @@ async function getERC20TxFee(chainId, senderAddress, receiverAddress, contractAd
         const amounts = calculateERC20SplitAmounts(web3, amount, decimal, adminPaymentLinksCharges, chainId, currentBal);
         let adminAmount = amounts.adminAmountInWei;
         let merchantAmount = amounts.merchantRemainingAmountInWei;
-        let adminGas = 0;
-        let merchantGas = 0;
+        let adminGas = BigInt(0);
+        let merchantGas = BigInt(0);
         let gasPrice = await web3.eth.getGasPrice();
         if (adminAmount > 0 && !adminAlreadyCharged) {
             adminGas = await contract.methods
