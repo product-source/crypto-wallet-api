@@ -40,7 +40,7 @@ __decorate([
     __metadata("design:type", String)
 ], Admin.prototype, "verificationToken", void 0);
 __decorate([
-    (0, mongoose_1.Prop)(),
+    (0, mongoose_1.Prop)({ default: 0 }),
     __metadata("design:type", Number)
 ], Admin.prototype, "platformFee", void 0);
 __decorate([
@@ -48,7 +48,7 @@ __decorate([
     __metadata("design:type", String)
 ], Admin.prototype, "adminWallet", void 0);
 __decorate([
-    (0, mongoose_1.Prop)(),
+    (0, mongoose_1.Prop)({ default: 0 }),
     __metadata("design:type", Number)
 ], Admin.prototype, "merchantFee", void 0);
 __decorate([
@@ -56,11 +56,11 @@ __decorate([
     __metadata("design:type", String)
 ], Admin.prototype, "adminPrivateKey", void 0);
 __decorate([
-    (0, mongoose_1.Prop)(),
+    (0, mongoose_1.Prop)({ default: 0 }),
     __metadata("design:type", Number)
 ], Admin.prototype, "tronPlatformFee", void 0);
 __decorate([
-    (0, mongoose_1.Prop)(),
+    (0, mongoose_1.Prop)({ default: 0 }),
     __metadata("design:type", Number)
 ], Admin.prototype, "tronMerchantFee", void 0);
 __decorate([
@@ -68,11 +68,11 @@ __decorate([
     __metadata("design:type", String)
 ], Admin.prototype, "tronAdminWallet", void 0);
 __decorate([
-    (0, mongoose_1.Prop)(),
+    (0, mongoose_1.Prop)({ default: 0 }),
     __metadata("design:type", Number)
 ], Admin.prototype, "btcPlatformFee", void 0);
 __decorate([
-    (0, mongoose_1.Prop)(),
+    (0, mongoose_1.Prop)({ default: 0 }),
     __metadata("design:type", Number)
 ], Admin.prototype, "btcMerchantFee", void 0);
 __decorate([

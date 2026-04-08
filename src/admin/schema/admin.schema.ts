@@ -23,13 +23,13 @@ export class Admin {
   @Prop()
   verificationToken: string;
 
-  @Prop()
+  @Prop({ default: 0 })
   platformFee: number;
 
   @Prop()
   adminWallet: string;
 
-  @Prop()
+  @Prop({ default: 0 })
   merchantFee: number;
 
   // @Prop()
@@ -38,19 +38,19 @@ export class Admin {
   @Prop()
   adminPrivateKey: string;
 
-  @Prop()
+  @Prop({ default: 0 })
   tronPlatformFee: number;
 
-  @Prop()
+  @Prop({ default: 0 })
   tronMerchantFee: number;
 
   @Prop()
   tronAdminWallet: string;
 
-  @Prop()
+  @Prop({ default: 0 })
   btcPlatformFee: number;
 
-  @Prop()
+  @Prop({ default: 0 })
   btcMerchantFee: number;
 
   @Prop()
