@@ -732,8 +732,14 @@ let TransactionService = TransactionService_1 = class TransactionService {
                         amountAfterTax: undefined,
                     };
                     const decryptedPrivateKey = await this.encryptionService.decryptData(link?.privateKey);
-                    const totalAmount = await Number(link?.recivedAmount);
-                    const decimals = await Number(link?.tokenDecimals);
+                    const totalAmount = Number(String(link?.recivedAmount ?? 0));
+                    const decimals = Number(String(link?.tokenDecimals ?? 6));
+                    if (isNaN(totalAmount) || isNaN(decimals) || totalAmount <= 0) {
+                        console.error(`[TRON Withdraw] ❌ Invalid amount data for link ${link?._id}: ` +
+                            `recivedAmount=${link?.recivedAmount} (parsed: ${totalAmount}), ` +
+                            `tokenDecimals=${link?.tokenDecimals} (parsed: ${decimals}). Skipping.`);
+                        continue;
+                    }
                     let merchantAddress = "";
                     const isFiat = link?.transactionType === "FIAT";
                     merchantAddress = isFiat
@@ -742,10 +748,20 @@ let TransactionService = TransactionService_1 = class TransactionService {
                     const tokenContractAddress = await link?.tokenAddress;
                     const paymentLinkAddress = await link?.toAddress;
                     const adminAddress = adminData[0]?.tronAdminWallet;
-                    const adminCharges = adminData[0]?.tronPlatformFee;
+                    const adminCharges = adminData[0]?.tronPlatformFee ?? 0;
                     const adminPvtKey = config_service_1.ConfigService.keys.TRON_ADMIN_PRIVATE_KEY;
                     let merchantAmount = Number(totalAmount / (1 + adminCharges / 100));
                     let adminAmount = Number(totalAmount - merchantAmount);
+                    console.log("[TRON Withdraw] Calculated amounts:", {
+                        linkId: link?._id,
+                        totalAmount,
+                        decimals,
+                        adminCharges,
+                        merchantAmount,
+                        adminAmount,
+                        merchantAddress,
+                        tokenContractAddress,
+                    });
                     const isStablecoinTron = ["USDT", "USDC"].includes(link?.tokenSymbol?.toUpperCase());
                     const minTronAdminFee = isStablecoinTron ? 5 : 1;
                     if (adminAmount > 0 && adminAmount < minTronAdminFee) {

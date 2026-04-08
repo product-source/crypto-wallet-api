@@ -216,15 +216,32 @@ export const transferTron = async (
   decimal: number
 ) => {
   try {
-    // Convert amount from TRX to sun (1 TRX = 1e6 sun)
-    // const amountInSun = tronWeb.toSun(amount);
+    // Validate inputs to prevent NaN errors
+    if (isNaN(amount) || isNaN(decimal) || amount <= 0) {
+      throw new Error(
+        `Invalid transfer params: amount=${amount}, decimal=${decimal}`
+      );
+    }
+
+    // Use string-based conversion to avoid floating-point precision issues
+    // (ethers v6 inside TronWeb v6 rejects NaN and non-integer uint256 values)
+    const amountInSmallestUnit = toWeiCustom(amount.toString(), decimal);
+
+    console.log("[transferTron] Params:", {
+      tokenContractAddress,
+      receiverAddress,
+      amount,
+      decimal,
+      amountInSmallestUnit,
+    });
+
     const userAddress = await TronWeb.address.fromPrivateKey(privateKey);
 
     if (tokenContractAddress === NATIVE) {
       // Create an unsigned transaction
       const transaction = await tronWeb.transactionBuilder.sendTrx(
         receiverAddress,
-        amount * 10 ** decimal,
+        Number(amountInSmallestUnit),
         userAddress || ""
       );
 
@@ -248,7 +265,7 @@ export const transferTron = async (
 
       // Execute the transfer method (this is an async call)
       const txid = await contract.methods
-        .transfer(receiverAddress, amount * 10 ** decimal)
+        .transfer(receiverAddress, amountInSmallestUnit)
         .send({
           from: userAddress,
           feeLimit: 4000000000, // Adjust the fee limit as needed

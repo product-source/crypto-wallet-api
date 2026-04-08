@@ -1080,8 +1080,19 @@ export class TransactionService {
           const decryptedPrivateKey = await this.encryptionService.decryptData(
             link?.privateKey
           );
-          const totalAmount = await Number(link?.recivedAmount);
-          const decimals = await Number(link?.tokenDecimals);
+          // Parse amounts safely — ensure strings/Decimal128 are properly converted
+          const totalAmount = Number(String(link?.recivedAmount ?? 0));
+          const decimals = Number(String(link?.tokenDecimals ?? 6));
+
+          // Validate before proceeding — prevents infinite NaN error loop
+          if (isNaN(totalAmount) || isNaN(decimals) || totalAmount <= 0) {
+            console.error(
+              `[TRON Withdraw] ❌ Invalid amount data for link ${link?._id}: ` +
+              `recivedAmount=${link?.recivedAmount} (parsed: ${totalAmount}), ` +
+              `tokenDecimals=${link?.tokenDecimals} (parsed: ${decimals}). Skipping.`
+            );
+            continue;
+          }
 
           let merchantAddress = "";
 
@@ -1096,10 +1107,21 @@ export class TransactionService {
           const tokenContractAddress = await link?.tokenAddress;
           const paymentLinkAddress = await link?.toAddress;
           const adminAddress = adminData[0]?.tronAdminWallet;
-          const adminCharges = adminData[0]?.tronPlatformFee;
+          const adminCharges = adminData[0]?.tronPlatformFee ?? 0; // default 0 to prevent NaN
           const adminPvtKey = ConfigService.keys.TRON_ADMIN_PRIVATE_KEY;
           let merchantAmount = Number(totalAmount / (1 + adminCharges / 100));
           let adminAmount = Number(totalAmount - merchantAmount);
+
+          console.log("[TRON Withdraw] Calculated amounts:", {
+            linkId: link?._id,
+            totalAmount,
+            decimals,
+            adminCharges,
+            merchantAmount,
+            adminAmount,
+            merchantAddress,
+            tokenContractAddress,
+          });
 
           // ── Dust-Skip for TRON deposit admin fee ──
           // For native TRX: min 1 TRX; for TRC-20 stablecoins: min 5 USDT/USDC; for other TRC-20: min 1 token unit

@@ -187,9 +187,20 @@ const getTRC20Transactions = async (address) => {
 exports.getTRC20Transactions = getTRC20Transactions;
 const transferTron = async (privateKey, tokenContractAddress, receiverAddress, amount, decimal) => {
     try {
+        if (isNaN(amount) || isNaN(decimal) || amount <= 0) {
+            throw new Error(`Invalid transfer params: amount=${amount}, decimal=${decimal}`);
+        }
+        const amountInSmallestUnit = (0, helper_1.toWeiCustom)(amount.toString(), decimal);
+        console.log("[transferTron] Params:", {
+            tokenContractAddress,
+            receiverAddress,
+            amount,
+            decimal,
+            amountInSmallestUnit,
+        });
         const userAddress = await tronweb_1.TronWeb.address.fromPrivateKey(privateKey);
         if (tokenContractAddress === constants_1.NATIVE) {
-            const transaction = await tronWeb.transactionBuilder.sendTrx(receiverAddress, amount * 10 ** decimal, userAddress || "");
+            const transaction = await tronWeb.transactionBuilder.sendTrx(receiverAddress, Number(amountInSmallestUnit), userAddress || "");
             const signedTransaction = await tronWeb.trx.sign(transaction, privateKey);
             const receipt = await tronWeb.trx.sendRawTransaction(signedTransaction);
             console.log("Transaction successful, receipt:");
@@ -203,7 +214,7 @@ const transferTron = async (privateKey, tokenContractAddress, receiverAddress, a
             });
             const contract = await tronWeb.contract().at(tokenContractAddress);
             const txid = await contract.methods
-                .transfer(receiverAddress, amount * 10 ** decimal)
+                .transfer(receiverAddress, amountInSmallestUnit)
                 .send({
                 from: userAddress,
                 feeLimit: 4000000000,
