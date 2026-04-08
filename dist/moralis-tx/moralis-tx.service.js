@@ -342,8 +342,9 @@ let TransactionService = TransactionService_1 = class TransactionService {
                             throw Error;
                         }
                         else {
-                            paymentLinkCharges = feeDetails.data.merchantFee;
-                            paymentLinkWalletAddress = feeDetails.data.merchantFeeWallet;
+                            paymentLinkCharges = Number(feeDetails.data.platformFee ?? feeDetails.data.merchantFee ?? 0) || 0;
+                            paymentLinkWalletAddress = feeDetails.data.adminWallet || feeDetails.data.merchantFeeWallet || "";
+                            console.log("[EVM Native Withdraw] Resolved fee:", { paymentLinkCharges, paymentLinkWalletAddress });
                             const paymentLinkData = await this.paymentLinkModel.findOne({
                                 _id: wallet?._id,
                             });
@@ -384,8 +385,9 @@ let TransactionService = TransactionService_1 = class TransactionService {
                             throw Error;
                         }
                         else {
-                            paymentLinkCharges = feeDetails.data.merchantFee;
-                            paymentLinkWalletAddress = feeDetails.data.merchantFeeWallet;
+                            paymentLinkCharges = Number(feeDetails.data.platformFee ?? feeDetails.data.merchantFee ?? 0) || 0;
+                            paymentLinkWalletAddress = feeDetails.data.adminWallet || feeDetails.data.merchantFeeWallet || "";
+                            console.log("[EVM ERC20 Withdraw] Resolved fee:", { paymentLinkCharges, paymentLinkWalletAddress });
                             const currentWithdrawStatus = wallet?.withdrawStatus;
                             const adminAlreadyCharged = currentWithdrawStatus === payment_enum_1.WithdrawPaymentStatus.ADMIN_CHARGES;
                             txCost = await (0, evm_helper_1.getERC20TxFee)(chainId, senderWalletAddress, receiverAddress, tokenContractAddress, fullAmount, tokenDecimal, paymentLinkCharges, paymentLinkWalletAddress, adminAlreadyCharged);

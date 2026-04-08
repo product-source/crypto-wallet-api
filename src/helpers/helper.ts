@@ -338,18 +338,20 @@ export async function txExplorer(chainId, txHash) {
 // }
 
 export async function calculateTaxes(fullAmount, adminPaymentLinksCharges) {
+  // Safely default to 0 if fee is undefined/null/NaN — prevents NaN propagation
+  const safeCharges = Number(adminPaymentLinksCharges) || 0;
+
   console.log("Calculating Tax Amount : ", {
     fullAmount,
-    adminPaymentLinksCharges,
+    adminPaymentLinksCharges: safeCharges,
   });
 
   let merchantAmount = 0;
   let adminAmount = 0;
   try {
     // Perform calculations with floating-point numbers
-    merchantAmount = fullAmount / (1 + adminPaymentLinksCharges / 100);
-    // adminAmount = fullAmount - adminAmountCharge;
-    adminAmount = fullAmount - merchantAmount;
+    merchantAmount = Number(fullAmount) / (1 + safeCharges / 100);
+    adminAmount = Number(fullAmount) - merchantAmount;
   } catch (error) {
     console.log("Error in calculateTaxes- ", error);
   }

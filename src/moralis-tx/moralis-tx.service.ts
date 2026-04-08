@@ -494,8 +494,11 @@ export class TransactionService {
             if (feeDetails instanceof NotFoundException) {
               throw Error;
             } else {
-              paymentLinkCharges = feeDetails.data.merchantFee;
-              paymentLinkWalletAddress = feeDetails.data.merchantFeeWallet;
+              // Use platformFee as primary EVM fee; default to 0 to prevent NaN
+              paymentLinkCharges = Number(feeDetails.data.platformFee ?? feeDetails.data.merchantFee ?? 0) || 0;
+              paymentLinkWalletAddress = feeDetails.data.adminWallet || feeDetails.data.merchantFeeWallet || "";
+
+              console.log("[EVM Native Withdraw] Resolved fee:", { paymentLinkCharges, paymentLinkWalletAddress });
 
               const paymentLinkData = await this.paymentLinkModel.findOne({
                 _id: wallet?._id,
@@ -559,8 +562,11 @@ export class TransactionService {
             if (feeDetails instanceof NotFoundException) {
               throw Error;
             } else {
-              paymentLinkCharges = feeDetails.data.merchantFee;
-              paymentLinkWalletAddress = feeDetails.data.merchantFeeWallet;
+              // Use platformFee as primary EVM fee; default to 0 to prevent NaN
+              paymentLinkCharges = Number(feeDetails.data.platformFee ?? feeDetails.data.merchantFee ?? 0) || 0;
+              paymentLinkWalletAddress = feeDetails.data.adminWallet || feeDetails.data.merchantFeeWallet || "";
+
+              console.log("[EVM ERC20 Withdraw] Resolved fee:", { paymentLinkCharges, paymentLinkWalletAddress });
 
               // Check current withdraw status to determine if admin fee was already transferred
               const currentWithdrawStatus = wallet?.withdrawStatus;

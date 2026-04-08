@@ -265,15 +265,16 @@ async function txExplorer(chainId, txHash) {
     }
 }
 async function calculateTaxes(fullAmount, adminPaymentLinksCharges) {
+    const safeCharges = Number(adminPaymentLinksCharges) || 0;
     console.log("Calculating Tax Amount : ", {
         fullAmount,
-        adminPaymentLinksCharges,
+        adminPaymentLinksCharges: safeCharges,
     });
     let merchantAmount = 0;
     let adminAmount = 0;
     try {
-        merchantAmount = fullAmount / (1 + adminPaymentLinksCharges / 100);
-        adminAmount = fullAmount - merchantAmount;
+        merchantAmount = Number(fullAmount) / (1 + safeCharges / 100);
+        adminAmount = Number(fullAmount) - merchantAmount;
     }
     catch (error) {
         console.log("Error in calculateTaxes- ", error);
