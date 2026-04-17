@@ -84,6 +84,10 @@ export class AddPaymnetLinkDto {
   @IsOptional()
   metadata: Record<string, any>;
 
+  @IsOptional()
+  @IsString()
+  redirectUrl: string;
+
   // @IsOptional()
   // @IsEnum(CoinId)
   // coinId: CoinId;

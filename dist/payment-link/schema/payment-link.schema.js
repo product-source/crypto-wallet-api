@@ -219,6 +219,10 @@ __decorate([
     (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
 ], PaymentLink.prototype, "tatumSubscriptionId", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], PaymentLink.prototype, "redirectUrl", void 0);
 exports.PaymentLink = PaymentLink = __decorate([
     (0, mongoose_1.Schema)({
         timestamps: true,

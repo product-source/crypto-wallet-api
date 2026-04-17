@@ -18,6 +18,7 @@ export declare class AddPaymnetLinkDto {
     transactionType: TransactionType;
     fiatCurrency: string;
     metadata: Record<string, any>;
+    redirectUrl: string;
 }
 export declare class DepositFundDto {
     paymentId: string;

@@ -71,7 +71,7 @@ let PaymentLinkService = class PaymentLinkService {
     }
     async addPaymentLink(dto, clientIp) {
         try {
-            const { appId, apiKey, secretKey, code, amount, buyerEmail, buyerName, itemName, itemNumber, invoice, custom, successUrl, cancelUrl, transactionType, fiatCurrency, metadata, } = dto;
+            const { appId, apiKey, secretKey, code, amount, buyerEmail, buyerName, itemName, itemNumber, invoice, custom, successUrl, cancelUrl, transactionType, fiatCurrency, metadata, redirectUrl, } = dto;
             const coinId = this.getCoinIdFromCode(code);
             if (transactionType === payment_enum_1.TransactionType.FIAT) {
                 if (!fiatCurrency) {
@@ -178,6 +178,7 @@ let PaymentLinkService = class PaymentLinkService {
             model.linkURL = `${config_service_1.ConfigService.keys.WEB_BASE_URL}payment-information/${model._id}`;
             model.successUrl = successUrl;
             model.cancelUrl = cancelUrl;
+            model.redirectUrl = redirectUrl;
             model.tokenAddress = token.address;
             model.chainId = token?.chainId;
             model.symbol = token?.symbol;

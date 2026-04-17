@@ -186,6 +186,9 @@ export class PaymentLink {
 
   @Prop()
   tatumSubscriptionId: string;
+
+  @Prop()
+  redirectUrl: string;
 }
 
 export const PaymentLinkSchema = SchemaFactory.createForClass(PaymentLink);

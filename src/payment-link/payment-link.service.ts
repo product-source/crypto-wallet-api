@@ -124,6 +124,7 @@ export class PaymentLinkService {
         transactionType,
         fiatCurrency,
         metadata,
+        redirectUrl,
 
       } = dto;
 
@@ -287,6 +288,7 @@ export class PaymentLinkService {
       model.linkURL = `${ConfigService.keys.WEB_BASE_URL}payment-information/${model._id}`;
       model.successUrl = successUrl;
       model.cancelUrl = cancelUrl;
+      model.redirectUrl = redirectUrl;
       model.tokenAddress = token.address;
       model.chainId = token?.chainId;
       model.symbol = token?.symbol;
