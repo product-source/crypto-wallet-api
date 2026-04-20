@@ -9,6 +9,7 @@ import { MerchantAppTxDocument } from "src/merchant-app-tx/schema/merchant-app-t
 import { AdminService } from "src/admin/admin.service";
 import { WebhookService } from "src/webhook/webhook.service";
 import { FiatCurrencyService } from "src/fiat-currency/fiat-currency.service";
+import { SystemSettingsService } from "src/system-settings/system-settings.service";
 export declare class PaymentLinkService {
     private readonly paymentLinkModel;
     private readonly appsModel;
@@ -19,7 +20,8 @@ export declare class PaymentLinkService {
     private readonly adminService;
     private readonly webhookService;
     private readonly fiatCurrencyService;
-    constructor(paymentLinkModel: Model<PaymentLinkDocument>, appsModel: Model<AppsDocument>, monitorModel: Model<WalletMonitorDocument>, tokenModel: Model<TokenDocument>, encryptionService: EncryptionService, merchantAppTxModel: Model<MerchantAppTxDocument>, adminService: AdminService, webhookService: WebhookService, fiatCurrencyService: FiatCurrencyService);
+    private readonly settingsService;
+    constructor(paymentLinkModel: Model<PaymentLinkDocument>, appsModel: Model<AppsDocument>, monitorModel: Model<WalletMonitorDocument>, tokenModel: Model<TokenDocument>, encryptionService: EncryptionService, merchantAppTxModel: Model<MerchantAppTxDocument>, adminService: AdminService, webhookService: WebhookService, fiatCurrencyService: FiatCurrencyService, settingsService: SystemSettingsService);
     getCoinIdFromCode(code: string): string;
     addPaymentLink(dto: AddPaymnetLinkDto, clientIp?: string): Promise<{
         message: string;

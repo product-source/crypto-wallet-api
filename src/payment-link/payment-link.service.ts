@@ -64,6 +64,7 @@ import { WebhookService } from "src/webhook/webhook.service";
 import { WebhookEvent } from "src/webhook/schema/webhook-log.schema";
 import { verifyIpWhitelist } from "src/helpers/ip-whitelist.helper";
 import { FiatCurrencyService } from "src/fiat-currency/fiat-currency.service";
+import { SystemSettingsService } from "src/system-settings/system-settings.service";
 
 @Injectable()
 export class PaymentLinkService {
@@ -85,7 +86,8 @@ export class PaymentLinkService {
 
     private readonly adminService: AdminService,
     private readonly webhookService: WebhookService,
-    private readonly fiatCurrencyService: FiatCurrencyService
+    private readonly fiatCurrencyService: FiatCurrencyService,
+    private readonly settingsService: SystemSettingsService
   ) { }
 
   getCoinIdFromCode(code: string): string {
@@ -285,7 +287,11 @@ export class PaymentLinkService {
       model.itemNumber = itemNumber;
       model.invoice = invoice;
       model.custom = custom;
-      model.linkURL = `${ConfigService.keys.WEB_BASE_URL}payment-information/${model._id}`;
+      
+      const domainSetting = await this.settingsService.get('payment_link_domain');
+      const baseDomain = domainSetting || ConfigService.keys.WEB_BASE_URL.replace(/\/$/, "");
+      model.linkURL = `${baseDomain}/payment-information/${model._id}`;
+      
       model.successUrl = successUrl;
       model.cancelUrl = cancelUrl;
       model.redirectUrl = redirectUrl;

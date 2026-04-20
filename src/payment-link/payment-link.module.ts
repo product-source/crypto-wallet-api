@@ -17,12 +17,14 @@ import {
 import { AdminModule } from "src/admin/admin.module";
 import { WebhookModule } from "src/webhook/webhook.module";
 import { FiatCurrencyModule } from "src/fiat-currency/fiat-currency.module";
+import { SystemSettingsModule } from "src/system-settings/system-settings.module";
 
 @Module({
   imports: [
     AdminModule,
     WebhookModule,
     FiatCurrencyModule,
+    SystemSettingsModule,
     MongooseModule.forFeature([
       { name: PaymentLink.name, schema: PaymentLinkSchema },
       { name: Apps.name, schema: AppsSchema },

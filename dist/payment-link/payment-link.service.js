@@ -43,8 +43,9 @@ const webhook_service_1 = require("../webhook/webhook.service");
 const webhook_log_schema_1 = require("../webhook/schema/webhook-log.schema");
 const ip_whitelist_helper_1 = require("../helpers/ip-whitelist.helper");
 const fiat_currency_service_1 = require("../fiat-currency/fiat-currency.service");
+const system_settings_service_1 = require("../system-settings/system-settings.service");
 let PaymentLinkService = class PaymentLinkService {
-    constructor(paymentLinkModel, appsModel, monitorModel, tokenModel, encryptionService, merchantAppTxModel, adminService, webhookService, fiatCurrencyService) {
+    constructor(paymentLinkModel, appsModel, monitorModel, tokenModel, encryptionService, merchantAppTxModel, adminService, webhookService, fiatCurrencyService, settingsService) {
         this.paymentLinkModel = paymentLinkModel;
         this.appsModel = appsModel;
         this.monitorModel = monitorModel;
@@ -54,6 +55,7 @@ let PaymentLinkService = class PaymentLinkService {
         this.adminService = adminService;
         this.webhookService = webhookService;
         this.fiatCurrencyService = fiatCurrencyService;
+        this.settingsService = settingsService;
     }
     getCoinIdFromCode(code) {
         const baseCode = code.split(".")[0]?.toUpperCase();
@@ -175,7 +177,9 @@ let PaymentLinkService = class PaymentLinkService {
             model.itemNumber = itemNumber;
             model.invoice = invoice;
             model.custom = custom;
-            model.linkURL = `${config_service_1.ConfigService.keys.WEB_BASE_URL}payment-information/${model._id}`;
+            const domainSetting = await this.settingsService.get('payment_link_domain');
+            const baseDomain = domainSetting || config_service_1.ConfigService.keys.WEB_BASE_URL.replace(/\/$/, "");
+            model.linkURL = `${baseDomain}/payment-information/${model._id}`;
             model.successUrl = successUrl;
             model.cancelUrl = cancelUrl;
             model.redirectUrl = redirectUrl;
@@ -2097,6 +2101,7 @@ exports.PaymentLinkService = PaymentLinkService = __decorate([
         mongoose_2.Model,
         admin_service_1.AdminService,
         webhook_service_1.WebhookService,
-        fiat_currency_service_1.FiatCurrencyService])
+        fiat_currency_service_1.FiatCurrencyService,
+        system_settings_service_1.SystemSettingsService])
 ], PaymentLinkService);
 //# sourceMappingURL=payment-link.service.js.map

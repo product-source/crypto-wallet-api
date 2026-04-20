@@ -41,6 +41,7 @@ const user_withdrawal_module_1 = require("./user-withdrawal/user-withdrawal.modu
 const common_controller_1 = require("./common/common.controller");
 const fiat_currency_module_1 = require("./fiat-currency/fiat-currency.module");
 const tatum_webhook_module_1 = require("./tatum-webhook/tatum-webhook.module");
+const system_settings_module_1 = require("./system-settings/system-settings.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -94,6 +95,7 @@ exports.AppModule = AppModule = __decorate([
             user_withdrawal_module_1.UserWithdrawalModule,
             fiat_currency_module_1.FiatCurrencyModule,
             tatum_webhook_module_1.TatumWebhookModule,
+            system_settings_module_1.SystemSettingsModule,
         ],
         controllers: [app_controller_1.AppController, common_controller_1.CommonController],
         providers: [app_service_1.AppService],

@@ -32,6 +32,7 @@ import { UserWithdrawalModule } from "./user-withdrawal/user-withdrawal.module";
 import { CommonController } from "./common/common.controller";
 import { FiatCurrencyModule } from "./fiat-currency/fiat-currency.module";
 import { TatumWebhookModule } from "./tatum-webhook/tatum-webhook.module";
+import { SystemSettingsModule } from "./system-settings/system-settings.module";
 
 @Module({
   imports: [
@@ -82,6 +83,7 @@ import { TatumWebhookModule } from "./tatum-webhook/tatum-webhook.module";
     UserWithdrawalModule,
     FiatCurrencyModule,
     TatumWebhookModule,
+    SystemSettingsModule,
     // MerchantTransactionsModule,
   ],
   controllers: [AppController, CommonController],

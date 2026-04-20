@@ -20,6 +20,7 @@ const merchant_app_tx_schema_1 = require("../merchant-app-tx/schema/merchant-app
 const admin_module_1 = require("../admin/admin.module");
 const webhook_module_1 = require("../webhook/webhook.module");
 const fiat_currency_module_1 = require("../fiat-currency/fiat-currency.module");
+const system_settings_module_1 = require("../system-settings/system-settings.module");
 let PaymentLinkModule = class PaymentLinkModule {
 };
 exports.PaymentLinkModule = PaymentLinkModule;
@@ -29,6 +30,7 @@ exports.PaymentLinkModule = PaymentLinkModule = __decorate([
             admin_module_1.AdminModule,
             webhook_module_1.WebhookModule,
             fiat_currency_module_1.FiatCurrencyModule,
+            system_settings_module_1.SystemSettingsModule,
             mongoose_1.MongooseModule.forFeature([
                 { name: payment_link_schema_1.PaymentLink.name, schema: payment_link_schema_1.PaymentLinkSchema },
                 { name: apps_schema_1.Apps.name, schema: apps_schema_1.AppsSchema },
