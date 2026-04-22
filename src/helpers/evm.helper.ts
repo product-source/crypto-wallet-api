@@ -446,7 +446,9 @@ export async function evmERC20TokenTransfer(
 
     // Calculate admin fee if applicable
     // Extract gas params from txCost (EIP-1559 or legacy)
-    const { _gasPriceForCalc, adminGas: _ag, merchantGas: _mg, totalGas: _tg, gasPrice: _gp, ...txGasFields } = txCost.gasParams || {};
+    // IMPORTANT: Do NOT strip gasPrice — BSC (legacy) needs it in the TX object.
+    // Only strip internal calc fields that shouldn't go into the raw transaction.
+    const { _gasPriceForCalc, ...txGasFields } = txCost.gasParams || {};
 
     if (adminAmountInWei > 0 && !adminAlreadyCharged) {
       const adminTx = {
