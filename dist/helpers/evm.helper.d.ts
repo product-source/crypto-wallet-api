@@ -146,6 +146,8 @@ export declare function getERC20TransferTxFee(rpcURL: any, tokenContractAddress:
 export declare function deposit_bnb_for_gas_fee(chainId: any, privateKey: any, tokenContractAddress: any, receiverAddress: any, tokenAmount: any, paymentLinkAddress: any): Promise<import("web3").TransactionReceipt>;
 export declare function withdrawEvmFund(chainId: any, privateKey: any, tokenContractAddress: any, Amount: any, receiverAddress: any): Promise<import("web3").TransactionReceipt | {
     error: any;
+    status: boolean;
+    data: any;
 }>;
 export declare function getEVMNativeBalance(walletAddress: string[]): Promise<{
     bsc: number;

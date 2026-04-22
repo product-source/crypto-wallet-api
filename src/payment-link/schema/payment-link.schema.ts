@@ -189,6 +189,9 @@ export class PaymentLink {
 
   @Prop()
   redirectUrl: string;
+
+  @Prop({ default: false })
+  fundsReclaimed: boolean;
 }
 
 export const PaymentLinkSchema = SchemaFactory.createForClass(PaymentLink);

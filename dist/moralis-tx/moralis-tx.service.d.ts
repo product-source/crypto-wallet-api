@@ -57,4 +57,7 @@ export declare class TransactionService {
     withdrawBTCPaymentFromLinksAndUpdateStatus(): Promise<any>;
     TRON_DIRECT_DEPOSIT_MONITOR(): Promise<any[]>;
     BITCOIN_DIRECT_DEPOSIT_MONITOR(): Promise<any[]>;
+    reclaimLeftoverFunds(): Promise<void>;
+    private reclaimTronFunds;
+    private reclaimEvmFunds;
 }

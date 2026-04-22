@@ -128,20 +128,28 @@ async function btcTransferFromPaymentLinks(walletPrivateKey, fromAddress, mercha
         to: estimateOutputs,
     };
     let txGas;
-    try {
-        const gasResponse = await axios_1.default.post(constants_1.ESTIMATE_GAS_URL, estimateGasPayload, {
-            headers: constants_1.postHeaders,
-        });
-        const output = gasResponse.data;
-        if (output.slow) {
-            txGas = output;
+    const MAX_GAS_RETRIES = 3;
+    for (let attempt = 1; attempt <= MAX_GAS_RETRIES; attempt++) {
+        try {
+            const gasResponse = await axios_1.default.post(constants_1.ESTIMATE_GAS_URL, estimateGasPayload, {
+                headers: constants_1.postHeaders,
+            });
+            const output = gasResponse.data;
+            if (output.slow) {
+                txGas = output;
+                break;
+            }
+            else {
+                throw output;
+            }
         }
-        else {
-            throw output;
+        catch (err) {
+            console.error(`[BTC Gas] Attempt ${attempt}/${MAX_GAS_RETRIES} fee estimation failed:`, err?.data || err?.message || err);
+            if (attempt === MAX_GAS_RETRIES) {
+                return { error: "BTC fee estimation failed after retries", ...err?.data };
+            }
+            await new Promise((resolve) => setTimeout(resolve, 2000));
         }
-    }
-    catch (err) {
-        return err.data;
     }
     try {
         const networkFee = Number(txGas["medium"]);
@@ -328,14 +336,23 @@ async function merchantBtcFundWithdraw(privateKey, withdrawalAmount, withdrawalA
             headers: constants_1.postHeaders,
         });
         const receipt = sendResponse.data;
+        if (!receipt?.txId) {
+            console.error("[BTC Withdraw] ❌ No txId in response:", receipt);
+            return {
+                error: "BTC transaction submitted but no txId returned",
+                status: false,
+                data: null,
+            };
+        }
+        console.log(`[BTC Withdraw] ✅ TX sent: ${receipt.txId}`);
         return {
             error: null,
             status: true,
             data: {
                 transactionHash: receipt.txId,
-                gasUsed: 25255,
-                effectiveGasPrice: 9898,
-                blockNumber: 58,
+                gasUsed: 0,
+                effectiveGasPrice: 0,
+                blockNumber: 0,
             },
         };
     }

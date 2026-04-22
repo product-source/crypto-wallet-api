@@ -84,6 +84,8 @@ export declare class PaymentLinkController {
     withdrawFund(req: any, dto: FundWithdrawDto): Promise<{
         receipt: import("web3-types").TransactionReceipt | {
             error: any;
+            status: boolean;
+            data: any;
         };
     }>;
     getUserPaymentsLinksAmountSum(req: any): Promise<{

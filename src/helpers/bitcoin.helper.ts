@@ -137,21 +137,30 @@ export async function btcTransferFromPaymentLinks(
   };
 
   let txGas;
+  const MAX_GAS_RETRIES = 3;
 
-  try {
-    const gasResponse = await axios.post(ESTIMATE_GAS_URL, estimateGasPayload, {
-      headers: postHeaders,
-    });
+  for (let attempt = 1; attempt <= MAX_GAS_RETRIES; attempt++) {
+    try {
+      const gasResponse = await axios.post(ESTIMATE_GAS_URL, estimateGasPayload, {
+        headers: postHeaders,
+      });
 
-    const output = gasResponse.data;
+      const output = gasResponse.data;
 
-    if (output.slow) {
-      txGas = output;
-    } else {
-      throw output;
+      if (output.slow) {
+        txGas = output;
+        break; // Success — exit retry loop
+      } else {
+        throw output;
+      }
+    } catch (err) {
+      console.error(`[BTC Gas] Attempt ${attempt}/${MAX_GAS_RETRIES} fee estimation failed:`, err?.data || err?.message || err);
+      if (attempt === MAX_GAS_RETRIES) {
+        return { error: "BTC fee estimation failed after retries", ...err?.data };
+      }
+      // Wait 2 seconds before retry
+      await new Promise((resolve) => setTimeout(resolve, 2000));
     }
-  } catch (err) {
-    return err.data;
   }
 
   try {
@@ -551,14 +560,26 @@ export async function merchantBtcFundWithdraw(
 
     const receipt = sendResponse.data;
 
+    // Validate that we got a transaction ID back
+    if (!receipt?.txId) {
+      console.error("[BTC Withdraw] ❌ No txId in response:", receipt);
+      return {
+        error: "BTC transaction submitted but no txId returned",
+        status: false,
+        data: null,
+      };
+    }
+
+    console.log(`[BTC Withdraw] ✅ TX sent: ${receipt.txId}`);
+
     return {
       error: null,
       status: true,
       data: {
         transactionHash: receipt.txId,
-        gasUsed: 25255,
-        effectiveGasPrice: 9898,
-        blockNumber: 58,
+        gasUsed: 0,
+        effectiveGasPrice: 0,
+        blockNumber: 0,
       },
     };
   } catch (error) {

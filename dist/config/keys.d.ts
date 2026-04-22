@@ -13,6 +13,7 @@ export declare class Keys {
     WEB_STREAMER_ID: string;
     MORALIS_KEY: string;
     ADMIN_WALLET_PRIVATE_KEY: string;
+    ADMIN_WALLET_ADDRESS: string;
     TATUM_X_API_KEY: string;
     TATUM_NETWORK: string;
     TRON_ADMIN_PRIVATE_KEY: string;

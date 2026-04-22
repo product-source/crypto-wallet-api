@@ -13,6 +13,7 @@ export class Keys {
   WEB_STREAMER_ID: string = null;
   MORALIS_KEY: string = null;
   ADMIN_WALLET_PRIVATE_KEY: string = null;
+  ADMIN_WALLET_ADDRESS: string = null;
   TATUM_X_API_KEY: string = null;
   TATUM_NETWORK: string = null;
   TRON_ADMIN_PRIVATE_KEY: string = null;
@@ -72,6 +73,7 @@ export class Keys {
     this.WEB_STREAMER_ID = process.env.WEB_STREAMER_ID;
     this.MORALIS_KEY = process.env.MORALIS_KEY;
     this.ADMIN_WALLET_PRIVATE_KEY = process.env.ADMIN_WALLET_PRIVATE_KEY;
+    this.ADMIN_WALLET_ADDRESS = process.env.ADMIN_WALLET_ADDRESS;
     this.TATUM_X_API_KEY = process.env.TATUM_X_API_KEY;
     this.TATUM_NETWORK = process.env.TATUM_NETWORK;
     this.TRON_ADMIN_PRIVATE_KEY = process.env.TRON_ADMIN_PRIVATE_KEY;

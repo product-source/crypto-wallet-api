@@ -54,6 +54,7 @@ export declare class PaymentLink {
     metadata: Record<string, any>;
     tatumSubscriptionId: string;
     redirectUrl: string;
+    fundsReclaimed: boolean;
 }
 export declare const PaymentLinkSchema: mongoose.Schema<PaymentLink, mongoose.Model<PaymentLink, any, any, any, mongoose.Document<unknown, any, PaymentLink, any, {}> & PaymentLink & {
     _id: mongoose.Types.ObjectId;

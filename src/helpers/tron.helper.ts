@@ -268,15 +268,199 @@ export const transferTron = async (
         .transfer(receiverAddress, amountInSmallestUnit)
         .send({
           from: userAddress,
-          feeLimit: 4000000000, // Adjust the fee limit as needed
+          feeLimit: 150000000, // 150 TRX fee limit (sufficient for USDT transfers)
         });
 
-      console.log("Transaction successful! TRC-20 TxID:", txid);
+      console.log("TRC-20 TX broadcast, TxID:", txid);
+
+      // Verify on-chain result — a txid does NOT guarantee success
+      // (e.g. OUT_OF_ENERGY returns a txid but the transfer fails)
+      const verified = await verifyTronTransaction(txid);
+      if (!verified) {
+        throw new Error(`TRC-20 TX ${txid} FAILED on-chain (likely OUT_OF_ENERGY). Check: https://tronscan.org/#/transaction/${txid}`);
+      }
+
+      console.log("Transaction verified successful! TRC-20 TxID:", txid);
       return txid;
     }
   } catch (error) {
     console.error("Error while transferring TRC20:", error.message);
     throw error;
+  }
+};
+
+/**
+ * Verify a TRON transaction succeeded on-chain.
+ * TRC-20 transfers can return a txid but fail (e.g. OUT_OF_ENERGY).
+ * This polls the chain to check the actual receipt status.
+ */
+export const verifyTronTransaction = async (
+  txid: string,
+  maxRetries = 10,
+  delayMs = 3000
+): Promise<boolean> => {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+
+      const txInfo = await tronWeb.trx.getTransactionInfo(txid);
+
+      if (!txInfo || !txInfo.id) {
+        console.log(`[verifyTronTx] Attempt ${attempt}/${maxRetries}: TX ${txid} not confirmed yet, retrying...`);
+        continue;
+      }
+
+      // Check receipt status: 'SUCCESS' means the contract execution succeeded
+      const receiptResult = txInfo?.receipt?.result;
+      if (receiptResult === 'SUCCESS') {
+        console.log(`[verifyTronTx] ✅ TX ${txid} confirmed SUCCESS on-chain`);
+        return true;
+      } else {
+        console.error(
+          `[verifyTronTx] ❌ TX ${txid} FAILED on-chain. Receipt: ${receiptResult || 'UNKNOWN'}`,
+          `Energy used: ${txInfo?.receipt?.energy_usage_total || 0}`,
+          `Fee: ${txInfo?.fee || 0} sun`
+        );
+        return false;
+      }
+    } catch (error) {
+      console.log(`[verifyTronTx] Attempt ${attempt}/${maxRetries}: Error checking TX ${txid}: ${error.message}`);
+      if (attempt === maxRetries) {
+        console.error(`[verifyTronTx] ❌ Could not verify TX ${txid} after ${maxRetries} attempts`);
+        return false;
+      }
+    }
+  }
+  return false;
+};
+
+/**
+ * Dynamically estimate TRX needed for a TRC-20 transfer and fund the
+ * sender wallet from the admin wallet if its balance is insufficient.
+ *
+ * Instead of sending a fixed TRX amount, this:
+ * 1. Estimates energy via triggerConstantContract
+ * 2. Converts energy cost to TRX using current chain parameters
+ * 3. Checks the sender's current TRX balance
+ * 4. Only sends the deficit (+ buffer) from the admin/funding wallet
+ *
+ * Returns the post-funding TRX balance of the sender wallet (in TRX).
+ */
+export const estimateAndFundTrc20Gas = async (
+  senderAddress: string,
+  tokenContractAddress: string,
+  receiverAddress: string,
+  amountInSmallestUnit: string,
+  adminPrivateKey: string,
+): Promise<{ funded: boolean; balance: number; trxNeeded: number }> => {
+  const MIN_BUFFER_TRX = 5; // extra TRX buffer on top of estimate
+
+  try {
+    // 1. Estimate energy needed for this specific TRC-20 transfer
+    let estimatedEnergy = 65000; // safe default for USDT if estimation fails
+
+    try {
+      const functionSelector = "transfer(address,uint256)";
+      const parameter = [
+        { type: "address", value: receiverAddress },
+        { type: "uint256", value: amountInSmallestUnit },
+      ];
+
+      const result = await tronWeb.transactionBuilder.triggerConstantContract(
+        tokenContractAddress,
+        functionSelector,
+        {},
+        parameter,
+        senderAddress
+      );
+
+      if (result?.energy_used) {
+        // Add 20% safety margin to the estimated energy
+        estimatedEnergy = Math.ceil(Number(result.energy_used) * 1.2);
+      }
+      console.log(`[TRC20 Gas] Estimated energy for transfer: ${estimatedEnergy} (raw: ${result?.energy_used || 'N/A'})`);
+    } catch (estError) {
+      console.warn(`[TRC20 Gas] Energy estimation failed, using default ${estimatedEnergy}:`, estError.message);
+    }
+
+    // 2. Get current energy price from chain parameters
+    let energyPriceSun = 420; // default ~420 sun per energy unit
+    try {
+      const chainParams = await tronWeb.trx.getChainParameters();
+      const energyFeeParam = chainParams.find((p: any) => p.key === "getEnergyFee");
+      if (energyFeeParam) {
+        energyPriceSun = Number(energyFeeParam.value);
+      }
+      console.log(`[TRC20 Gas] Current energy price: ${energyPriceSun} sun/unit`);
+    } catch (paramError) {
+      console.warn(`[TRC20 Gas] Could not fetch chain params, using default energy price ${energyPriceSun}:`, paramError.message);
+    }
+
+    // 3. Calculate TRX needed: energy cost + bandwidth cost + buffer
+    const energyCostTrx = (estimatedEnergy * energyPriceSun) / 1_000_000;
+    const bandwidthCostTrx = 0.5; // ~345 bytes bandwidth, small cost
+    const trxNeeded = Math.ceil(energyCostTrx + bandwidthCostTrx + MIN_BUFFER_TRX);
+
+    console.log(`[TRC20 Gas] TRX needed: ${trxNeeded} (energy: ${energyCostTrx.toFixed(2)}, bandwidth: ${bandwidthCostTrx}, buffer: ${MIN_BUFFER_TRX})`);
+
+    // 4. Check current TRX balance
+    const currentBalanceSun = await tronWeb.trx.getBalance(senderAddress);
+    const currentBalanceTrx = currentBalanceSun / 1_000_000;
+
+    console.log(`[TRC20 Gas] Sender ${senderAddress} current balance: ${currentBalanceTrx} TRX, needs: ${trxNeeded} TRX`);
+
+    // 5. If balance is already sufficient, skip funding
+    if (currentBalanceTrx >= trxNeeded) {
+      console.log(`[TRC20 Gas] ✅ Balance sufficient (${currentBalanceTrx} >= ${trxNeeded}). No funding needed.`);
+      return { funded: true, balance: currentBalanceTrx, trxNeeded };
+    }
+
+    // 6. Calculate deficit and fund from admin wallet
+    const deficit = trxNeeded - currentBalanceTrx;
+    const fundAmountTrx = Math.ceil(deficit + 1); // round up + 1 TRX extra safety
+    const fundAmountSun = fundAmountTrx * 1_000_000;
+
+    console.log(`[TRC20 Gas] 💰 Funding ${fundAmountTrx} TRX (deficit: ${deficit.toFixed(2)}) from admin wallet...`);
+
+    if (!adminPrivateKey) {
+      console.error("[TRC20 Gas] ❌ No admin private key provided. Cannot fund gas.");
+      return { funded: false, balance: currentBalanceTrx, trxNeeded };
+    }
+
+    const adminAddress = TronWeb.address.fromPrivateKey(adminPrivateKey) as string;
+    const adminTronWeb = new TronWeb({
+      fullHost: fullHost,
+      headers: tronHeaders,
+      privateKey: adminPrivateKey,
+    });
+
+    const transaction = await adminTronWeb.transactionBuilder.sendTrx(
+      senderAddress,
+      fundAmountSun,
+      adminAddress
+    );
+    const signedTx = await adminTronWeb.trx.sign(transaction, adminPrivateKey);
+    const receipt = await adminTronWeb.trx.sendRawTransaction(signedTx);
+
+    if (receipt?.result) {
+      console.log(`[TRC20 Gas] ✅ Funded ${fundAmountTrx} TRX to ${senderAddress} | TX: ${receipt?.transaction?.txID}`);
+
+      // Wait for the funding TX to confirm
+      await new Promise((resolve) => setTimeout(resolve, 4000));
+
+      // Re-check balance
+      const newBalanceSun = await tronWeb.trx.getBalance(senderAddress);
+      const newBalanceTrx = newBalanceSun / 1_000_000;
+      console.log(`[TRC20 Gas] Post-funding balance: ${newBalanceTrx} TRX`);
+
+      return { funded: true, balance: newBalanceTrx, trxNeeded };
+    } else {
+      console.error("[TRC20 Gas] ❌ Funding TX failed:", receipt);
+      return { funded: false, balance: currentBalanceTrx, trxNeeded };
+    }
+  } catch (error) {
+    console.error("[TRC20 Gas] ❌ Error in estimateAndFundTrc20Gas:", error.message);
+    return { funded: false, balance: 0, trxNeeded: 0 };
   }
 };
 
@@ -365,85 +549,58 @@ export const merchantTronFundWithdraw = async (
         };
       }
 
-      // ── Auto-Gas-Funding: Send TRX if merchant wallet has insufficient TRX for gas ──
-      const TRX_FEE_LIMIT = 15; // 15 TRX (matches feeLimit: 15000000 sun below)
-      const trxBalanceInTrx = TRON_BALANCE / 1e6; // Convert sun to TRX
-      if (trxBalanceInTrx < TRX_FEE_LIMIT) {
-        console.log(
-          `[Withdrawal Gas] TRON merchant wallet ${userAddress} has insufficient TRX. ` +
-          `Has: ${trxBalanceInTrx} TRX, Needs: ${TRX_FEE_LIMIT} TRX. Auto-funding from admin wallet...`
+      // ── Dynamic Auto-Gas-Funding: estimate energy, check balance, fund deficit ──
+      const adminPvtKey = ConfigService.keys.TRON_ADMIN_PRIVATE_KEY;
+      if (adminPvtKey) {
+        const gasResult = await estimateAndFundTrc20Gas(
+          userAddress,
+          tokenContractAddress,
+          receiverAddress,
+          AMOUNT_IN_WEI,
+          adminPvtKey,
         );
-        try {
-          const adminPvtKey = ConfigService.keys.TRON_ADMIN_PRIVATE_KEY;
-          if (!adminPvtKey) {
-            console.error("[Withdrawal Gas] TRON_ADMIN_PRIVATE_KEY not configured. Cannot auto-fund TRX gas.");
-          } else {
-            const adminAddress = TronWeb.address.fromPrivateKey(adminPvtKey) as string;
-            const fundAmount = TRX_FEE_LIMIT - trxBalanceInTrx + 1; // deficit + 1 TRX buffer
-            const fundAmountInSun = Math.ceil(fundAmount * 1e6);
-
-            const adminTronWeb = new TronWeb({
-              fullHost: fullHost,
-              headers: tronHeaders,
-              privateKey: adminPvtKey,
-            });
-
-            const transaction = await adminTronWeb.transactionBuilder.sendTrx(
-              userAddress,
-              fundAmountInSun,
-              adminAddress
-            );
-            const signedTx = await adminTronWeb.trx.sign(transaction, adminPvtKey);
-            const receipt = await adminTronWeb.trx.sendRawTransaction(signedTx);
-
-            if (receipt?.result) {
-              console.log(
-                `[Withdrawal Gas] ✅ Auto-funded ${fundAmount.toFixed(2)} TRX to ${userAddress} | TX: ${receipt?.transaction?.txID}`
-              );
-              // Wait for the funding TX to be confirmed
-              await new Promise((resolve) => setTimeout(resolve, 3000));
-            } else {
-              console.error("[Withdrawal Gas] ❌ TRX funding transaction failed:", receipt);
-            }
-          }
-        } catch (gasError) {
-          console.error("[Withdrawal Gas] ❌ Failed to auto-fund TRX:", gasError?.message || gasError);
+        if (!gasResult.funded) {
           return {
-            error: `Insufficient TRX gas for withdrawal and auto-funding failed: ${gasError?.message}`,
+            error: `Insufficient TRX gas (need ${gasResult.trxNeeded} TRX, have ${gasResult.balance} TRX) and auto-funding failed`,
             status: false,
             data: null,
           };
         }
+      } else {
+        console.error("[Withdrawal Gas] TRON_ADMIN_PRIVATE_KEY not configured. Cannot auto-fund TRX gas.");
       }
 
-      // Execute the transfer method (this is an async call)
-      const receipt = await contract.methods
+      // Execute the transfer method
+      const txid = await contract.methods
         .transfer(receiverAddress, AMOUNT_IN_WEI)
         .send({
           from: userAddress,
-          feeLimit: 15000000,
+          feeLimit: 150000000, // 150 TRX fee limit
         });
 
-      console.log("Transaction successful! TRC-20 TxID:");
-      if (receipt) {
-        // Send the transaction
+      console.log("[merchantTronFundWithdraw] TRC-20 TX broadcast, TxID:", txid);
+
+      // Verify on-chain — catch OUT_OF_ENERGY failures
+      const verified = await verifyTronTransaction(txid);
+      if (!verified) {
         return {
-          error: null,
-          status: true,
-          data: {
-            transactionHash: receipt,
-            gasUsed: 0,
-            effectiveGasPrice: 0,
-            blockNumber: 0,
-          },
-        };
-      } else {
-        return {
-          error: "Transaction Failed",
+          error: `TRC-20 withdrawal TX ${txid} FAILED on-chain (likely OUT_OF_ENERGY)`,
           status: false,
           data: null,
         };
       }
+
+      console.log("[merchantTronFundWithdraw] ✅ TRC-20 TX verified:", txid);
+      return {
+        error: null,
+        status: true,
+        data: {
+          transactionHash: txid,
+          gasUsed: 0,
+          effectiveGasPrice: 0,
+          blockNumber: 0,
+        },
+      };
     }
   } catch (error) {
     console.error("Error while transferring TRC20:", error.message);

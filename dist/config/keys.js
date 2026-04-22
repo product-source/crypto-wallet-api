@@ -17,6 +17,7 @@ class Keys {
         this.WEB_STREAMER_ID = null;
         this.MORALIS_KEY = null;
         this.ADMIN_WALLET_PRIVATE_KEY = null;
+        this.ADMIN_WALLET_ADDRESS = null;
         this.TATUM_X_API_KEY = null;
         this.TATUM_NETWORK = null;
         this.TRON_ADMIN_PRIVATE_KEY = null;
@@ -66,6 +67,7 @@ class Keys {
         this.WEB_STREAMER_ID = process.env.WEB_STREAMER_ID;
         this.MORALIS_KEY = process.env.MORALIS_KEY;
         this.ADMIN_WALLET_PRIVATE_KEY = process.env.ADMIN_WALLET_PRIVATE_KEY;
+        this.ADMIN_WALLET_ADDRESS = process.env.ADMIN_WALLET_ADDRESS;
         this.TATUM_X_API_KEY = process.env.TATUM_X_API_KEY;
         this.TATUM_NETWORK = process.env.TATUM_NETWORK;
         this.TRON_ADMIN_PRIVATE_KEY = process.env.TRON_ADMIN_PRIVATE_KEY;

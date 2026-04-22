@@ -223,6 +223,10 @@ __decorate([
     (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
 ], PaymentLink.prototype, "redirectUrl", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: false }),
+    __metadata("design:type", Boolean)
+], PaymentLink.prototype, "fundsReclaimed", void 0);
 exports.PaymentLink = PaymentLink = __decorate([
     (0, mongoose_1.Schema)({
         timestamps: true,

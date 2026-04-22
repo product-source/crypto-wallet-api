@@ -467,6 +467,12 @@ export async function evmERC20TokenTransfer(
 
       // Send the transaction
       receipt1 = await web3.eth.sendSignedTransaction(signedTx1.rawTransaction);
+
+      // Verify admin fee TX succeeded
+      if (!receipt1?.status) {
+        console.error("[EVM ERC20] ❌ Admin fee TX failed (reverted):", receipt1?.transactionHash);
+        receipt1 = null;
+      }
     }
 
     // console.log(
@@ -505,9 +511,13 @@ export async function evmERC20TokenTransfer(
       // Send the transaction
       receipt2 = await web3.eth.sendSignedTransaction(signedTx2.rawTransaction);
 
-      // console.log("ERC20 Transaction hash:", receipt2.transactionHash);
+      // Verify merchant TX succeeded
+      if (!receipt2?.status) {
+        console.error("[EVM ERC20] ❌ Merchant TX failed (reverted):", receipt2?.transactionHash);
+        receipt2 = null;
+      }
     } catch (error) {
-      console.error("Transaction error:", error);
+      console.error("[EVM ERC20] Transaction error:", error.message);
     }
 
     return {
@@ -849,11 +859,38 @@ export async function withdrawEvmFund(
 
     if (tokenContractAddress === NATIVE) {
       // Native token transfer
+      const amountInWei = toWeiCustom(Amount, 18);
 
-      // Fetch current gas price
-      const gasPrice = await web3.eth.getGasPrice();
+      // Check sufficient balance
+      const nativeBalance = await web3.eth.getBalance(account.address);
+      if (BigInt(nativeBalance) < BigInt(amountInWei)) {
+        return { error: "Insufficient native balance", status: false, data: null };
+      }
 
-      // console.log("receipt : ", receipt);
+      const gasLimit = await web3.eth.estimateGas({
+        from: account.address,
+        to: receiverAddress,
+        value: amountInWei,
+      });
+
+      const tx = {
+        from: account.address,
+        to: receiverAddress,
+        value: amountInWei,
+        gas: gasLimit,
+        gasPrice,
+        nonce,
+      };
+
+      const signedTx = await web3.eth.accounts.signTransaction(tx, privateKey);
+      const receipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+
+      if (!receipt?.status) {
+        console.error("[withdrawEvmFund] ❌ Native TX reverted:", receipt?.transactionHash);
+        return { error: "Native transfer reverted", status: false, data: null };
+      }
+
+      return receipt;
     } else {
       // ERC20 token transfer
       const tokenContract = new web3.eth.Contract(
@@ -878,7 +915,7 @@ export async function withdrawEvmFund(
       const tx = {
         from: account.address,
         to: tokenContractAddress,
-        gas, // You can adjust gas limit as needed
+        gas,
         gasPrice,
         nonce,
         data: tokenContract.methods
@@ -894,13 +931,16 @@ export async function withdrawEvmFund(
         signedTx.rawTransaction
       );
 
+      if (!receipt?.status) {
+        console.error("[withdrawEvmFund] ❌ ERC20 TX reverted:", receipt?.transactionHash);
+        return { error: "ERC20 transfer reverted", status: false, data: null };
+      }
+
       return receipt;
     }
-
-    // return receipt;
   } catch (error) {
     console.log("Error in withdrawFund : ", error.message);
-    return { error: error.message };
+    return { error: error.message, status: false, data: null };
   }
 }
 

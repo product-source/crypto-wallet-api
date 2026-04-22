@@ -1,4 +1,4 @@
-import axios from "axios";
+﻿import axios from "axios";
 import {
   hexToTronAddress,
   tronDecimal,
@@ -7,6 +7,7 @@ import {
   getTRC20Transactions,
   transferTron,
   getTronToAddressAllTransactions,
+  estimateAndFundTrc20Gas,
 } from "./../helpers/tron.helper";
 import {
   BTC_CHAIN_ID,
@@ -53,10 +54,12 @@ import {
   evmNativeTokenTransferToPaymentLinks,
   getERC20TxFee,
   getNetwork,
+  getWeb3,
 } from "src/helpers/evm.helper";
 import { EncryptionService } from "src/utils/encryption.service";
 import { AdminService } from "src/admin/admin.service";
 import { getTronBalance } from "src/helpers/tron.helper";
+import { toWeiCustom } from "src/helpers/helper";
 import { btcTransferFromPaymentLinks } from "src/helpers/bitcoin.helper";
 import { Token, TokenDocument } from "src/token/schema/token.schema";
 import { Cron, CronExpression } from "@nestjs/schedule";
@@ -587,7 +590,7 @@ export class TransactionService {
 
             // Guard: if getERC20TxFee failed (e.g. insufficient token balance for estimation), skip this cycle
             if (!txCost?.gasPrice) {
-              console.log("getERC20TxFee failed — gasPrice is null. Skipping this payment link for now.");
+              console.log("getERC20TxFee failed â€” gasPrice is null. Skipping this payment link for now.");
               continue;
             }
 
@@ -597,15 +600,30 @@ export class TransactionService {
 
             if (wallet?.withdrawStatus === WithdrawPaymentStatus.PENDING) {
               // Transfer evm native tokens to the payment links for gas
-              const nativeTxReceipt = await evmNativeTokenTransferToPaymentLinks(
+              let nativeTxReceipt = await evmNativeTokenTransferToPaymentLinks(
                 chainId,
                 nativeAmountForGas,
                 senderWalletAddress
               );
+
+              // Retry once with larger buffer if first attempt failed
+              if (!nativeTxReceipt) {
+                console.log("[EVM Gas] First gas funding attempt failed. Retrying with 5x buffer...");
+                const largerGas = BigInt(txCost.totalGas) * BigInt(txCost.gasPrice) * BigInt(5);
+                nativeTxReceipt = await evmNativeTokenTransferToPaymentLinks(
+                  chainId,
+                  largerGas,
+                  senderWalletAddress
+                );
+              }
+
               if (nativeTxReceipt) {
                 await this.updatePaymentLinkModel(wallet?._id, {
                   withdrawStatus: WithdrawPaymentStatus.NATIVE_TRANSFER,
                 });
+              } else {
+                console.error(`[EVM Gas] âŒ Gas funding failed for ${senderWalletAddress}. Will retry next cycle.`);
+                continue;
               }
             }
 
@@ -642,7 +660,7 @@ export class TransactionService {
               );
 
               if (erc20Receipt.receipt1) {
-                // Admin fee transferred — update status
+                // Admin fee transferred â€” update status
                 const adminFeeValue =
                   fullAmount / (1 + parseFloat(paymentLinkCharges) / 100);
                 const adminFeeAmount = fullAmount - adminFeeValue;
@@ -656,7 +674,7 @@ export class TransactionService {
               }
 
               if (erc20Receipt.receipt2) {
-                // Merchant transfer succeeded — mark as complete
+                // Merchant transfer succeeded â€” mark as complete
                 await this.updatePaymentLinkModel(wallet?._id, {
                   withdrawStatus: WithdrawPaymentStatus.SUCCESS,
                   status: PaymentStatus.SUCCESS,
@@ -849,7 +867,7 @@ export class TransactionService {
       });
 
       if (!paymentLinks || paymentLinks?.length === 0) {
-        return; // Nothing to process — not an error
+        return; // Nothing to process â€” not an error
       }
 
       const trc20FilteredPaymentLinks = paymentLinks.filter(
@@ -1066,7 +1084,7 @@ export class TransactionService {
       const adminData = await this.adminModel.find();
 
       if (!partialPaymentLinks || partialPaymentLinks.length === 0) {
-        return; // Nothing to process — not an error
+        return; // Nothing to process â€” not an error
       }
 
       for (const link of partialPaymentLinks) {
@@ -1086,14 +1104,14 @@ export class TransactionService {
           const decryptedPrivateKey = await this.encryptionService.decryptData(
             link?.privateKey
           );
-          // Parse amounts safely — ensure strings/Decimal128 are properly converted
+          // Parse amounts safely â€” ensure strings/Decimal128 are properly converted
           const totalAmount = Number(String(link?.recivedAmount ?? 0));
           const decimals = Number(String(link?.tokenDecimals ?? 6));
 
-          // Validate before proceeding — prevents infinite NaN error loop
+          // Validate before proceeding â€” prevents infinite NaN error loop
           if (isNaN(totalAmount) || isNaN(decimals) || totalAmount <= 0) {
             console.error(
-              `[TRON Withdraw] ❌ Invalid amount data for link ${link?._id}: ` +
+              `[TRON Withdraw] âŒ Invalid amount data for link ${link?._id}: ` +
               `recivedAmount=${link?.recivedAmount} (parsed: ${totalAmount}), ` +
               `tokenDecimals=${link?.tokenDecimals} (parsed: ${decimals}). Skipping.`
             );
@@ -1129,13 +1147,13 @@ export class TransactionService {
             tokenContractAddress,
           });
 
-          // ── Dust-Skip for TRON deposit admin fee ──
+          // â”€â”€ Dust-Skip for TRON deposit admin fee â”€â”€
           // For native TRX: min 1 TRX; for TRC-20 stablecoins: min 5 USDT/USDC; for other TRC-20: min 1 token unit
           const isStablecoinTron = ["USDT", "USDC"].includes(link?.tokenSymbol?.toUpperCase());
           const minTronAdminFee = isStablecoinTron ? 5 : 1; // 5 USDT/USDC or 1 TRX/token
           if (adminAmount > 0 && adminAmount < minTronAdminFee) {
             console.log(
-              `[TRON Deposit Fee] ⏭️ SKIPPING dust admin fee: ${adminAmount.toFixed(6)} ${link?.tokenSymbol || 'TRX'} ` +
+              `[TRON Deposit Fee] â­ï¸ SKIPPING dust admin fee: ${adminAmount.toFixed(6)} ${link?.tokenSymbol || 'TRX'} ` +
               `(threshold: ${minTronAdminFee}). Giving full amount to merchant.`
             );
             merchantAmount = totalAmount;
@@ -1239,71 +1257,58 @@ export class TransactionService {
               }
             }
           } else {
-            let transferNativeTransactionFee;
             let transferTronToMerchant;
             let transferTronToAdmin;
-            const nativeTransactionAmount = 12;
-            const halfNativeTransactionAmount = nativeTransactionAmount / 2;
 
-            // Retry logic for fetching balance
-            const getBalanceWithRetry = async (address, retries = 5) => {
-              let balance = await getTronBalance(address);
-              for (let i = 0; i < retries && balance === null; i++) {
-                await new Promise((resolve) => setTimeout(resolve, 1000)); // wait for 1 second before retrying
-                balance = await getTronBalance(address);
-              }
-              return balance;
-            };
+            // Dynamic gas funding: estimate energy needed, check balance, fund only the deficit
+            const merchantReceiver = isFiat
+              ? ConfigService.keys.TRON_OWNER_ADDRESS
+              : merchantAddress;
 
-            let paymentLinkNativeBalance =
-              await getBalanceWithRetry(paymentLinkAddress);
+            const amountInSmallestUnit = toWeiCustom(
+              Number(merchantAmount.toFixed(6)).toString(),
+              decimals
+            );
 
-            // transferring manually native fee of 12trx
-            if (paymentLinkNativeBalance < nativeTransactionAmount) {
-              console.log("step 3");
-              transferNativeTransactionFee = await transferTron(
-                adminPvtKey,
-                NATIVE,
-                paymentLinkAddress,
-                nativeTransactionAmount,
-                decimals
+            const gasResult = await estimateAndFundTrc20Gas(
+              paymentLinkAddress,
+              tokenContractAddress,
+              merchantReceiver,
+              amountInSmallestUnit,
+              adminPvtKey,
+            );
+
+            if (!gasResult.funded) {
+              console.error(
+                `[TRON Withdraw] âŒ Gas funding failed for ${paymentLinkAddress}. ` +
+                `Needed: ${gasResult.trxNeeded} TRX, Has: ${gasResult.balance} TRX. Will retry next cycle.`
               );
-
-              if (transferNativeTransactionFee.result) {
-                paymentLinkNativeBalance =
-                  await getBalanceWithRetry(paymentLinkAddress);
-              }
+              continue;
             }
+
+            let paymentLinkNativeBalance = gasResult.balance;
 
             //transferring TRC-20 P.L. balance to merchant
             if (
-              paymentLinkNativeBalance >= halfNativeTransactionAmount &&
               status.withdrawStatus !== WithdrawPaymentStatus.NATIVE_TRANSFER
             ) {
-              console.log("link", link);
-              const merchantReceiver = isFiat
-                ? ConfigService.keys.TRON_OWNER_ADDRESS
-                : merchantAddress;
-              console.log("merchantReceiver", isFiat);
+              console.log("[TRON Withdraw] Transferring TRC-20 to merchant:", merchantReceiver);
 
               transferTronToMerchant = await transferTron(
                 decryptedPrivateKey,
                 tokenContractAddress,
-                // merchantAddress,
                 merchantReceiver,
                 Number(merchantAmount.toFixed(6)),
                 decimals
               );
 
               if (transferTronToMerchant.length === 64) {
-                paymentLinkNativeBalance =
-                  await getBalanceWithRetry(paymentLinkAddress);
                 status.withdrawStatus = WithdrawPaymentStatus.NATIVE_TRANSFER;
               }
             }
             //transferring TRC-20 P.L. balance to admin
             if (adminAmount <= 0) {
-              // No admin fee — skip admin transfer, go to SUCCESS after merchant transfer
+              // No admin fee â€” skip admin transfer, go to SUCCESS after merchant transfer
               if (transferTronToMerchant?.length === 64) {
                 console.log("[TRON TRC-20 Deposit] Admin fee is 0, skipping admin transfer.");
                 status.amountAfterTax = merchantAmount.toFixed(6);
@@ -1312,9 +1317,27 @@ export class TransactionService {
               }
             } else {
               if (
-                paymentLinkNativeBalance >= halfNativeTransactionAmount &&
                 status.withdrawStatus !== WithdrawPaymentStatus.ADMIN_CHARGES
               ) {
+                // Re-fund gas for admin transfer if needed (merchant TX may have consumed TRX)
+                const adminAmountSmallest = toWeiCustom(
+                  Number(adminAmount.toFixed(6)).toString(),
+                  decimals
+                );
+                const adminGasResult = await estimateAndFundTrc20Gas(
+                  paymentLinkAddress,
+                  tokenContractAddress,
+                  adminAddress,
+                  adminAmountSmallest,
+                  adminPvtKey,
+                );
+
+                if (!adminGasResult.funded) {
+                  console.error(`[TRON Withdraw] âŒ Admin transfer gas funding failed. Will retry next cycle.`);
+                  // Merchant transfer already done, will pick up admin transfer next cycle
+                  break;
+                }
+
                 transferTronToAdmin = await transferTron(
                   decryptedPrivateKey,
                   tokenContractAddress,
@@ -1324,8 +1347,6 @@ export class TransactionService {
                 );
 
                 if (transferTronToAdmin.length === 64) {
-                  paymentLinkNativeBalance =
-                    await getBalanceWithRetry(paymentLinkAddress);
                   status.adminFee = adminAmount.toFixed(6);
                   status.adminFeeWallet = adminAddress;
                   status.withdrawStatus = WithdrawPaymentStatus.ADMIN_CHARGES;
@@ -1340,8 +1361,6 @@ export class TransactionService {
                 status.amountAfterTax = merchantAmount.toFixed(6);
                 status.withdrawStatus = WithdrawPaymentStatus.SUCCESS;
                 status.status = PaymentStatus.SUCCESS;
-                paymentLinkNativeBalance =
-                  await getBalanceWithRetry(paymentLinkAddress);
               }
             }
           }
@@ -1929,7 +1948,7 @@ export class TransactionService {
         );
 
         try {
-          console.log("🚀 BTC Transfer Started");
+          console.log("ðŸš€ BTC Transfer Started");
           console.log("Sender Wallet: ", senderWalletAddress);
           console.log("Receiver Wallet: ", receiverAddress);
           console.log("Full Amount: ", fullAmount);
@@ -1960,11 +1979,11 @@ export class TransactionService {
               updateFields.adminFee = tx.adminFeeAmount;
               updateFields.adminFeeWallet = btcAdminWallet;
               updateFields.amountAfterTax = tx.merchantAmount;
-              console.log(`✅ BTC Admin fee recorded: ${tx.adminFeeAmount} BTC → ${btcAdminWallet}`);
+              console.log(`âœ… BTC Admin fee recorded: ${tx.adminFeeAmount} BTC â†’ ${btcAdminWallet}`);
             } else {
               updateFields.amountAfterTax = tx.merchantAmount || fullAmount;
               if (btcAdminFeePercent > 0) {
-                console.log(`⚠️ BTC Admin fee was below dust limit. Full amount sent to merchant/owner.`);
+                console.log(`âš ï¸ BTC Admin fee was below dust limit. Full amount sent to merchant/owner.`);
               }
             }
 
@@ -2326,5 +2345,285 @@ export class TransactionService {
     }
   }
 
+  // =====================================================================
+  // CRON: Reclaim leftover funds from completed temp wallets
+  // Runs every 15 minutes. Only TRON + EVM (BTC skipped).
+  // Sweeps remaining native tokens + any leftover TRC-20/ERC-20 back to
+  // the funding/admin wallet â€” but ONLY if profitable (amount > gas cost).
+  // TRON â†’ TRON_ADMIN_ADDRESS
+  // EVM  â†’ ADMIN_WALLET_ADDRESS
+  // =====================================================================
+  @Cron("0 */15 * * * *") // Every 15 minutes
+  async reclaimLeftoverFunds() {
+    try {
+      console.log(
+        "-------------- Cron Job -> Reclaim Leftover Funds (every 15 min) ----------------"
+      );
+
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+
+      const completedLinks = await this.paymentLinkModel
+        .find({
+          status: PaymentStatus.SUCCESS,
+          withdrawStatus: WithdrawPaymentStatus.SUCCESS,
+          fundsReclaimed: { $ne: true },
+          updatedAt: { $lt: tenMinutesAgo },
+          chainId: { $ne: "BTC" }, // Skip BTC â€” fees deducted from amount
+        })
+        .limit(10)
+        .lean();
+
+      if (completedLinks.length === 0) {
+        return;
+      }
+
+      console.log(`[Reclaim] Found ${completedLinks.length} completed wallets to sweep`);
+
+      for (const link of completedLinks) {
+        try {
+          const chainId = link.chainId;
+          const tempAddress = link.toAddress;
+          const decryptedPrivateKey = this.encryptionService.decryptData(link.privateKey);
+
+          if (!decryptedPrivateKey) {
+            console.error(`[Reclaim] Cannot decrypt key for ${tempAddress}. Marking reclaimed.`);
+            await this.paymentLinkModel.updateOne({ _id: link._id }, { $set: { fundsReclaimed: true } });
+            continue;
+          }
+
+          console.log(`[Reclaim] Processing ${tempAddress} on chain ${chainId}...`);
+
+          if (chainId === "TRON") {
+            await this.reclaimTronFunds(tempAddress, decryptedPrivateKey, link);
+          } else {
+            await this.reclaimEvmFunds(tempAddress, decryptedPrivateKey, chainId, link);
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        } catch (error) {
+          console.error(`[Reclaim] Error processing ${link.toAddress}:`, error.message);
+        }
+      }
+    } catch (error) {
+      console.error("[Reclaim] Cron error:", error.message);
+    }
+  }
+
+  /**
+   * Sweep leftover TRX + TRC-20 from a completed TRON temp wallet
+   * â†’ TRON_ADMIN_ADDRESS. Only if profitable (reclaim > gas cost).
+   */
+  private async reclaimTronFunds(tempAddress: string, privateKey: string, link: any) {
+    const adminAddress = ConfigService.keys.TRON_ADMIN_ADDRESS;
+    if (!adminAddress) {
+      console.error("[Reclaim TRON] No TRON_ADMIN_ADDRESS configured.");
+      return;
+    }
+
+    // 1. TRC-20 tokens
+    try {
+      const tronNode = ConfigService.keys.TRON_NODE || "https://api.trongrid.io";
+      const tronApiKey = ConfigService.keys.TRON_GRID_API_KEY;
+      const trc20Url = `${tronNode}/v1/accounts/${tempAddress}/tokens/trc20?limit=50`;
+      const reqHeaders: any = { accept: "application/json" };
+      if (tronApiKey) reqHeaders["TRON-PRO-API-KEY"] = tronApiKey;
+
+      const trc20Response = await axios.get(trc20Url, { headers: reqHeaders });
+      const trc20Tokens = trc20Response?.data?.data || [];
+
+      for (const token of trc20Tokens) {
+        const tokenBalance = token.balance || "0";
+        const tokenAddr = token.token_id || token.contract_address;
+        const tokenDecimals = Number(token.token_decimal || 6);
+
+        if (BigInt(tokenBalance) > BigInt(0) && tokenAddr) {
+          const humanAmount = Number(tokenBalance) / (10 ** tokenDecimals);
+
+          // Profitability: TRC-20 transfer costs ~30 TRX â‰ˆ $4-5 in gas.
+          // Skip if token value < $1 (covers USDT, USDC dust).
+          if (humanAmount < 1) {
+            console.log(`[Reclaim TRON] â­ï¸ Dust TRC-20: ${humanAmount} of ${tokenAddr} â€” skip (< $1)`);
+            continue;
+          }
+
+          const adminPvtKey = ConfigService.keys.TRON_ADMIN_PRIVATE_KEY;
+          if (!adminPvtKey) continue;
+
+          // Estimate gas needed
+          const gasResult = await estimateAndFundTrc20Gas(
+            tempAddress, tokenAddr, adminAddress, tokenBalance.toString(), adminPvtKey
+          );
+
+          // Profitability: compare token value vs gas cost
+          // Rough: 1 TRX â‰ˆ $0.12-0.15. Only reclaim if value > gas cost.
+          if (gasResult.trxNeeded > 0 && humanAmount < gasResult.trxNeeded * 0.15) {
+            console.log(
+              `[Reclaim TRON] â­ï¸ Not profitable: ~$${humanAmount.toFixed(2)} < gas ~${gasResult.trxNeeded} TRX ($${(gasResult.trxNeeded * 0.15).toFixed(2)}). Skip.`
+            );
+            continue;
+          }
+
+          if (gasResult.funded) {
+            try {
+              const txid = await transferTron(privateKey, tokenAddr, adminAddress, humanAmount, tokenDecimals);
+              console.log(`[Reclaim TRON] âœ… Swept ${humanAmount} TRC-20 (${tokenAddr}) â†’ ${adminAddress} | TX: ${txid}`);
+            } catch (txErr) {
+              console.error(`[Reclaim TRON] TRC-20 transfer failed:`, txErr.message);
+            }
+          }
+        }
+      }
+    } catch (trc20Error) {
+      console.error(`[Reclaim TRON] TRC-20 sweep error:`, trc20Error.message);
+    }
+
+    // 2. Native TRX
+    try {
+      const trxBalance = await getTronBalance(tempAddress);
+      // Profitability: TRX send costs ~0.3 TRX. Only sweep if > 2 TRX.
+      const MIN_TRX = 2;
+      const SEND_FEE = 0.3;
+
+      if (trxBalance && trxBalance > MIN_TRX) {
+        const reclaimAmount = Number((trxBalance - SEND_FEE).toFixed(6));
+        console.log(`[Reclaim TRON] Sweeping ${reclaimAmount} TRX â†’ ${adminAddress} (balance: ${trxBalance} TRX)`);
+
+        const txResult = await transferTron(privateKey, NATIVE, adminAddress, reclaimAmount, 6);
+        if ((txResult as any)?.result || (typeof txResult === "string" && txResult.length === 64)) {
+          console.log(`[Reclaim TRON] âœ… Swept ${reclaimAmount} TRX â†’ ${adminAddress}`);
+        }
+      } else {
+        console.log(`[Reclaim TRON] TRX balance ${trxBalance || 0} â€” below ${MIN_TRX} threshold. Skip.`);
+      }
+    } catch (trxError) {
+      console.error(`[Reclaim TRON] TRX sweep error:`, trxError.message);
+    }
+
+    await this.paymentLinkModel.updateOne({ _id: link._id }, { $set: { fundsReclaimed: true } });
+    console.log(`[Reclaim TRON] âœ… Marked ${tempAddress} as reclaimed.`);
+  }
+
+  /**
+   * Sweep leftover native ETH/BNB/MATIC + ERC-20 from a completed EVM temp wallet
+   * â†’ ADMIN_WALLET_ADDRESS. Only if profitable (reclaim > gas cost).
+   */
+  private async reclaimEvmFunds(tempAddress: string, privateKey: string, chainId: string, link: any) {
+    const adminAddress = ConfigService.keys.ADMIN_WALLET_ADDRESS;
+    if (!adminAddress) {
+      console.error("[Reclaim EVM] No ADMIN_WALLET_ADDRESS configured.");
+      return;
+    }
+
+    try {
+      const web3 = await getWeb3(chainId);
+      const account = web3.eth.accounts.privateKeyToAccount(privateKey);
+      web3.eth.accounts.wallet.add(account);
+
+      // 1. ERC-20 tokens
+      const tokenAddress = link.tokenAddress;
+      if (tokenAddress && tokenAddress !== NATIVE) {
+        try {
+          const minABI = [
+            { constant: true, inputs: [{ name: "_owner", type: "address" }], name: "balanceOf", outputs: [{ name: "balance", type: "uint256" }], type: "function" },
+            { constant: false, inputs: [{ name: "_to", type: "address" }, { name: "_value", type: "uint256" }], name: "transfer", outputs: [{ name: "", type: "bool" }], type: "function" },
+            { constant: true, inputs: [], name: "decimals", outputs: [{ name: "", type: "uint8" }], type: "function" },
+          ];
+
+          const tokenContract = new web3.eth.Contract(minABI as any, tokenAddress);
+          const tokenBalance = await tokenContract.methods.balanceOf(account.address).call();
+
+          if (BigInt(String(tokenBalance)) > BigInt(0)) {
+            let tokenDecimals = 18;
+            try { tokenDecimals = Number(await tokenContract.methods.decimals().call()); } catch {}
+            const humanBalance = Number(tokenBalance) / (10 ** tokenDecimals);
+
+            // Profitability: skip dust < $0.50
+            if (humanBalance < 0.5) {
+              console.log(`[Reclaim EVM] â­ï¸ Dust ERC-20: ${humanBalance} of ${tokenAddress} on ${chainId} â€” skip`);
+            } else {
+              const gasPrice = await web3.eth.getGasPrice();
+              const gas = await tokenContract.methods
+                .transfer(adminAddress, String(tokenBalance))
+                .estimateGas({ from: account.address });
+              const gasCostWei = BigInt(gas) * BigInt(gasPrice);
+              const gasCostEth = Number(web3.utils.fromWei(gasCostWei.toString(), "ether"));
+
+              // Profitability: is the token value > gas cost?
+              // For stablecoins: $humanBalance > gasCostEth * nativePrice
+              // Use conservative check: skip if humanBalance < 1 AND gasCost > 0.001 ETH
+              if (humanBalance < 1 && gasCostEth > 0.001) {
+                console.log(`[Reclaim EVM] â­ï¸ Not profitable: ${humanBalance} tokens, gas ${gasCostEth.toFixed(6)} native. Skip.`);
+              } else {
+                console.log(`[Reclaim EVM] Sweeping ERC-20 (${tokenAddress}): ${humanBalance} from ${tempAddress} on ${chainId}`);
+
+                // Check if native balance covers gas, fund if needed
+                const nativeBalance = await web3.eth.getBalance(account.address);
+                if (BigInt(nativeBalance) < gasCostWei * BigInt(2)) {
+                  console.log(`[Reclaim EVM] Funding gas for ERC-20 sweep...`);
+                  const deficit = gasCostWei * BigInt(2) - BigInt(nativeBalance);
+                  await evmNativeTokenTransferToPaymentLinks(chainId, deficit, account.address);
+                  await new Promise((resolve) => setTimeout(resolve, 3000));
+                }
+
+                const updatedBalance = await web3.eth.getBalance(account.address);
+                if (BigInt(updatedBalance) >= gasCostWei) {
+                  const nonce = await web3.eth.getTransactionCount(account.address, "pending");
+                  const tx = {
+                    from: account.address,
+                    to: tokenAddress,
+                    gas, gasPrice, nonce,
+                    data: tokenContract.methods.transfer(adminAddress, String(tokenBalance)).encodeABI(),
+                  };
+                  const signedTx = await web3.eth.accounts.signTransaction(tx, privateKey);
+                  const receipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+                  if (receipt?.status) {
+                    console.log(`[Reclaim EVM] âœ… Swept ERC-20 â†’ ${adminAddress} | TX: ${receipt.transactionHash}`);
+                  }
+                }
+              }
+            }
+          }
+        } catch (tokenError) {
+          console.error(`[Reclaim EVM] ERC-20 sweep error:`, tokenError.message);
+        }
+      }
+
+      // 2. Native tokens (ETH/BNB/MATIC)
+      const nativeBalance = await web3.eth.getBalance(account.address);
+      const gasPrice = await web3.eth.getGasPrice();
+      const gasLimit = BigInt(21000);
+      const gasCostWei = gasLimit * BigInt(gasPrice);
+      // Profitability: only sweep if balance > 3x gas cost (keep 2/3 profit after gas)
+      const minReclaim = gasCostWei * BigInt(3);
+
+      if (BigInt(nativeBalance) > minReclaim) {
+        const reclaimWei = BigInt(nativeBalance) - gasCostWei;
+        console.log(
+          `[Reclaim EVM] Sweeping ${web3.utils.fromWei(reclaimWei.toString(), "ether")} native â†’ ${adminAddress} ` +
+          `(gas: ${web3.utils.fromWei(gasCostWei.toString(), "ether")}) on ${chainId}`
+        );
+
+        const nonce = await web3.eth.getTransactionCount(account.address, "pending");
+        const tx = {
+          from: account.address, to: adminAddress,
+          value: reclaimWei.toString(), gas: gasLimit.toString(), gasPrice, nonce,
+        };
+        const signedTx = await web3.eth.accounts.signTransaction(tx, privateKey);
+        const receipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+        if (receipt?.status) {
+          console.log(`[Reclaim EVM] âœ… Swept native â†’ ${adminAddress} | TX: ${receipt.transactionHash}`);
+        }
+      } else {
+        console.log(`[Reclaim EVM] Native ${web3.utils.fromWei(nativeBalance, "ether")} on ${chainId} â€” not worth gas. Skip.`);
+      }
+    } catch (error) {
+      console.error(`[Reclaim EVM] Error sweeping ${tempAddress}:`, error.message);
+    }
+
+    await this.paymentLinkModel.updateOne({ _id: link._id }, { $set: { fundsReclaimed: true } });
+    console.log(`[Reclaim EVM] âœ… Marked ${tempAddress} as reclaimed.`);
+  }
+
   // Ended File Here ----
 }
+
