@@ -14,7 +14,10 @@ export declare const getTronTransactions: (address: any) => Promise<import("axio
 export declare const estimateTrxForTrc20Transfer: (fromAddress: any, toAddress: any, amount: any) => Promise<number>;
 export declare const getTRC20Transactions: (address: any) => Promise<import("axios").AxiosResponse<any, any, {}>>;
 export declare const transferTron: (privateKey: string, tokenContractAddress: string, receiverAddress: string, amount: number, decimal: number) => Promise<string | import("tronweb/lib/esm/types").BroadcastReturn<import("tronweb/lib/esm/types").SignedTransaction<import("tronweb/lib/esm/types").ContractParamter> & import("tronweb/lib/esm/types").Transaction<import("tronweb/lib/esm/types").TransferContract>>>;
-export declare const verifyTronTransaction: (txid: string, maxRetries?: number, delayMs?: number) => Promise<boolean>;
+export declare const verifyTronTransaction: (txid: string, maxRetries?: number, delayMs?: number) => Promise<{
+    status: "success" | "failed" | "timeout";
+    receipt?: string;
+}>;
 export declare const estimateAndFundTrc20Gas: (senderAddress: string, tokenContractAddress: string, receiverAddress: string, amountInSmallestUnit: string, adminPrivateKey: string) => Promise<{
     funded: boolean;
     balance: number;

@@ -220,11 +220,19 @@ const transferTron = async (privateKey, tokenContractAddress, receiverAddress, a
                 feeLimit: 150000000,
             });
             console.log("TRC-20 TX broadcast, TxID:", txid);
-            const verified = await (0, exports.verifyTronTransaction)(txid);
-            if (!verified) {
-                throw new Error(`TRC-20 TX ${txid} FAILED on-chain (likely OUT_OF_ENERGY). Check: https://tronscan.org/#/transaction/${txid}`);
+            const verifyResult = await (0, exports.verifyTronTransaction)(txid);
+            if (verifyResult.status === 'success') {
+                console.log("Transaction verified successful! TRC-20 TxID:", txid);
             }
-            console.log("Transaction verified successful! TRC-20 TxID:", txid);
+            else if (verifyResult.status === 'timeout') {
+                console.warn(`[transferTron] ⚠️ TX ${txid} verification timed out. ` +
+                    `TX was broadcast — treating as success to prevent double-spend. ` +
+                    `Check: https://tronscan.org/#/transaction/${txid}`);
+            }
+            else {
+                throw new Error(`TRC-20 TX ${txid} FAILED on-chain (${verifyResult.receipt}). ` +
+                    `Check: https://tronscan.org/#/transaction/${txid}`);
+            }
             return txid;
         }
     }
@@ -234,7 +242,7 @@ const transferTron = async (privateKey, tokenContractAddress, receiverAddress, a
     }
 };
 exports.transferTron = transferTron;
-const verifyTronTransaction = async (txid, maxRetries = 10, delayMs = 3000) => {
+const verifyTronTransaction = async (txid, maxRetries = 20, delayMs = 5000) => {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -246,26 +254,26 @@ const verifyTronTransaction = async (txid, maxRetries = 10, delayMs = 3000) => {
             const receiptResult = txInfo?.receipt?.result;
             if (receiptResult === 'SUCCESS') {
                 console.log(`[verifyTronTx] ✅ TX ${txid} confirmed SUCCESS on-chain`);
-                return true;
+                return { status: 'success' };
             }
             else {
                 console.error(`[verifyTronTx] ❌ TX ${txid} FAILED on-chain. Receipt: ${receiptResult || 'UNKNOWN'}`, `Energy used: ${txInfo?.receipt?.energy_usage_total || 0}`, `Fee: ${txInfo?.fee || 0} sun`);
-                return false;
+                return { status: 'failed', receipt: receiptResult || 'UNKNOWN' };
             }
         }
         catch (error) {
             console.log(`[verifyTronTx] Attempt ${attempt}/${maxRetries}: Error checking TX ${txid}: ${error.message}`);
             if (attempt === maxRetries) {
                 console.error(`[verifyTronTx] ❌ Could not verify TX ${txid} after ${maxRetries} attempts`);
-                return false;
+                return { status: 'timeout' };
             }
         }
     }
-    return false;
+    return { status: 'timeout' };
 };
 exports.verifyTronTransaction = verifyTronTransaction;
 const estimateAndFundTrc20Gas = async (senderAddress, tokenContractAddress, receiverAddress, amountInSmallestUnit, adminPrivateKey) => {
-    const MIN_BUFFER_TRX = 5;
+    const MIN_BUFFER_TRX = 10;
     try {
         let estimatedEnergy = 65000;
         try {
@@ -277,6 +285,11 @@ const estimateAndFundTrc20Gas = async (senderAddress, tokenContractAddress, rece
             const result = await tronWeb.transactionBuilder.triggerConstantContract(tokenContractAddress, functionSelector, {}, parameter, senderAddress);
             if (result?.energy_used) {
                 estimatedEnergy = Math.ceil(Number(result.energy_used) * 1.2);
+            }
+            const MIN_ENERGY_FLOOR = 65000;
+            if (estimatedEnergy < MIN_ENERGY_FLOOR) {
+                console.log(`[TRC20 Gas] Estimated energy ${estimatedEnergy} below floor ${MIN_ENERGY_FLOOR}, using floor.`);
+                estimatedEnergy = MIN_ENERGY_FLOOR;
             }
             console.log(`[TRC20 Gas] Estimated energy for transfer: ${estimatedEnergy} (raw: ${result?.energy_used || 'N/A'})`);
         }
@@ -325,7 +338,7 @@ const estimateAndFundTrc20Gas = async (senderAddress, tokenContractAddress, rece
         const receipt = await adminTronWeb.trx.sendRawTransaction(signedTx);
         if (receipt?.result) {
             console.log(`[TRC20 Gas] ✅ Funded ${fundAmountTrx} TRX to ${senderAddress} | TX: ${receipt?.transaction?.txID}`);
-            await new Promise((resolve) => setTimeout(resolve, 4000));
+            await new Promise((resolve) => setTimeout(resolve, 12000));
             const newBalanceSun = await tronWeb.trx.getBalance(senderAddress);
             const newBalanceTrx = newBalanceSun / 1_000_000;
             console.log(`[TRC20 Gas] Post-funding balance: ${newBalanceTrx} TRX`);
@@ -423,15 +436,21 @@ const merchantTronFundWithdraw = async (privateKey, tokenContractAddress, amount
                 feeLimit: 150000000,
             });
             console.log("[merchantTronFundWithdraw] TRC-20 TX broadcast, TxID:", txid);
-            const verified = await (0, exports.verifyTronTransaction)(txid);
-            if (!verified) {
+            const verifyResult = await (0, exports.verifyTronTransaction)(txid);
+            if (verifyResult.status === 'success') {
+                console.log("[merchantTronFundWithdraw] ✅ TRC-20 TX verified:", txid);
+            }
+            else if (verifyResult.status === 'timeout') {
+                console.warn(`[merchantTronFundWithdraw] ⚠️ TX ${txid} verification timed out. ` +
+                    `TX was broadcast — treating as success to prevent double-spend.`);
+            }
+            else {
                 return {
-                    error: `TRC-20 withdrawal TX ${txid} FAILED on-chain (likely OUT_OF_ENERGY)`,
+                    error: `TRC-20 withdrawal TX ${txid} FAILED on-chain (${verifyResult.receipt})`,
                     status: false,
                     data: null,
                 };
             }
-            console.log("[merchantTronFundWithdraw] ✅ TRC-20 TX verified:", txid);
             return {
                 error: null,
                 status: true,

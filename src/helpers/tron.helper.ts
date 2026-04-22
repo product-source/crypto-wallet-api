@@ -275,12 +275,25 @@ export const transferTron = async (
 
       // Verify on-chain result — a txid does NOT guarantee success
       // (e.g. OUT_OF_ENERGY returns a txid but the transfer fails)
-      const verified = await verifyTronTransaction(txid);
-      if (!verified) {
-        throw new Error(`TRC-20 TX ${txid} FAILED on-chain (likely OUT_OF_ENERGY). Check: https://tronscan.org/#/transaction/${txid}`);
+      const verifyResult = await verifyTronTransaction(txid);
+      if (verifyResult.status === 'success') {
+        console.log("Transaction verified successful! TRC-20 TxID:", txid);
+      } else if (verifyResult.status === 'timeout') {
+        // TX was broadcast but we couldn't confirm in time → return txid
+        // to prevent double-spend. The TX may still succeed on-chain.
+        console.warn(
+          `[transferTron] ⚠️ TX ${txid} verification timed out. ` +
+          `TX was broadcast — treating as success to prevent double-spend. ` +
+          `Check: https://tronscan.org/#/transaction/${txid}`
+        );
+      } else {
+        // status === 'failed' → TX was confirmed REVERT/OUT_OF_ENERGY on-chain
+        // This is a genuinely failed transfer — throw so the cron can retry
+        throw new Error(
+          `TRC-20 TX ${txid} FAILED on-chain (${verifyResult.receipt}). ` +
+          `Check: https://tronscan.org/#/transaction/${txid}`
+        );
       }
-
-      console.log("Transaction verified successful! TRC-20 TxID:", txid);
       return txid;
     }
   } catch (error) {
@@ -293,12 +306,17 @@ export const transferTron = async (
  * Verify a TRON transaction succeeded on-chain.
  * TRC-20 transfers can return a txid but fail (e.g. OUT_OF_ENERGY).
  * This polls the chain to check the actual receipt status.
+ *
+ * Returns:
+ *  - { status: 'success' }  → confirmed SUCCESS on-chain
+ *  - { status: 'failed', receipt }  → confirmed REVERT / OUT_OF_ENERGY on-chain
+ *  - { status: 'timeout' } → could not confirm within retries (may still succeed later)
  */
 export const verifyTronTransaction = async (
   txid: string,
-  maxRetries = 10,
-  delayMs = 3000
-): Promise<boolean> => {
+  maxRetries = 20,
+  delayMs = 5000
+): Promise<{ status: 'success' | 'failed' | 'timeout'; receipt?: string }> => {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -314,24 +332,24 @@ export const verifyTronTransaction = async (
       const receiptResult = txInfo?.receipt?.result;
       if (receiptResult === 'SUCCESS') {
         console.log(`[verifyTronTx] ✅ TX ${txid} confirmed SUCCESS on-chain`);
-        return true;
+        return { status: 'success' };
       } else {
         console.error(
           `[verifyTronTx] ❌ TX ${txid} FAILED on-chain. Receipt: ${receiptResult || 'UNKNOWN'}`,
           `Energy used: ${txInfo?.receipt?.energy_usage_total || 0}`,
           `Fee: ${txInfo?.fee || 0} sun`
         );
-        return false;
+        return { status: 'failed', receipt: receiptResult || 'UNKNOWN' };
       }
     } catch (error) {
       console.log(`[verifyTronTx] Attempt ${attempt}/${maxRetries}: Error checking TX ${txid}: ${error.message}`);
       if (attempt === maxRetries) {
         console.error(`[verifyTronTx] ❌ Could not verify TX ${txid} after ${maxRetries} attempts`);
-        return false;
+        return { status: 'timeout' };
       }
     }
   }
-  return false;
+  return { status: 'timeout' };
 };
 
 /**
@@ -353,7 +371,7 @@ export const estimateAndFundTrc20Gas = async (
   amountInSmallestUnit: string,
   adminPrivateKey: string,
 ): Promise<{ funded: boolean; balance: number; trxNeeded: number }> => {
-  const MIN_BUFFER_TRX = 5; // extra TRX buffer on top of estimate
+  const MIN_BUFFER_TRX = 10; // extra TRX buffer on top of estimate
 
   try {
     // 1. Estimate energy needed for this specific TRC-20 transfer
@@ -377,6 +395,13 @@ export const estimateAndFundTrc20Gas = async (
       if (result?.energy_used) {
         // Add 20% safety margin to the estimated energy
         estimatedEnergy = Math.ceil(Number(result.energy_used) * 1.2);
+      }
+      // Enforce minimum energy floor — estimateenergy can return inaccurately low
+      // values on testnet or for certain token contracts
+      const MIN_ENERGY_FLOOR = 65000;
+      if (estimatedEnergy < MIN_ENERGY_FLOOR) {
+        console.log(`[TRC20 Gas] Estimated energy ${estimatedEnergy} below floor ${MIN_ENERGY_FLOOR}, using floor.`);
+        estimatedEnergy = MIN_ENERGY_FLOOR;
       }
       console.log(`[TRC20 Gas] Estimated energy for transfer: ${estimatedEnergy} (raw: ${result?.energy_used || 'N/A'})`);
     } catch (estError) {
@@ -445,8 +470,8 @@ export const estimateAndFundTrc20Gas = async (
     if (receipt?.result) {
       console.log(`[TRC20 Gas] ✅ Funded ${fundAmountTrx} TRX to ${senderAddress} | TX: ${receipt?.transaction?.txID}`);
 
-      // Wait for the funding TX to confirm
-      await new Promise((resolve) => setTimeout(resolve, 4000));
+      // Wait for the funding TX to confirm (TRON blocks ~3s, need 2-4 blocks)
+      await new Promise((resolve) => setTimeout(resolve, 12000));
 
       // Re-check balance
       const newBalanceSun = await tronWeb.trx.getBalance(senderAddress);
@@ -580,17 +605,25 @@ export const merchantTronFundWithdraw = async (
 
       console.log("[merchantTronFundWithdraw] TRC-20 TX broadcast, TxID:", txid);
 
-      // Verify on-chain — catch OUT_OF_ENERGY failures
-      const verified = await verifyTronTransaction(txid);
-      if (!verified) {
+      // Verify on-chain — catch OUT_OF_ENERGY / REVERT failures
+      const verifyResult = await verifyTronTransaction(txid);
+      if (verifyResult.status === 'success') {
+        console.log("[merchantTronFundWithdraw] ✅ TRC-20 TX verified:", txid);
+      } else if (verifyResult.status === 'timeout') {
+        // TX was broadcast but couldn't confirm in time → treat as success
+        // to prevent double-spend on retry.
+        console.warn(
+          `[merchantTronFundWithdraw] ⚠️ TX ${txid} verification timed out. ` +
+          `TX was broadcast — treating as success to prevent double-spend.`
+        );
+      } else {
+        // status === 'failed' → TX confirmed REVERT on-chain, genuinely failed
         return {
-          error: `TRC-20 withdrawal TX ${txid} FAILED on-chain (likely OUT_OF_ENERGY)`,
+          error: `TRC-20 withdrawal TX ${txid} FAILED on-chain (${verifyResult.receipt})`,
           status: false,
           data: null,
         };
       }
-
-      console.log("[merchantTronFundWithdraw] ✅ TRC-20 TX verified:", txid);
       return {
         error: null,
         status: true,
