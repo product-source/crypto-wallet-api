@@ -36,10 +36,15 @@ export async function getOptimalGasParams(web3: any, chainId: any) {
   try {
     const latestBlock = await web3.eth.getBlock('latest');
     const baseFee = BigInt(latestBlock.baseFeePerGas || 0);
-    const priorityFee = BigInt(web3.utils.toWei('2', 'gwei')); // 2 gwei tip
+
+    // Polygon requires minimum 25 gwei tip; use 30 gwei with buffer.
+    // ETH/others use 2 gwei tip.
+    const isPolygon = chainStr === '137' || chainStr === '80002';
+    const tipGwei = isPolygon ? '30' : '2';
+    const priorityFee = BigInt(web3.utils.toWei(tipGwei, 'gwei'));
     const maxFee = baseFee * BigInt(2) + priorityFee; // 2x base + tip — generous
 
-    console.log(`[GasParams] EIP-1559 → baseFee: ${baseFee}, priorityFee: ${priorityFee}, maxFeePerGas: ${maxFee}`);
+    console.log(`[GasParams] EIP-1559 → chain: ${chainStr}, baseFee: ${baseFee}, priorityFee: ${priorityFee} (${tipGwei} gwei), maxFeePerGas: ${maxFee}`);
     return {
       maxFeePerGas: maxFee.toString(),
       maxPriorityFeePerGas: priorityFee.toString(),
@@ -500,6 +505,14 @@ export async function evmERC20TokenTransfer(
         .transfer(merchantAddress, merchantRemainingAmountInWei.toString())
         .encodeABI(),
     };
+
+    console.log("[EVM ERC20] DEBUG txGasFields:", JSON.stringify(txGasFields));
+    console.log("[EVM ERC20] DEBUG merchantTx gas fields:", {
+      gas: merchantTx.gas,
+      gasPrice: merchantTx.gasPrice,
+      maxFeePerGas: merchantTx.maxFeePerGas,
+      maxPriorityFeePerGas: merchantTx.maxPriorityFeePerGas,
+    });
 
     // console.log("merchantTx : ", merchantTx);
 
