@@ -587,6 +587,10 @@ export async function evmNativeTokenTransferFromPaymentLinks(
   let merchantAmount = tax.merchantAmount;
 
   txCost.gasPrice = Number(await web3.eth.getGasPrice());
+  // Get optimal gas params for proper EIP-1559 or legacy pricing
+  const gasParams = await getOptimalGasParams(web3, chainId);
+  // Use _gasPriceForCalc for deduction math, gasParams for TX fields
+  const gasPriceForCalc = Number(gasParams._gasPriceForCalc);
 
   console.log(
     "adminAmount and merchantAmount 1 : ",
@@ -624,13 +628,13 @@ export async function evmNativeTokenTransferFromPaymentLinks(
     value: merchantAmount,
   };
 
-  // Calculate transaction gas for amdin and merchant
+  // Calculate transaction gas for admin and merchant
   if (adminAmount > 0) {
     txCost.adminGas = Number(await web3.eth.estimateGas(adminTxData));
   }
 
   const updatedMerchantValue =
-    merchantAmount - txCost.adminGas * txCost.gasPrice - 10000000;
+    merchantAmount - txCost.adminGas * gasPriceForCalc - 10000000;
   console.log("updatedMerchantValue : ", updatedMerchantValue, txCost.adminGas);
 
   txCost.merchantGas = Number(await web3.eth.estimateGas({
@@ -641,16 +645,19 @@ export async function evmNativeTokenTransferFromPaymentLinks(
 
   console.log("txConst 1 : ", txCost);
 
+  // Deduct gas cost from merchant amount with a generous safety buffer (50000 wei)
+  // to prevent "insufficient funds" by a few wei due to gas price fluctuations
+  const safetyBuffer = 50000;
   const merchantValueAfterGas =
     merchantAmount -
-    100 -
-    (txCost?.adminGas + txCost?.merchantGas) * txCost?.gasPrice;
+    safetyBuffer -
+    (txCost?.adminGas + txCost?.merchantGas) * gasPriceForCalc;
 
   console.log(
     "ADMIn and merchant : ",
     txCost?.adminGas,
     txCost?.merchantGas,
-    txCost?.gasPrice,
+    gasPriceForCalc,
     merchantValueAfterGas
   );
 
@@ -686,10 +693,12 @@ export async function evmNativeTokenTransferFromPaymentLinks(
       );
 
       // Create the transaction object for ETH transfer
+      // Strip internal _gasPriceForCalc from gasParams before spreading into TX
+      const { _gasPriceForCalc: _calc, ...txGasFields } = gasParams;
       const adminTx = {
         ...adminTxData,
         gas: txCost.adminGas,
-        gasPrice: txCost.gasPrice,
+        ...txGasFields,
       };
 
       // Sign the transaction with the private key
@@ -714,12 +723,13 @@ export async function evmNativeTokenTransferFromPaymentLinks(
       "pending"
     );
 
-    // Create the transaction object for ETH transfer
+    // Create the transaction object — use EIP-1559 or legacy gas params
+    const { _gasPriceForCalc: _calc2, ...merchantGasFields } = gasParams;
     const merchantTx = {
       ...merchantTxData,
       nonce: currentNonce, // Use the correct nonce
       gas: txCost.merchantGas,
-      gasPrice: txCost.gasPrice,
+      ...merchantGasFields,
       value: merchantValueAfterGas,
     };
 

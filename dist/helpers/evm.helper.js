@@ -37,9 +37,11 @@ async function getOptimalGasParams(web3, chainId) {
     try {
         const latestBlock = await web3.eth.getBlock('latest');
         const baseFee = BigInt(latestBlock.baseFeePerGas || 0);
-        const priorityFee = BigInt(web3.utils.toWei('2', 'gwei'));
+        const isPolygon = chainStr === '137' || chainStr === '80002';
+        const tipGwei = isPolygon ? '30' : '2';
+        const priorityFee = BigInt(web3.utils.toWei(tipGwei, 'gwei'));
         const maxFee = baseFee * BigInt(2) + priorityFee;
-        console.log(`[GasParams] EIP-1559 → baseFee: ${baseFee}, priorityFee: ${priorityFee}, maxFeePerGas: ${maxFee}`);
+        console.log(`[GasParams] EIP-1559 → chain: ${chainStr}, baseFee: ${baseFee}, priorityFee: ${priorityFee} (${tipGwei} gwei), maxFeePerGas: ${maxFee}`);
         return {
             maxFeePerGas: maxFee.toString(),
             maxPriorityFeePerGas: priorityFee.toString(),
@@ -303,7 +305,7 @@ async function evmERC20TokenTransfer(chainId, paymentLinkPrivateKey, txCost, tok
         const amounts = calculateERC20SplitAmounts(web3, amount, decimal, adminPaymentLinksCharges, chainId, currentBal);
         adminAmountInWei = amounts.adminAmountInWei;
         merchantRemainingAmountInWei = amounts.merchantRemainingAmountInWei;
-        const { _gasPriceForCalc, adminGas: _ag, merchantGas: _mg, totalGas: _tg, gasPrice: _gp, ...txGasFields } = txCost.gasParams || {};
+        const { _gasPriceForCalc, ...txGasFields } = txCost.gasParams || {};
         if (adminAmountInWei > 0 && !adminAlreadyCharged) {
             const adminTx = {
                 from: senderAddress,
@@ -332,6 +334,13 @@ async function evmERC20TokenTransfer(chainId, paymentLinkPrivateKey, txCost, tok
                 .transfer(merchantAddress, merchantRemainingAmountInWei.toString())
                 .encodeABI(),
         };
+        console.log("[EVM ERC20] DEBUG txGasFields:", JSON.stringify(txGasFields));
+        console.log("[EVM ERC20] DEBUG merchantTx gas fields:", {
+            gas: merchantTx.gas,
+            gasPrice: merchantTx.gasPrice,
+            maxFeePerGas: merchantTx.maxFeePerGas,
+            maxPriorityFeePerGas: merchantTx.maxPriorityFeePerGas,
+        });
         try {
             let signedTx2 = await web3.eth.accounts.signTransaction(merchantTx, paymentLinkPrivateKey);
             receipt2 = await web3.eth.sendSignedTransaction(signedTx2.rawTransaction);
