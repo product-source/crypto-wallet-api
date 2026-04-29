@@ -192,6 +192,12 @@ export class PaymentLink {
 
   @Prop({ default: false })
   fundsReclaimed: boolean;
+
+  @Prop({ default: 0 })
+  withdrawRetryCount: number;
+
+  @Prop({ default: 0 })
+  reclaimRetryCount: number;
 }
 
 export const PaymentLinkSchema = SchemaFactory.createForClass(PaymentLink);

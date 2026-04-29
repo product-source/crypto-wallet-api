@@ -227,6 +227,14 @@ __decorate([
     (0, mongoose_1.Prop)({ default: false }),
     __metadata("design:type", Boolean)
 ], PaymentLink.prototype, "fundsReclaimed", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: 0 }),
+    __metadata("design:type", Number)
+], PaymentLink.prototype, "withdrawRetryCount", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: 0 }),
+    __metadata("design:type", Number)
+], PaymentLink.prototype, "reclaimRetryCount", void 0);
 exports.PaymentLink = PaymentLink = __decorate([
     (0, mongoose_1.Schema)({
         timestamps: true,

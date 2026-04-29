@@ -389,6 +389,8 @@ async function evmNativeTokenTransferFromPaymentLinks(chainId, paymentLinkPrivat
     let adminAmount = tax.adminAmount;
     let merchantAmount = tax.merchantAmount;
     txCost.gasPrice = Number(await web3.eth.getGasPrice());
+    const gasParams = await getOptimalGasParams(web3, chainId);
+    const gasPriceForCalc = Number(gasParams._gasPriceForCalc);
     console.log("adminAmount and merchantAmount 1 : ", adminAmount, merchantAmount);
     if (adminAmount > 0) {
         adminAmount = (0, helper_1.toWeiCustom)(adminAmount, decimal);
@@ -411,7 +413,7 @@ async function evmNativeTokenTransferFromPaymentLinks(chainId, paymentLinkPrivat
     if (adminAmount > 0) {
         txCost.adminGas = Number(await web3.eth.estimateGas(adminTxData));
     }
-    const updatedMerchantValue = merchantAmount - txCost.adminGas * txCost.gasPrice - 10000000;
+    const updatedMerchantValue = merchantAmount - txCost.adminGas * gasPriceForCalc - 10000000;
     console.log("updatedMerchantValue : ", updatedMerchantValue, txCost.adminGas);
     txCost.merchantGas = Number(await web3.eth.estimateGas({
         from: senderAddress,
@@ -419,10 +421,11 @@ async function evmNativeTokenTransferFromPaymentLinks(chainId, paymentLinkPrivat
         value: updatedMerchantValue,
     }));
     console.log("txConst 1 : ", txCost);
+    const safetyBuffer = 50000;
     const merchantValueAfterGas = merchantAmount -
-        100 -
-        (txCost?.adminGas + txCost?.merchantGas) * txCost?.gasPrice;
-    console.log("ADMIn and merchant : ", txCost?.adminGas, txCost?.merchantGas, txCost?.gasPrice, merchantValueAfterGas);
+        safetyBuffer -
+        (txCost?.adminGas + txCost?.merchantGas) * gasPriceForCalc;
+    console.log("ADMIn and merchant : ", txCost?.adminGas, txCost?.merchantGas, gasPriceForCalc, merchantValueAfterGas);
     try {
         const MIN_NATIVE_ADMIN_WEI = {
             [constants_1.ETH_CHAIN_ID]: 1e15,
@@ -441,21 +444,23 @@ async function evmNativeTokenTransferFromPaymentLinks(chainId, paymentLinkPrivat
         if (adminAmount > 0 &&
             currentWithdrawStatus !== payment_enum_1.WithdrawPaymentStatus.ADMIN_CHARGES) {
             console.log("also transfer admin fee --------------------------------------------------------");
+            const { _gasPriceForCalc: _calc, ...txGasFields } = gasParams;
             const adminTx = {
                 ...adminTxData,
                 gas: txCost.adminGas,
-                gasPrice: txCost.gasPrice,
+                ...txGasFields,
             };
             const signedAdminTx = await web3.eth.accounts.signTransaction(adminTx, paymentLinkPrivateKey);
             adminReceipt = await web3.eth.sendSignedTransaction(signedAdminTx.rawTransaction);
         }
         console.log("Now transfer merchant fee --------------------------------------------------");
         const currentNonce = await web3.eth.getTransactionCount(senderAddress, "pending");
+        const { _gasPriceForCalc: _calc2, ...merchantGasFields } = gasParams;
         const merchantTx = {
             ...merchantTxData,
             nonce: currentNonce,
             gas: txCost.merchantGas,
-            gasPrice: txCost.gasPrice,
+            ...merchantGasFields,
             value: merchantValueAfterGas,
         };
         const signedMerchantTx = await web3.eth.accounts.signTransaction(merchantTx, paymentLinkPrivateKey);

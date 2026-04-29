@@ -55,6 +55,8 @@ export declare class PaymentLink {
     tatumSubscriptionId: string;
     redirectUrl: string;
     fundsReclaimed: boolean;
+    withdrawRetryCount: number;
+    reclaimRetryCount: number;
 }
 export declare const PaymentLinkSchema: mongoose.Schema<PaymentLink, mongoose.Model<PaymentLink, any, any, any, mongoose.Document<unknown, any, PaymentLink, any, {}> & PaymentLink & {
     _id: mongoose.Types.ObjectId;

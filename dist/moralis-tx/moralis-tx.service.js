@@ -301,6 +301,8 @@ let TransactionService = TransactionService_1 = class TransactionService {
                 {
                     $match: {
                         status: payment_enum_1.PaymentStatus.PARTIALLY_SUCCESS,
+                        chainId: { $nin: ["TRON", "BTC"] },
+                        withdrawStatus: { $ne: "WITHDRAW_FAILED" },
                     },
                 },
                 {
@@ -315,6 +317,20 @@ let TransactionService = TransactionService_1 = class TransactionService {
             ]);
             let partialSuccessWalletId = [];
             for (const wallet of selectedPaymentLinks) {
+                const MAX_WITHDRAW_RETRIES = 5;
+                const currentRetry = (wallet?.withdrawRetryCount || 0) + 1;
+                if (currentRetry > MAX_WITHDRAW_RETRIES) {
+                    console.error(`[EVM Withdraw] ❌ Max retries (${MAX_WITHDRAW_RETRIES}) exceeded for link ${wallet?._id}. ` +
+                        `Marking as WITHDRAW_FAILED to stop retry loop.`);
+                    await this.paymentLinkModel.updateOne({ _id: wallet._id }, {
+                        $set: {
+                            withdrawStatus: 'WITHDRAW_FAILED',
+                            withdrawRetryCount: currentRetry,
+                        },
+                    });
+                    continue;
+                }
+                await this.paymentLinkModel.updateOne({ _id: wallet._id }, { $inc: { withdrawRetryCount: 1 } });
                 partialSuccessWalletId.push(wallet?._id);
                 const chainId = wallet?.chainId;
                 const senderWalletAddress = wallet?.toAddress;
@@ -708,6 +724,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
                     $match: {
                         status: payment_enum_1.PaymentStatus.PARTIALLY_SUCCESS,
                         chainId: { $in: ["TRON"] },
+                        withdrawStatus: { $ne: "WITHDRAW_FAILED" },
                     },
                 },
                 {
@@ -732,6 +749,20 @@ let TransactionService = TransactionService_1 = class TransactionService {
                 return;
             }
             for (const link of partialPaymentLinks) {
+                const MAX_WITHDRAW_RETRIES = 5;
+                const currentRetry = (link?.withdrawRetryCount || 0) + 1;
+                if (currentRetry > MAX_WITHDRAW_RETRIES) {
+                    console.error(`[TRON Withdraw] ❌ Max retries (${MAX_WITHDRAW_RETRIES}) exceeded for link ${link?._id}. ` +
+                        `Marking as WITHDRAW_FAILED to stop retry loop.`);
+                    await this.paymentLinkModel.updateOne({ _id: link._id }, {
+                        $set: {
+                            withdrawStatus: 'WITHDRAW_FAILED',
+                            withdrawRetryCount: currentRetry,
+                        },
+                    });
+                    continue;
+                }
+                await this.paymentLinkModel.updateOne({ _id: link._id }, { $inc: { withdrawRetryCount: 1 } });
                 const appForLink = await this.appModel.findById(link?.appId);
                 const toleranceMargin = appForLink?.toleranceMargin || 0;
                 const minRequiredAmount = Number(link?.amount) * (1 - (toleranceMargin / 100));
@@ -1593,6 +1624,15 @@ let TransactionService = TransactionService_1 = class TransactionService {
             console.log(`[Reclaim] Found ${completedLinks.length} completed wallets to sweep`);
             for (const link of completedLinks) {
                 try {
+                    const MAX_RECLAIM_RETRIES = 3;
+                    const currentRetry = (link?.reclaimRetryCount || 0) + 1;
+                    if (currentRetry > MAX_RECLAIM_RETRIES) {
+                        console.error(`[Reclaim] ❌ Max retries (${MAX_RECLAIM_RETRIES}) exceeded for link ${link?._id}. ` +
+                            `Marking as reclaimed to stop retry loop.`);
+                        await this.paymentLinkModel.updateOne({ _id: link._id }, { $set: { fundsReclaimed: true, reclaimRetryCount: currentRetry } });
+                        continue;
+                    }
+                    await this.paymentLinkModel.updateOne({ _id: link._id }, { $inc: { reclaimRetryCount: 1 } });
                     const chainId = link.chainId;
                     const tempAddress = link.toAddress;
                     const decryptedPrivateKey = this.encryptionService.decryptData(link.privateKey);
@@ -1601,12 +1641,20 @@ let TransactionService = TransactionService_1 = class TransactionService {
                         await this.paymentLinkModel.updateOne({ _id: link._id }, { $set: { fundsReclaimed: true } });
                         continue;
                     }
-                    console.log(`[Reclaim] Processing ${tempAddress} on chain ${chainId}...`);
+                    console.log(`[Reclaim] Processing ${tempAddress} on chain ${chainId} (Attempt ${currentRetry}/${MAX_RECLAIM_RETRIES})...`);
+                    let isReclaimed = false;
                     if (chainId === "TRON") {
-                        await this.reclaimTronFunds(tempAddress, decryptedPrivateKey, link);
+                        isReclaimed = await this.reclaimTronFunds(tempAddress, decryptedPrivateKey, link);
                     }
                     else {
-                        await this.reclaimEvmFunds(tempAddress, decryptedPrivateKey, chainId, link);
+                        isReclaimed = await this.reclaimEvmFunds(tempAddress, decryptedPrivateKey, chainId, link);
+                    }
+                    if (isReclaimed) {
+                        await this.paymentLinkModel.updateOne({ _id: link._id }, { $set: { fundsReclaimed: true } });
+                        console.log(`[Reclaim] ✅ Marked ${tempAddress} as reclaimed.`);
+                    }
+                    else {
+                        console.log(`[Reclaim] ⚠️ Some sweeps failed for ${tempAddress}. Will retry next cycle (if under max retries).`);
                     }
                     await new Promise((resolve) => setTimeout(resolve, 2000));
                 }
@@ -1623,8 +1671,9 @@ let TransactionService = TransactionService_1 = class TransactionService {
         const adminAddress = config_service_1.ConfigService.keys.TRON_ADMIN_ADDRESS;
         if (!adminAddress) {
             console.error("[Reclaim TRON] No TRON_ADMIN_ADDRESS configured.");
-            return;
+            return false;
         }
+        let allSweepsSuccessful = true;
         try {
             const tronNode = config_service_1.ConfigService.keys.TRON_NODE || "https://api.trongrid.io";
             const tronApiKey = config_service_1.ConfigService.keys.TRON_GRID_API_KEY;
@@ -1641,7 +1690,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
                 if (BigInt(tokenBalance) > BigInt(0) && tokenAddr) {
                     const humanAmount = Number(tokenBalance) / (10 ** tokenDecimals);
                     if (humanAmount < 1) {
-                        console.log(`[Reclaim TRON] â­ï¸ Dust TRC-20: ${humanAmount} of ${tokenAddr} â€” skip (< $1)`);
+                        console.log(`[Reclaim TRON] ⏭️ Dust TRC-20: ${humanAmount} of ${tokenAddr} — skip (< $1)`);
                         continue;
                     }
                     const adminPvtKey = config_service_1.ConfigService.keys.TRON_ADMIN_PRIVATE_KEY;
@@ -1649,23 +1698,29 @@ let TransactionService = TransactionService_1 = class TransactionService {
                         continue;
                     const gasResult = await (0, tron_helper_1.estimateAndFundTrc20Gas)(tempAddress, tokenAddr, adminAddress, tokenBalance.toString(), adminPvtKey);
                     if (gasResult.trxNeeded > 0 && humanAmount < gasResult.trxNeeded * 0.15) {
-                        console.log(`[Reclaim TRON] â­ï¸ Not profitable: ~$${humanAmount.toFixed(2)} < gas ~${gasResult.trxNeeded} TRX ($${(gasResult.trxNeeded * 0.15).toFixed(2)}). Skip.`);
+                        console.log(`[Reclaim TRON] ⏭️ Not profitable: ~$${humanAmount.toFixed(2)} < gas ~${gasResult.trxNeeded} TRX ($${(gasResult.trxNeeded * 0.15).toFixed(2)}). Skip.`);
                         continue;
                     }
                     if (gasResult.funded) {
                         try {
                             const txid = await (0, tron_helper_1.transferTron)(privateKey, tokenAddr, adminAddress, humanAmount, tokenDecimals);
-                            console.log(`[Reclaim TRON] âœ… Swept ${humanAmount} TRC-20 (${tokenAddr}) â†’ ${adminAddress} | TX: ${txid}`);
+                            console.log(`[Reclaim TRON] ✅ Swept ${humanAmount} TRC-20 (${tokenAddr}) → ${adminAddress} | TX: ${txid}`);
                         }
                         catch (txErr) {
                             console.error(`[Reclaim TRON] TRC-20 transfer failed:`, txErr.message);
+                            allSweepsSuccessful = false;
                         }
+                    }
+                    else {
+                        console.error(`[Reclaim TRON] TRC-20 gas funding failed, skipping sweep.`);
+                        allSweepsSuccessful = false;
                     }
                 }
             }
         }
         catch (trc20Error) {
             console.error(`[Reclaim TRON] TRC-20 sweep error:`, trc20Error.message);
+            allSweepsSuccessful = false;
         }
         try {
             const trxBalance = await (0, tron_helper_2.getTronBalance)(tempAddress);
@@ -1673,28 +1728,33 @@ let TransactionService = TransactionService_1 = class TransactionService {
             const SEND_FEE = 0.3;
             if (trxBalance && trxBalance > MIN_TRX) {
                 const reclaimAmount = Number((trxBalance - SEND_FEE).toFixed(6));
-                console.log(`[Reclaim TRON] Sweeping ${reclaimAmount} TRX â†’ ${adminAddress} (balance: ${trxBalance} TRX)`);
+                console.log(`[Reclaim TRON] Sweeping ${reclaimAmount} TRX → ${adminAddress} (balance: ${trxBalance} TRX)`);
                 const txResult = await (0, tron_helper_1.transferTron)(privateKey, constants_1.NATIVE, adminAddress, reclaimAmount, 6);
                 if (txResult?.result || (typeof txResult === "string" && txResult.length === 64)) {
-                    console.log(`[Reclaim TRON] âœ… Swept ${reclaimAmount} TRX â†’ ${adminAddress}`);
+                    console.log(`[Reclaim TRON] ✅ Swept ${reclaimAmount} TRX → ${adminAddress}`);
+                }
+                else {
+                    console.error(`[Reclaim TRON] TRX transfer failed`);
+                    allSweepsSuccessful = false;
                 }
             }
             else {
-                console.log(`[Reclaim TRON] TRX balance ${trxBalance || 0} â€” below ${MIN_TRX} threshold. Skip.`);
+                console.log(`[Reclaim TRON] TRX balance ${trxBalance || 0} — below ${MIN_TRX} threshold. Skip.`);
             }
         }
         catch (trxError) {
             console.error(`[Reclaim TRON] TRX sweep error:`, trxError.message);
+            allSweepsSuccessful = false;
         }
-        await this.paymentLinkModel.updateOne({ _id: link._id }, { $set: { fundsReclaimed: true } });
-        console.log(`[Reclaim TRON] âœ… Marked ${tempAddress} as reclaimed.`);
+        return allSweepsSuccessful;
     }
     async reclaimEvmFunds(tempAddress, privateKey, chainId, link) {
         const adminAddress = config_service_1.ConfigService.keys.ADMIN_WALLET_ADDRESS;
         if (!adminAddress) {
             console.error("[Reclaim EVM] No ADMIN_WALLET_ADDRESS configured.");
-            return;
+            return false;
         }
+        let allSweepsSuccessful = true;
         try {
             const web3 = await (0, evm_helper_1.getWeb3)(chainId);
             const account = web3.eth.accounts.privateKeyToAccount(privateKey);
@@ -1717,7 +1777,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
                         catch { }
                         const humanBalance = Number(tokenBalance) / (10 ** tokenDecimals);
                         if (humanBalance < 0.5) {
-                            console.log(`[Reclaim EVM] â­ï¸ Dust ERC-20: ${humanBalance} of ${tokenAddress} on ${chainId} â€” skip`);
+                            console.log(`[Reclaim EVM] ⏭️ Dust ERC-20: ${humanBalance} of ${tokenAddress} on ${chainId} — skip`);
                         }
                         else {
                             const gasPrice = await web3.eth.getGasPrice();
@@ -1727,7 +1787,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
                             const gasCostWei = BigInt(gas) * BigInt(gasPrice);
                             const gasCostEth = Number(web3.utils.fromWei(gasCostWei.toString(), "ether"));
                             if (humanBalance < 1 && gasCostEth > 0.001) {
-                                console.log(`[Reclaim EVM] â­ï¸ Not profitable: ${humanBalance} tokens, gas ${gasCostEth.toFixed(6)} native. Skip.`);
+                                console.log(`[Reclaim EVM] ⏭️ Not profitable: ${humanBalance} tokens, gas ${gasCostEth.toFixed(6)} native. Skip.`);
                             }
                             else {
                                 console.log(`[Reclaim EVM] Sweeping ERC-20 (${tokenAddress}): ${humanBalance} from ${tempAddress} on ${chainId}`);
@@ -1735,22 +1795,38 @@ let TransactionService = TransactionService_1 = class TransactionService {
                                 if (BigInt(nativeBalance) < gasCostWei * BigInt(2)) {
                                     console.log(`[Reclaim EVM] Funding gas for ERC-20 sweep...`);
                                     const deficit = gasCostWei * BigInt(2) - BigInt(nativeBalance);
-                                    await (0, evm_helper_1.evmNativeTokenTransferToPaymentLinks)(chainId, deficit, account.address);
-                                    await new Promise((resolve) => setTimeout(resolve, 3000));
+                                    const fundRes = await (0, evm_helper_1.evmNativeTokenTransferToPaymentLinks)(chainId, deficit, account.address);
+                                    if (fundRes.status) {
+                                        await new Promise((resolve) => setTimeout(resolve, 3000));
+                                    }
+                                    else {
+                                        console.error(`[Reclaim EVM] Gas funding failed, skipping ERC-20 sweep.`);
+                                        allSweepsSuccessful = false;
+                                    }
                                 }
-                                const updatedBalance = await web3.eth.getBalance(account.address);
-                                if (BigInt(updatedBalance) >= gasCostWei) {
-                                    const nonce = await web3.eth.getTransactionCount(account.address, "pending");
-                                    const tx = {
-                                        from: account.address,
-                                        to: tokenAddress,
-                                        gas, gasPrice, nonce,
-                                        data: tokenContract.methods.transfer(adminAddress, String(tokenBalance)).encodeABI(),
-                                    };
-                                    const signedTx = await web3.eth.accounts.signTransaction(tx, privateKey);
-                                    const receipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
-                                    if (receipt?.status) {
-                                        console.log(`[Reclaim EVM] âœ… Swept ERC-20 â†’ ${adminAddress} | TX: ${receipt.transactionHash}`);
+                                if (allSweepsSuccessful) {
+                                    const updatedBalance = await web3.eth.getBalance(account.address);
+                                    if (BigInt(updatedBalance) >= gasCostWei) {
+                                        const nonce = await web3.eth.getTransactionCount(account.address, "pending");
+                                        const tx = {
+                                            from: account.address,
+                                            to: tokenAddress,
+                                            gas, gasPrice, nonce,
+                                            data: tokenContract.methods.transfer(adminAddress, String(tokenBalance)).encodeABI(),
+                                        };
+                                        const signedTx = await web3.eth.accounts.signTransaction(tx, privateKey);
+                                        const receipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+                                        if (receipt?.status) {
+                                            console.log(`[Reclaim EVM] ✅ Swept ERC-20 → ${adminAddress} | TX: ${receipt.transactionHash}`);
+                                        }
+                                        else {
+                                            console.error(`[Reclaim EVM] ERC-20 sweep TX failed`);
+                                            allSweepsSuccessful = false;
+                                        }
+                                    }
+                                    else {
+                                        console.error(`[Reclaim EVM] Native balance still insufficient after funding`);
+                                        allSweepsSuccessful = false;
                                     }
                                 }
                             }
@@ -1759,6 +1835,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
                 }
                 catch (tokenError) {
                     console.error(`[Reclaim EVM] ERC-20 sweep error:`, tokenError.message);
+                    allSweepsSuccessful = false;
                 }
             }
             const nativeBalance = await web3.eth.getBalance(account.address);
@@ -1768,7 +1845,7 @@ let TransactionService = TransactionService_1 = class TransactionService {
             const minReclaim = gasCostWei * BigInt(3);
             if (BigInt(nativeBalance) > minReclaim) {
                 const reclaimWei = BigInt(nativeBalance) - gasCostWei;
-                console.log(`[Reclaim EVM] Sweeping ${web3.utils.fromWei(reclaimWei.toString(), "ether")} native â†’ ${adminAddress} ` +
+                console.log(`[Reclaim EVM] Sweeping ${web3.utils.fromWei(reclaimWei.toString(), "ether")} native → ${adminAddress} ` +
                     `(gas: ${web3.utils.fromWei(gasCostWei.toString(), "ether")}) on ${chainId}`);
                 const nonce = await web3.eth.getTransactionCount(account.address, "pending");
                 const tx = {
@@ -1778,18 +1855,22 @@ let TransactionService = TransactionService_1 = class TransactionService {
                 const signedTx = await web3.eth.accounts.signTransaction(tx, privateKey);
                 const receipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
                 if (receipt?.status) {
-                    console.log(`[Reclaim EVM] âœ… Swept native â†’ ${adminAddress} | TX: ${receipt.transactionHash}`);
+                    console.log(`[Reclaim EVM] ✅ Swept native → ${adminAddress} | TX: ${receipt.transactionHash}`);
+                }
+                else {
+                    console.error(`[Reclaim EVM] Native sweep TX failed`);
+                    allSweepsSuccessful = false;
                 }
             }
             else {
-                console.log(`[Reclaim EVM] Native ${web3.utils.fromWei(nativeBalance, "ether")} on ${chainId} â€” not worth gas. Skip.`);
+                console.log(`[Reclaim EVM] Native ${web3.utils.fromWei(nativeBalance, "ether")} on ${chainId} — not worth gas. Skip.`);
             }
         }
         catch (error) {
             console.error(`[Reclaim EVM] Error sweeping ${tempAddress}:`, error.message);
+            allSweepsSuccessful = false;
         }
-        await this.paymentLinkModel.updateOne({ _id: link._id }, { $set: { fundsReclaimed: true } });
-        console.log(`[Reclaim EVM] âœ… Marked ${tempAddress} as reclaimed.`);
+        return allSweepsSuccessful;
     }
 };
 exports.TransactionService = TransactionService;
