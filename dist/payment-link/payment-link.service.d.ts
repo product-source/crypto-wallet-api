@@ -31,6 +31,13 @@ export declare class PaymentLinkService {
             __v: number;
         };
     }>;
+    getPaymentLinksById(query: any): Promise<{
+        data: PaymentLink & Document & {
+            _id: import("mongoose").Types.ObjectId;
+        } & {
+            __v: number;
+        };
+    }>;
     getWalletERC20Transactions(query: any): Promise<import("@moralisweb3/common-evm-utils").GetWalletTokenTransfersResponseAdapter>;
     getMerchantTransactions(query: any, user: any): Promise<{
         total: number;
@@ -63,13 +70,6 @@ export declare class PaymentLinkService {
         } & {
             __v: number;
         })[];
-    }>;
-    getPaymentLinksById(query: any): Promise<{
-        data: PaymentLink & Document & {
-            _id: import("mongoose").Types.ObjectId;
-        } & {
-            __v: number;
-        };
     }>;
     count(query: any): Promise<{
         message: string;

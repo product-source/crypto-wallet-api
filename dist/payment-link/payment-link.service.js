@@ -299,6 +299,70 @@ let PaymentLinkService = class PaymentLinkService {
             }
         }
     }
+    async getPaymentLinksById(query) {
+        try {
+            const { paymentId } = query;
+            const paymentLink = await this.paymentLinkModel.findById(paymentId);
+            if (!paymentLink || !paymentId) {
+                throw new common_1.NotFoundException("Payment link or id not found");
+            }
+            const app = await this.appsModel.findById(paymentLink.appId);
+            const paymentLinkObj = paymentLink.toObject();
+            if (app && app.logo) {
+                paymentLinkObj['logo'] = app.logo.replace(/\\/g, "/");
+            }
+            if (app && app.theme) {
+                paymentLinkObj['theme'] = app.theme;
+            }
+            if (paymentLinkObj.redirectUrl) {
+                try {
+                    const url = new URL(paymentLinkObj.redirectUrl);
+                    url.searchParams.set('transactionId', paymentId);
+                    url.searchParams.set('status', paymentLinkObj.status || '');
+                    url.searchParams.set('currency', paymentLinkObj.code || '');
+                    url.searchParams.set('symbol', paymentLinkObj.symbol || '');
+                    url.searchParams.set('amount', paymentLinkObj.amount || '');
+                    url.searchParams.set('receivedAmount', paymentLinkObj.recivedAmount || '');
+                    url.searchParams.set('chainId', paymentLinkObj.chainId || '');
+                    if (paymentLinkObj.hash)
+                        url.searchParams.set('hash', paymentLinkObj.hash);
+                    if (paymentLinkObj.fromAddress)
+                        url.searchParams.set('fromAddress', paymentLinkObj.fromAddress);
+                    if (paymentLinkObj.transactionType)
+                        url.searchParams.set('transactionType', paymentLinkObj.transactionType);
+                    if (paymentLinkObj.fiatCurrency)
+                        url.searchParams.set('fiatCurrency', paymentLinkObj.fiatCurrency);
+                    if (paymentLinkObj.fiatAmount)
+                        url.searchParams.set('fiatAmount', String(paymentLinkObj.fiatAmount));
+                    if (paymentLinkObj.pricePerCoin)
+                        url.searchParams.set('pricePerCoin', String(paymentLinkObj.pricePerCoin));
+                    if (paymentLinkObj.cryptoAmount)
+                        url.searchParams.set('cryptoAmount', String(paymentLinkObj.cryptoAmount));
+                    if (paymentLinkObj.metadata && typeof paymentLinkObj.metadata === 'object' && Object.keys(paymentLinkObj.metadata).length > 0) {
+                        Object.entries(paymentLinkObj.metadata).forEach(([key, value]) => {
+                            url.searchParams.set(`metadata_${key}`, typeof value === 'object' ? JSON.stringify(value) : String(value));
+                        });
+                    }
+                    paymentLinkObj['redirectUrlWithParams'] = url.toString();
+                }
+                catch (e) {
+                    console.error("Error building redirect URL with params:", e.message);
+                }
+            }
+            return {
+                data: paymentLinkObj,
+            };
+        }
+        catch (error) {
+            if (error instanceof common_1.NotFoundException) {
+                throw error;
+            }
+            else {
+                console.log("An error occurred:", error.message);
+                throw new common_1.BadRequestException("Unable to retrieve payment link");
+            }
+        }
+    }
     async getWalletERC20Transactions(query) {
         try {
             const { paymentId } = query;
@@ -487,35 +551,6 @@ let PaymentLinkService = class PaymentLinkService {
             else {
                 console.log("An error occurred:", error.message);
                 throw new common_1.BadRequestException(error);
-            }
-        }
-    }
-    async getPaymentLinksById(query) {
-        try {
-            const { paymentId } = query;
-            const paymentLink = await this.paymentLinkModel.findById(paymentId);
-            if (!paymentLink || !paymentId) {
-                throw new common_1.NotFoundException("Payment link or id not found");
-            }
-            const app = await this.appsModel.findById(paymentLink.appId);
-            const paymentLinkObj = paymentLink.toObject();
-            if (app && app.logo) {
-                paymentLinkObj['logo'] = app.logo.replace(/\\/g, "/");
-            }
-            if (app && app.theme) {
-                paymentLinkObj['theme'] = app.theme;
-            }
-            return {
-                data: paymentLinkObj,
-            };
-        }
-        catch (error) {
-            if (error instanceof common_1.NotFoundException) {
-                throw error;
-            }
-            else {
-                console.log("An error occurred:", error.message);
-                throw new common_1.BadRequestException("Unable to retrieve payment link");
             }
         }
     }

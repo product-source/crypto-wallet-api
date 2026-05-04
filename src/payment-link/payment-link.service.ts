@@ -1,4 +1,4 @@
-import { BTC_CHAIN_ID, NATIVE, TRON_CHAIN_ID } from "./../constants/index";
+﻿import { BTC_CHAIN_ID, NATIVE, TRON_CHAIN_ID } from "./../constants/index";
 import {
   BadRequestException,
   ForbiddenException,
@@ -91,7 +91,7 @@ export class PaymentLinkService {
   ) { }
 
   getCoinIdFromCode(code: string): string {
-    const baseCode = code.split(".")[0]?.toUpperCase(); // e.g. USDT.BNB → USDT
+    const baseCode = code.split(".")[0]?.toUpperCase(); // e.g. USDT.BNB â†’ USDT
 
     const mapping: Record<string, string> = {
       USDT: "tether",
@@ -182,7 +182,7 @@ export class PaymentLinkService {
         throw new BadRequestException("Invalid token code");
       }
 
-      // ── minDeposit check for CRYPTO transactions (amount is already in crypto units) ──
+      // â”€â”€ minDeposit check for CRYPTO transactions (amount is already in crypto units) â”€â”€
       if (transactionType === TransactionType.CRYPTO && token.minDeposit > parseFloat(amount)) {
         throw new BadRequestException(
           `For ${token?.network} network ${token?.code} min deposit value is ${token?.minDeposit} ${token?.symbol}`
@@ -265,7 +265,7 @@ export class PaymentLinkService {
         }
       }
 
-      // ── minDeposit check for FIAT transactions (compare converted crypto amount) ──
+      // â”€â”€ minDeposit check for FIAT transactions (compare converted crypto amount) â”€â”€
       if (transactionType === TransactionType.FIAT && cryptoAmount !== null) {
         if (token.minDeposit > cryptoAmount) {
           throw new BadRequestException(
@@ -318,7 +318,7 @@ export class PaymentLinkService {
         model.cryptoToUsd = cryptoUsd.toFixed(6);
         model.fiatToUsd = fiatUsd.toFixed(6);
       } else {
-        // For CRYPTO — set FIAT fields to null
+        // For CRYPTO â€” set FIAT fields to null
         model.amount = amount;
         model.fiatCurrency = undefined;
         model.coinId = undefined;
@@ -383,7 +383,7 @@ export class PaymentLinkService {
           }
         } catch (subError) {
           console.error("[Tatum] Failed to subscribe Tron address (non-blocking):", subError.message);
-          // Non-blocking — fallback cron will still detect payments
+          // Non-blocking â€” fallback cron will still detect payments
         }
       }
 
@@ -433,7 +433,7 @@ export class PaymentLinkService {
         WebhookEvent.PAYMENT_INITIATED,
         {
           ...model.toObject(),
-          status: PaymentStatus.PENDING,
+        status: PaymentStatus.PENDING,
         }
       );
 
@@ -447,6 +447,72 @@ export class PaymentLinkService {
       } else {
         console.log("An error occurred:", error.message);
         throw new BadRequestException(error);
+      }
+    }
+  }
+
+  async getPaymentLinksById(query) {
+    try {
+      const { paymentId } = query;
+      const paymentLink = await this.paymentLinkModel.findById(paymentId);
+
+      if (!paymentLink || !paymentId) {
+        throw new NotFoundException("Payment link or id not found");
+      }
+
+      const app = await this.appsModel.findById(paymentLink.appId);
+      const paymentLinkObj = paymentLink.toObject();
+
+      if (app && app.logo) {
+        paymentLinkObj['logo'] = app.logo.replace(/\\/g, "/");
+      }
+      if (app && app.theme) {
+        paymentLinkObj['theme'] = app.theme;
+      }
+
+      // Build enriched redirect URL with all transaction parameters
+      if (paymentLinkObj.redirectUrl) {
+        try {
+          const url = new URL(paymentLinkObj.redirectUrl);
+          // Core transaction info
+          url.searchParams.set('transactionId', paymentId);
+          url.searchParams.set('status', paymentLinkObj.status || '');
+          url.searchParams.set('currency', paymentLinkObj.code || '');
+          url.searchParams.set('symbol', paymentLinkObj.symbol || '');
+          url.searchParams.set('amount', paymentLinkObj.amount || '');
+          url.searchParams.set('receivedAmount', paymentLinkObj.recivedAmount || '');
+          // Network & blockchain info
+          url.searchParams.set('chainId', paymentLinkObj.chainId || '');
+          if (paymentLinkObj.hash) url.searchParams.set('hash', paymentLinkObj.hash);
+          if (paymentLinkObj.fromAddress) url.searchParams.set('fromAddress', paymentLinkObj.fromAddress);
+          // Fiat-specific fields
+          if (paymentLinkObj.transactionType) url.searchParams.set('transactionType', paymentLinkObj.transactionType);
+          if (paymentLinkObj.fiatCurrency) url.searchParams.set('fiatCurrency', paymentLinkObj.fiatCurrency);
+          if (paymentLinkObj.fiatAmount) url.searchParams.set('fiatAmount', String(paymentLinkObj.fiatAmount));
+          if (paymentLinkObj.pricePerCoin) url.searchParams.set('pricePerCoin', String(paymentLinkObj.pricePerCoin));
+          if (paymentLinkObj.cryptoAmount) url.searchParams.set('cryptoAmount', String(paymentLinkObj.cryptoAmount));
+          // Metadata â€” flatten into query params
+          if (paymentLinkObj.metadata && typeof paymentLinkObj.metadata === 'object' && Object.keys(paymentLinkObj.metadata).length > 0) {
+            Object.entries(paymentLinkObj.metadata).forEach(([key, value]) => {
+              url.searchParams.set(`metadata_${key}`, typeof value === 'object' ? JSON.stringify(value) : String(value));
+            });
+          }
+          paymentLinkObj['redirectUrlWithParams'] = url.toString();
+        } catch (e) {
+          console.error("Error building redirect URL with params:", e.message);
+          // Keep original redirectUrl if URL parsing fails
+        }
+      }
+
+      return {
+        data: paymentLinkObj,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      } else {
+        console.log("An error occurred:", error.message);
+        throw new BadRequestException("Unable to retrieve payment link");
       }
     }
   }
@@ -688,37 +754,6 @@ export class PaymentLinkService {
     }
   }
 
-  async getPaymentLinksById(query) {
-    try {
-      const { paymentId } = query;
-      const paymentLink = await this.paymentLinkModel.findById(paymentId);
-
-      if (!paymentLink || !paymentId) {
-        throw new NotFoundException("Payment link or id not found");
-      }
-
-      const app = await this.appsModel.findById(paymentLink.appId);
-      const paymentLinkObj = paymentLink.toObject();
-
-      if (app && app.logo) {
-        paymentLinkObj['logo'] = app.logo.replace(/\\/g, "/");
-      }
-      if (app && app.theme) {
-        paymentLinkObj['theme'] = app.theme;
-      }
-
-      return {
-        data: paymentLinkObj,
-      };
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      } else {
-        console.log("An error occurred:", error.message);
-        throw new BadRequestException("Unable to retrieve payment link");
-      }
-    }
-  }
 
   async count(query) {
     try {
